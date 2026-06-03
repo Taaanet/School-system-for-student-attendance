@@ -3,8 +3,6 @@ from flask_cors import CORS
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-import json
-import numpy as np
 import hashlib
 from functools import wraps
 
@@ -23,16 +21,18 @@ USERS_FILE = 'users.csv'
 
 def init_users():
     """إنشاء ملف المستخدمين إذا لم يكن موجوداً"""
-    if not os.path.exists(USERS_FILE):
-        # مستخدم افتراضي: admin / admin123
-        default_users = pd.DataFrame({
-            'username': ['admin'],
-            'password': [hashlib.sha256('admin123'.encode()).hexdigest()],
-            'role': ['admin'],
-            'name': ['مدير النظام']
-        })
-        default_users.to_csv(USERS_FILE, index=False, encoding='utf-8-sig')
-        print("✅ تم إنشاء مستخدم افتراضي: admin / admin123")
+    try:
+        if not os.path.exists(USERS_FILE):
+            default_users = pd.DataFrame({
+                'username': ['admin'],
+                'password': [hashlib.sha256('admin123'.encode()).hexdigest()],
+                'role': ['admin'],
+                'name': ['مدير النظام']
+            })
+            default_users.to_csv(USERS_FILE, index=False, encoding='utf-8-sig')
+            print("✅ تم إنشاء مستخدم افتراضي: admin / admin123")
+    except Exception as e:
+        print(f"خطأ في إنشاء المستخدمين: {e}")
 
 def login_required(f):
     """ديكور للتحقق من تسجيل الدخول"""
@@ -54,7 +54,7 @@ def load_students_data():
                 'name': ['عبدالله فيصل شندي', 'أحمد محمد علي', 'سارة خالد عبدالله', 'محمد إبراهيم', 'نورة سعيد', 'عمر وليد', 'ليلى محمود'],
                 'grade': ['الأول الثانوي', 'الأول الثانوي', 'الثاني الثانوي', 'الثاني الثانوي', 'الثالث الثانوي', 'الأول الثانوي', 'الثالث الثانوي'],
                 'class': ['أ', 'ب', 'أ', 'ج', 'أ', 'ج', 'ب'],
-                'phone': ['+9665XXXXXXXX', '+9665XXXXXXXX', '+9665XXXXXXXX', '+9665XXXXXXXX', '+9665XXXXXXXX', '+9665XXXXXXXX', '+9665XXXXXXXX'],
+                'phone': ['', '', '', '', '', '', ''],
                 'parent_phone': ['', '', '', '', '', '', ''],
                 'notes': ['', '', '', '', '', '', '']
             })
@@ -103,7 +103,6 @@ def get_attendance_status(current_time_str):
 def record_attendance(student_id, student_name, grade, class_name, date, time, status, notes=""):
     """تسجيل الحضور مع منع التكرار"""
     try:
-        # التحقق من عدم تسجيل الطالب مرتين في نفس اليوم
         if os.path.exists(ATTENDANCE_FILE):
             existing_df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
             existing_today = existing_df[(existing_df['student_id'] == student_id) & (existing_df['date'] == date)]
@@ -139,19 +138,6 @@ def record_attendance(student_id, student_name, grade, class_name, date, time, s
         print(f"❌ خطأ في تسجيل الحضور: {e}")
         return False, str(e)
 
-def send_whatsapp_message(phone, message):
-    """إرسال رسالة واتساب (يجب تفعيل API)"""
-    # هذا مجرد نموذج - يمكن تفعيله باستخدام واجهة واتساب للأعمال
-    # أو استخدام خدمة مثل Twilio
-    print(f"📱 واتساب إلى {phone}: {message}")
-    return True
-
-def send_sms(phone, message):
-    """إرسال رسالة نصية (يجب تفعيل API)"""
-    # يمكن استخدام Twilio أو أي خدمة SMS أخرى
-    print(f"📱 SMS إلى {phone}: {message}")
-    return True
-
 # ============== الصفحات الرئيسية ==============
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -161,17 +147,20 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        if os.path.exists(USERS_FILE):
-            users_df = pd.read_csv(USERS_FILE, encoding='utf-8-sig')
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
-            
-            user = users_df[(users_df['username'] == username) & (users_df['password'] == hashed_password)]
-            
-            if not user.empty:
-                session['logged_in'] = True
-                session['username'] = username
-                session['user_name'] = user.iloc[0]['name']
-                return redirect(url_for('home'))
+        try:
+            if os.path.exists(USERS_FILE):
+                users_df = pd.read_csv(USERS_FILE, encoding='utf-8-sig')
+                hashed_password = hashlib.sha256(password.encode()).hexdigest()
+                
+                user = users_df[(users_df['username'] == username) & (users_df['password'] == hashed_password)]
+                
+                if not user.empty:
+                    session['logged_in'] = True
+                    session['username'] = username
+                    session['user_name'] = user.iloc[0]['name']
+                    return redirect(url_for('home'))
+        except Exception as e:
+            print(f"خطأ في تسجيل الدخول: {e}")
         
         return render_template('login.html', error="اسم المستخدم أو كلمة المرور غير صحيحة")
     
@@ -184,29 +173,31 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route("/")
-@login_required
 def home():
     """الصفحة الرئيسية"""
+    if 'logged_in' not in session:
+        return redirect(url_for('login'))
     return render_template("index.html")
 
 @app.route("/scan")
-@login_required
 def scan():
-    """صفحة مسح QR"""
+    if 'logged_in' not in session:
+        return redirect(url_for('login'))
     return render_template("scan.html")
 
 @app.route("/reports")
-@login_required
 def reports():
-    """صفحة التقارير"""
+    if 'logged_in' not in session:
+        return redirect(url_for('login'))
     return render_template("reports.html")
 
 # ============== API معالجة المسح ==============
 
 @app.route("/process_scan", methods=["POST"])
-@login_required
 def process_scan():
-    """معالجة بيانات المسح من QR Code"""
+    if 'logged_in' not in session:
+        return jsonify({"success": False, "message": "الرجاء تسجيل الدخول"})
+    
     try:
         data = request.get_json()
         qr_data = data.get("qr_data", "").strip()
@@ -226,8 +217,6 @@ def process_scan():
         student_name = str(student_data['name'])
         student_grade = str(student_data['grade'])
         student_class = str(student_data['class'])
-        student_phone = str(student_data.get('phone', '')) if pd.notna(student_data.get('phone', '')) else ''
-        parent_phone = str(student_data.get('parent_phone', '')) if pd.notna(student_data.get('parent_phone', '')) else ''
         
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -250,13 +239,6 @@ def process_scan():
                 "date": current_date
             })
         
-        # إرسال إشعار (إذا كان هناك رقم جوال)
-        notification_message = f"تم تسجيل حضور {student_name} - {status} الساعة {current_time}"
-        if student_phone and len(student_phone) > 8:
-            send_whatsapp_message(student_phone, notification_message)
-        if parent_phone and len(parent_phone) > 8:
-            send_sms(parent_phone, notification_message)
-        
         response = {
             "success": True,
             "message": f"{status_icon} تم تسجيل حضور {student_name} (الصف {student_grade} - الشعبة {student_class}) - {status} الساعة {current_time}",
@@ -272,13 +254,15 @@ def process_scan():
         return jsonify(response)
         
     except Exception as e:
+        print(f"❌ خطأ: {e}")
         return jsonify({"success": False, "message": f"حدث خطأ: {str(e)}"})
 
-# ============== API التقارير والإحصائيات المتقدمة ==============
+# ============== API التقارير ==============
 
 @app.route("/api/students_list")
-@login_required
 def students_list():
+    if 'logged_in' not in session:
+        return jsonify({"success": False, "data": []})
     try:
         students_df = load_students_data()
         if students_df is None:
@@ -297,8 +281,9 @@ def students_list():
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/attendance_summary")
-@login_required
 def attendance_summary():
+    if 'logged_in' not in session:
+        return jsonify({"success": False, "error": "غير مصرح"})
     try:
         today = datetime.now().strftime("%Y-%m-%d")
         students_df = load_students_data()
@@ -327,8 +312,9 @@ def attendance_summary():
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/attendance_details/<date>")
-@login_required
 def attendance_details(date):
+    if 'logged_in' not in session:
+        return jsonify({"success": False, "data": []})
     try:
         students_df = load_students_data()
         if students_df is None:
@@ -367,9 +353,9 @@ def attendance_details(date):
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/attendance_chart_data")
-@login_required
 def attendance_chart_data():
-    """بيانات للرسوم البيانية"""
+    if 'logged_in' not in session:
+        return jsonify({"success": True, "daily_data": [], "status_distribution": []})
     try:
         if not os.path.exists(ATTENDANCE_FILE):
             return jsonify({"success": True, "daily_data": [], "status_distribution": []})
@@ -377,7 +363,6 @@ def attendance_chart_data():
         df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
         df['date'] = pd.to_datetime(df['date'])
         
-        # آخر 30 يوم
         end_date = datetime.now()
         start_date = end_date - timedelta(days=30)
         
@@ -393,7 +378,6 @@ def attendance_chart_data():
             })
             current += timedelta(days=1)
         
-        # توزيع الحالات
         status_dist = df['status'].value_counts().to_dict()
         
         return jsonify({"success": True, "daily_data": daily_stats, "status_distribution": status_dist})
@@ -401,16 +385,15 @@ def attendance_chart_data():
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/top_students")
-@login_required
 def top_students():
-    """أفضل الطلاب حضوراً"""
+    if 'logged_in' not in session:
+        return jsonify({"success": True, "data": []})
     try:
         if not os.path.exists(ATTENDANCE_FILE):
             return jsonify({"success": True, "data": []})
         
         df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
         
-        # حساب عدد أيام الحضور لكل طالب
         attendance_count = df[df['status'].isin(['حاضر في الوقت', 'قبل الموعد'])].groupby('student_name').size().reset_index(name='count')
         attendance_count = attendance_count.sort_values('count', ascending=False).head(10)
         
@@ -423,23 +406,21 @@ def top_students():
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/monthly_report")
-@login_required
 def monthly_report():
-    """تقرير شهري"""
+    if 'logged_in' not in session:
+        return jsonify({"success": True, "data": []})
     try:
         year = request.args.get('year', datetime.now().year)
         month = request.args.get('month', datetime.now().month)
         
         if not os.path.exists(ATTENDANCE_FILE):
-            return jsonify({"success": True, "data": []})
+            return jsonify({"success": True, "daily_stats": [], "total_present": 0, "total_late": 0})
         
         df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
         df['date'] = pd.to_datetime(df['date'])
         
-        # فلترة حسب الشهر
         monthly_data = df[(df['date'].dt.year == int(year)) & (df['date'].dt.month == int(month))]
         
-        # إحصائيات يومية
         daily_stats = []
         for day in range(1, 32):
             try:
@@ -455,7 +436,6 @@ def monthly_report():
             except:
                 pass
         
-        # إحصائيات عامة للشهر
         total_present = len(monthly_data[monthly_data['status'].isin(['حاضر في الوقت', 'قبل الموعد'])])
         total_late = len(monthly_data[monthly_data['status'] == 'متأخر'])
         
@@ -466,9 +446,9 @@ def monthly_report():
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/advanced_stats")
-@login_required
 def advanced_stats():
-    """إحصائيات متقدمة"""
+    if 'logged_in' not in session:
+        return jsonify({"success": True, "total_students": 0, "avg_daily_attendance": 0})
     try:
         students_df = load_students_data()
         total_students = len(students_df) if students_df is not None else 0
@@ -481,18 +461,15 @@ def advanced_stats():
         df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
         df['date'] = pd.to_datetime(df['date'])
         
-        # متوسط الحضور اليومي
         daily_counts = df.groupby(df['date'].dt.date).size()
         avg_daily = daily_counts.mean() if len(daily_counts) > 0 else 0
         
-        # أفضل وأسوأ يوم
         if len(daily_counts) > 0:
             best_day = daily_counts.idxmax().strftime("%Y-%m-%d")
             worst_day = daily_counts.idxmin().strftime("%Y-%m-%d")
         else:
             best_day = worst_day = None
         
-        # أكثر طالب تأخراً
         late_counts = df[df['status'] == 'متأخر'].groupby('student_name').size()
         most_late = late_counts.idxmax() if len(late_counts) > 0 else None
         
@@ -504,19 +481,107 @@ def advanced_stats():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-@app.route("/api/export_full_report")
-@login_required
-def export_full_report():
+@app.route("/api/absent_students_today")
+def absent_students_today():
+    if 'logged_in' not in session:
+        return jsonify({"success": True, "data": []})
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        students_df = load_students_data()
+        
+        if students_df is None:
+            return jsonify({"success": True, "data": []})
+        
+        present_ids = set()
+        if os.path.exists(ATTENDANCE_FILE):
+            df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
+            present_ids = set(df[df['date'] == today]['student_id'].astype(str))
+        
+        absent_list = []
+        for _, student in students_df.iterrows():
+            student_id = str(student['student_id'])
+            if student_id not in present_ids:
+                absent_list.append({
+                    "student_id": student_id,
+                    "name": str(student['name']),
+                    "grade": str(student['grade']),
+                    "class": str(student['class'])
+                })
+        
+        return jsonify({"success": True, "data": absent_list, "count": len(absent_list)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/export_attendance/<date>")
+def export_attendance(date):
+    if 'logged_in' not in session:
+        return jsonify({"error": "غير مصرح"}), 401
     try:
         if not os.path.exists(ATTENDANCE_FILE):
             return jsonify({"error": "لا توجد بيانات"}), 404
         
         df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
-        filename = f"full_attendance_report_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
-        df.to_excel(filename, index=False)
+        df['date'] = df['date'].astype(str)
+        day_attendance = df[df['date'] == date]
+        
+        if day_attendance.empty:
+            return jsonify({"error": f"لا توجد بيانات لتاريخ {date}"}), 404
+        
+        filename = f"attendance_report_{date}.xlsx"
+        day_attendance.to_excel(filename, index=False)
         return send_file(filename, as_attachment=True, download_name=filename)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/student_report/<student_id>")
+def student_report(student_id):
+    if 'logged_in' not in session:
+        return jsonify({"success": False, "error": "غير مصرح"})
+    try:
+        students_df = load_students_data()
+        student_data = students_df[students_df['student_id'].astype(str) == str(student_id)]
+        
+        if student_data.empty:
+            return jsonify({"success": False, "error": "الطالب غير موجود"})
+        
+        student_name = str(student_data.iloc[0]['name'])
+        
+        if not os.path.exists(ATTENDANCE_FILE):
+            return jsonify({"success": True, "student_name": student_name, "student_id": str(student_id),
+                           "grade": str(student_data.iloc[0]['grade']), "class": str(student_data.iloc[0]['class']),
+                           "total_days": 0, "present": 0, "late": 0, "absent": 0, "attendance_rate": 0, "records": []})
+        
+        df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
+        student_records = df[df['student_id'].astype(str) == str(student_id)]
+        
+        if not student_records.empty:
+            first_date = datetime.strptime(student_records['date'].min(), "%Y-%m-%d")
+            today = datetime.now()
+            school_days = 0
+            current = first_date
+            while current <= today:
+                if current.weekday() < 5:
+                    school_days += 1
+                current += timedelta(days=1)
+        else:
+            school_days = 0
+        
+        present_count = len(student_records[student_records['status'].isin(['حاضر في الوقت', 'قبل الموعد'])])
+        late_count = len(student_records[student_records['status'] == 'متأخر'])
+        absent_count = school_days - (present_count + late_count) if school_days > 0 else 0
+        
+        records = []
+        for _, row in student_records.iterrows():
+            records.append({"date": str(row['date']), "time": str(row['time']), "status": str(row['status'])})
+        
+        return jsonify({"success": True, "student_name": student_name, "student_id": str(student_id),
+                       "grade": str(student_data.iloc[0]['grade']), "class": str(student_data.iloc[0]['class']),
+                       "total_days": school_days, "present": present_count, "late": late_count,
+                       "absent": absent_count if absent_count > 0 else 0,
+                       "attendance_rate": round((present_count + late_count) / school_days * 100, 2) if school_days > 0 else 0,
+                       "records": records})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":
