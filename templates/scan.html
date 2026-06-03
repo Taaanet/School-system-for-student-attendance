@@ -1,50 +1,245 @@
 <!DOCTYPE html>
 <html dir="rtl">
 <head>
-<meta charset="UTF-8">
-
-<script src="https://unpkg.com/html5-qrcode"></script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>مسح حضور الطلاب</title>
+    <style>
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #reader {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        #stopBtn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .student-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e7f3ff;
+            border-radius: 8px;
+            text-align: right;
+        }
+        #stopBtn {
+            display: none;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .scanning {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-
-<h2>مسح بطاقة الطالب</h2>
-
-<div id="reader"></div>
+<div class="container">
+    <h2>📱 نظام رصد الحضور والتأخير</h2>
+    
+    <button id="startBtn">▶️ بدء المسح</button>
+    <button id="stopBtn">⏹️ إيقاف المسح</button>
+    
+    <div id="reader"></div>
+    <div id="status"></div>
+</div>
 
 <script>
-Html5Qrcode.getCameras().then(devices => {
+let html5QrCode = null;
+let isScanning = false;
 
-    let result = "";
-
-    devices.forEach((device, index) => {
-        result += index + " : " + device.label + "\n";
-    });
-
-    alert(result);
-
-}).catch(err => {
-    alert(err);
+document.getElementById("startBtn").addEventListener("click", function() {
+    if (isScanning) return;
+    
+    document.getElementById("status").style.display = "block";
+    document.getElementById("status").innerHTML = "⏳ جاري تشغيل الكاميرا...";
+    document.getElementById("status").className = "info";
+    
+    startScanner();
 });
-</script>
 
+document.getElementById("stopBtn").addEventListener("click", function() {
+    stopScanner();
+});
 
-<script>
-function onScanSuccess(decodedText) {
-    alert("تمت قراءة الكود: " + decodedText);
+function onScanSuccess(decodedText, decodedResult) {
+    console.log(`تم مسح الكود: ${decodedText}`);
+    
+    // إيقاف المسح مؤقتاً لمعالجة النتيجة
+    stopScanner();
+    
+    // عرض رسالة جاري المعالجة
+    document.getElementById("status").innerHTML = "🔄 جاري معالجة بيانات الطالب...";
+    document.getElementById("status").className = "info";
+    
+    // إرسال البيانات إلى الخادم
+    fetch('/process_scan', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ qr_data: decodedText })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "error") {
+            document.getElementById("status").innerHTML = `❌ ${data.message}`;
+            document.getElementById("status").className = "error";
+        } else {
+            // عرض معلومات الطالب والنتيجة
+            document.getElementById("status").innerHTML = `
+                ${data.message}<br>
+                <div class="student-info">
+                    📋 معلومات الطالب:<br>
+                    🧑‍🎓 الاسم: ${data.student_name}<br>
+                    📚 الصف: ${data.student_grade}<br>
+                    🏫 الشعبة: ${data.student_class}<br>
+                    ⏰ الوقت: ${data.time}<br>
+                    📅 التاريخ: ${data.date}
+                </div>
+            `;
+            document.getElementById("status").className = "success";
+            
+            // تشغيل صوت تنبيه (اختياري)
+            // new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3').play();
+        }
+        
+        // إعادة تشغيل المسح بعد 3 ثوانٍ
+        setTimeout(() => {
+            if (confirm("✅ هل تريد مسح طالب آخر؟")) {
+                startScanner();
+            } else {
+                document.getElementById("status").innerHTML = "⏹️ تم إنهاء جلسة المسح";
+                document.getElementById("status").className = "info";
+            }
+        }, 3000);
+    })
+    .catch(error => {
+        console.error("خطأ:", error);
+        document.getElementById("status").innerHTML = `❌ خطأ في الاتصال بالخادم: ${error.message}`;
+        document.getElementById("status").className = "error";
+        
+        // إعادة تشغيل المسح بعد 2 ثانية
+        setTimeout(() => {
+            startScanner();
+        }, 2000);
+    });
 }
 
-const html5QrCode = new Html5Qrcode("reader");
-
-html5QrCode.start(
-    { facingMode: "environment" },
-    {
+function startScanner() {
+    html5QrCode = new Html5Qrcode("reader");
+    
+    const config = {
         fps: 10,
-        qrbox: 250
-    },
-    onScanSuccess
-).catch(err => {
-    console.log(err);
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+    };
+    
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess
+    ).then(() => {
+        isScanning = true;
+        document.getElementById("startBtn").style.display = "none";
+        document.getElementById("stopBtn").style.display = "inline-block";
+        document.getElementById("status").innerHTML = "📷 الكاميرا تعمل... امسح رمز QR الخاص بالطالب";
+        document.getElementById("status").className = "info";
+        document.getElementById("reader").classList.add("scanning");
+    }).catch(err => {
+        console.error("خطأ في تشغيل الكاميرا:", err);
+        document.getElementById("status").innerHTML = `❌ لا يمكن تشغيل الكاميرا: ${err}<br>تأكد من:<br>
+        1. منح الإذن لاستخدام الكاميرا<br>
+        2. استخدام اتصال HTTPS<br>
+        3. تجربة متصفح آخر`;
+        document.getElementById("status").className = "error";
+        document.getElementById("startBtn").style.display = "inline-block";
+        document.getElementById("stopBtn").style.display = "none";
+    });
+}
+
+function stopScanner() {
+    if (html5QrCode && isScanning) {
+        html5QrCode.stop().then(() => {
+            isScanning = false;
+            document.getElementById("startBtn").style.display = "inline-block";
+            document.getElementById("stopBtn").style.display = "none";
+            document.getElementById("reader").classList.remove("scanning");
+        }).catch(err => {
+            console.error("خطأ في إيقاف المسح:", err);
+        });
+    }
+}
+
+// تنظيف عند مغادرة الصفحة
+window.addEventListener('beforeunload', function() {
+    if (html5QrCode && isScanning) {
+        html5QrCode.stop();
+    }
 });
 </script>
 
