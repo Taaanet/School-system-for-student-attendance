@@ -13,6 +13,23 @@
 <div id="reader"></div>
 
 <script>
+Html5Qrcode.getCameras().then(devices => {
+
+    let result = "";
+
+    devices.forEach((device, index) => {
+        result += index + " : " + device.label + "\n";
+    });
+
+    alert(result);
+
+}).catch(err => {
+    alert(err);
+});
+</script>
+
+
+<script>
 function onScanSuccess(decodedText) {
     alert("تمت قراءة الكود: " + decodedText);
 }
