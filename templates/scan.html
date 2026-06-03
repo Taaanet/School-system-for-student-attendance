@@ -2,222 +2,85 @@
 <html dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>مسح QR - نظام حضور الطلاب</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مسح QR - اختبار</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
         }
-        
         .container {
-            max-width: 600px;
+            max-width: 500px;
             margin: 0 auto;
             background: white;
-            border-radius: 30px;
-            padding: 25px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: fadeIn 0.5s ease-in;
+            border-radius: 20px;
+            padding: 20px;
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        h2 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-        
-        .button-group {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 30px;
-            font-size: 18px;
-            border: none;
-            border-radius: 60px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        button:active {
-            transform: translateY(0);
-        }
-        
-        #stopBtn {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            display: none;
-        }
-        
         #reader {
             width: 100%;
-            max-width: 500px;
-            margin: 20px auto;
-            border-radius: 20px;
-            overflow: hidden;
-            background: #000;
-            min-height: 300px;
+            margin: 20px 0;
         }
-        
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
         #result {
             margin-top: 20px;
-            padding: 20px;
-            border-radius: 20px;
+            padding: 15px;
+            border-radius: 10px;
             display: none;
-            font-size: 16px;
-            line-height: 1.6;
-            text-align: right;
-            animation: slideUp 0.3s ease-out;
         }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
         .success {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            background: #d4edda;
             color: #155724;
-            border: 2px solid #28a745;
+            border: 1px solid #c3e6cb;
         }
-        
         .error {
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            background: #f8d7da;
             color: #721c24;
-            border: 2px solid #dc3545;
+            border: 1px solid #f5c6cb;
         }
-        
-        .info {
-            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-            color: #0c5460;
-            border: 2px solid #17a2b8;
+        .manual-input {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
         }
-        
-        .student-card {
-            background: rgba(255,255,255,0.9);
-            padding: 20px;
-            border-radius: 15px;
-            margin-top: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .student-card p {
-            margin: 10px 0;
-            font-size: 16px;
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .scanning-animation {
-            position: relative;
-        }
-        
-        .scanning-animation::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, #667eea, transparent);
-            animation: scan 2s linear infinite;
-        }
-        
-        @keyframes scan {
-            0% { top: 0; }
-            100% { top: 100%; }
-        }
-        
-        .back-btn {
-            display: inline-block;
-            background: #6c757d;
-            margin-top: 15px;
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        @media (max-width: 600px) {
-            .container {
-                padding: 20px;
-            }
-            
-            h2 {
-                font-size: 20px;
-            }
-            
-            button {
-                padding: 10px 20px;
-                font-size: 16px;
-            }
-            
-            .student-card p {
-                font-size: 14px;
-            }
+        input {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
     </style>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"></script>
 </head>
 <body>
 <div class="container">
-    <h2>📱 مسح رمز QR الخاص بالطالب</h2>
+    <h2>📱 مسح QR Code</h2>
     
-    <div class="button-group">
-        <button id="startBtn">▶️ بدء المسح</button>
-        <button id="stopBtn">⏹️ إيقاف المسح</button>
-    </div>
-    
-    <div id="reader" class="scanning-animation"></div>
+    <button id="startBtn">▶️ بدء الكاميرا</button>
+    <div id="reader"></div>
     <div id="result"></div>
     
-    <div style="text-align: center;">
-        <button onclick="window.location.href='/'" class="back-btn">🏠 العودة للرئيسية</button>
+    <div class="manual-input">
+        <h3>🖱️ أو أدخل الرقم يدوياً</h3>
+        <input type="text" id="manualId" placeholder="أدخل رقم الطالب">
+        <button onclick="testManual()">اختبار</button>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <p><strong>📋 الأرقام المتاحة للاختبار:</strong></p>
+        <p id="availableIds">جاري التحميل...</p>
     </div>
 </div>
 
@@ -225,41 +88,41 @@
 let html5QrCode = null;
 let isScanning = false;
 
-// زر بدء المسح
+// تحميل الأرقام المتاحة
+async function loadAvailableIds() {
+    try {
+        const response = await fetch('/api/students_list');
+        const data = await response.json();
+        if (data.success && data.data) {
+            const ids = data.data.map(s => s.student_id).join(', ');
+            document.getElementById('availableIds').innerHTML = ids || 'لا توجد بيانات';
+        }
+    } catch(e) {
+        document.getElementById('availableIds').innerHTML = 'خطأ في التحميل';
+    }
+}
+loadAvailableIds();
+
 document.getElementById("startBtn").addEventListener("click", function() {
     if (isScanning) return;
-    showResult("⏳ جاري تشغيل الكاميرا...", "info");
     startScanner();
 });
 
-// زر إيقاف المسح
-document.getElementById("stopBtn").addEventListener("click", function() {
-    stopScanner();
-});
-
-// دالة عرض النتيجة
 function showResult(message, type, studentData = null) {
     const resultDiv = document.getElementById("result");
     resultDiv.style.display = "block";
     resultDiv.className = type;
     
     if (studentData) {
-        // عرض بطاقة الطالب كاملة
-        const statusIcon = studentData.status_icon || (studentData.status === 'حاضر في الوقت' ? '✅' : '⏰');
         resultDiv.innerHTML = `
-            <div style="font-weight: bold; font-size: 18px; margin-bottom: 15px;">
-                ${statusIcon} ${studentData.message || message}
-            </div>
-            <div class="student-card">
-                <p>📋 <strong>معلومات الطالب:</strong></p>
-                <p>🧑‍🎓 <strong>الاسم:</strong> ${studentData.student_name}</p>
-                <p>📚 <strong>الصف:</strong> ${studentData.student_grade}</p>
-                <p>🏫 <strong>الشعبة:</strong> ${studentData.student_class}</p>
-                <p>⏰ <strong>وقت التسجيل:</strong> ${studentData.time}</p>
-                <p>📅 <strong>التاريخ:</strong> ${studentData.date}</p>
-                <p>🆔 <strong>رقم الطالب:</strong> ${studentData.student_id}</p>
-                <hr>
-                <p>${studentData.status === 'حاضر في الوقت' ? '✅ تم تسجيل الحضور في الوقت المحدد' : '⏰ تم تسجيل الحضور متأخراً'}</p>
+            <div style="font-weight: bold;">${message}</div>
+            <hr>
+            <div style="text-align: right;">
+                <p>🧑‍🎓 الاسم: ${studentData.student_name}</p>
+                <p>📚 الصف: ${studentData.student_grade}</p>
+                <p>🏫 الشعبة: ${studentData.student_class}</p>
+                <p>⏰ الوقت: ${studentData.time}</p>
+                <p>🆔 الرقم: ${studentData.student_id}</p>
             </div>
         `;
     } else {
@@ -267,148 +130,70 @@ function showResult(message, type, studentData = null) {
     }
 }
 
-// دالة معالجة نجاح المسح
-function onScanSuccess(decodedText, decodedResult) {
-    console.log("✅ تم مسح الكود:", decodedText);
-    
-    // إيقاف المسح مؤقتاً
+function onScanSuccess(decodedText) {
+    console.log("✅ تم المسح:", decodedText);
     stopScanner();
+    showResult("🔄 جاري المعالجة...", "success");
     
-    // عرض رسالة جاري المعالجة
-    showResult("🔄 جاري معالجة بيانات الطالب... <div class='loading'></div>", "info");
-    
-    // إرسال البيانات إلى الخادم
     fetch('/process_scan', {
         method: 'POST',
-        headers: {
-            'Content-Type':application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qr_data: decodedText })
     })
-    .then(response => {
-        console.log("📡 استجابة من الخادم:", response.status);
-        if (!response.ok) {
-            return response.json().then(data => {
-                throw new Error(data.message || `خطأ في الخادم: ${response.status}`);
-            });
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        console.log("📦 بيانات الاستجابة:", data);
-        
-        if (!data.success) {
-            showResult(`❌ ${data.message}`, "error");
-        } else {
-            // عرض النجاح مع بيانات الطالب
+        if (data.success) {
             showResult(data.message, "success", data);
-            
-            // تشغيل صوت تنبيه (اختياري)
-            try {
-                const beep = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
-                beep.play().catch(e => console.log("لا يمكن تشغيل الصوت"));
-            } catch(e) {}
+        } else {
+            showResult(`❌ ${data.message}`, "error");
         }
         
-        // عرض زر لإعادة المسح
         setTimeout(() => {
-            if (confirm("✅ هل تريد مسح طالب آخر؟\nاضغط موافق لمسح طالب جديد، إلغاء للبقاء في الصفحة")) {
+            if (confirm("هل تريد مسح طالب آخر؟")) {
                 startScanner();
             }
         }, 2000);
     })
     .catch(error => {
-        console.error("❌ خطأ:", error);
-        showResult(`❌ حدث خطأ: ${error.message}<br><br>
-        💡 الحلول المقترحة:<br>
-        • تأكد من اتصال الإنترنت<br>
-        • تأكد من تشغيل الخادم<br>
-        • تأكد من صحة البيانات في ملف Excel`, "error");
-        
-        // إعادة تشغيل المسح بعد 3 ثوانٍ
-        setTimeout(() => {
-            startScanner();
-        }, 3000);
+        showResult(`❌ خطأ: ${error.message}`, "error");
+        setTimeout(() => startScanner(), 2000);
     });
 }
 
-// دالة بدء المسح
 function startScanner() {
     const readerElement = document.getElementById("reader");
-    readerElement.innerHTML = ""; // تنظيف العنصر
+    readerElement.innerHTML = "";
     
     html5QrCode = new Html5Qrcode("reader");
-    
-    const config = {
-        fps: 10,
-        qrbox: { width: 300, height: 300 },
-        aspectRatio: 1.0
-    };
-    
     html5QrCode.start(
         { facingMode: "environment" },
-        config,
+        { fps: 10, qrbox: 250 },
         onScanSuccess
     ).then(() => {
         isScanning = true;
-        document.getElementById("startBtn").style.display = "none";
-        document.getElementById("stopBtn").style.display = "inline-block";
-        showResult("📷 الكاميرا تعمل...<br>قم بتوجيه الكاميرا نحو رمز QR الخاص بالطالب", "info");
-        document.getElementById("reader").classList.add("scanning-animation");
+        document.getElementById("startBtn").textContent = "⏹️ إيقاف";
+        showResult("📷 الكاميرا تعمل... امسح QR", "success");
     }).catch(err => {
-        console.error("خطأ في تشغيل الكاميرا:", err);
-        let errorMessage = "❌ لا يمكن تشغيل الكاميرا.<br><br>";
-        
-        if (err.includes("NotAllowedError")) {
-            errorMessage += "🔒 يرجى السماح باستخدام الكاميرا من المتصفح";
-        } else if (err.includes("NotFoundError")) {
-            errorMessage += "📷 لا توجد كاميرا على هذا الجهاز";
-        } else if (err.includes("NotSupportedError")) {
-            errorMessage += "🌐 المتصفح لا يدعم تشغيل الكاميرا. يرجى استخدام Chrome أو Safari";
-        } else {
-            errorMessage += `⚠️ ${err}<br><br>💡 تأكد من:<br>
-            1. منح الإذن لاستخدام الكاميرا<br>
-            2. استخدام اتصال HTTPS<br>
-            3. تجربة متصفح Chrome على الجوال`;
-        }
-        
-        showResult(errorMessage, "error");
-        document.getElementById("startBtn").style.display = "inline-block";
-        document.getElementById("stopBtn").style.display = "none";
+        showResult(`❌ لا يمكن تشغيل الكاميرا: ${err}`, "error");
     });
 }
 
-// دالة إيقاف المسح
 function stopScanner() {
     if (html5QrCode && isScanning) {
-        html5QrCode.stop().then(() => {
-            isScanning = false;
-            document.getElementById("startBtn").style.display = "inline-block";
-            document.getElementById("stopBtn").style.display = "none";
-            document.getElementById("reader").classList.remove("scanning-animation");
-            console.log("⏹️ تم إيقاف المسح");
-        }).catch(err => {
-            console.error("خطأ في إيقاف المسح:", err);
-        });
+        html5QrCode.stop();
+        isScanning = false;
+        document.getElementById("startBtn").textContent = "▶️ بدء الكاميرا";
     }
 }
 
-// تنظيف عند مغادرة الصفحة
-window.addEventListener('beforeunload', function() {
-    if (html5QrCode && isScanning) {
-        html5QrCode.stop();
+function testManual() {
+    const manualId = document.getElementById('manualId').value;
+    if (!manualId) {
+        alert('الرجاء إدخال رقم');
+        return;
     }
-});
-
-// التحقق من دعم الكاميرا عند تحميل الصفحة
-window.addEventListener('load', function() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showResult("⚠️ المتصفح لا يدعم تشغيل الكاميرا. يرجى استخدام متصفح حديث مثل Chrome أو Safari", "error");
-        document.getElementById("startBtn").disabled = true;
-        document.getElementById("startBtn").style.opacity = "0.5";
-    }
-});
+    onScanSuccess(manualId);
+}
 </script>
-
 </body>
 </html>
