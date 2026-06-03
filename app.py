@@ -1,13 +1,11 @@
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 import pandas as pd
 from datetime import datetime, timedelta
 import os
 import hashlib
-from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 CORS(app)
 
 # ============== إعدادات النظام ==============
@@ -15,33 +13,6 @@ ATTENDANCE_START = "07:00:00"
 ATTENDANCE_DEADLINE = "07:30:00"
 STUDENTS_FILE = 'students.xlsx'
 ATTENDANCE_FILE = 'attendance.csv'
-USERS_FILE = 'users.csv'
-
-# ============== دوال المصادقة ==============
-
-def init_users():
-    """إنشاء ملف المستخدمين إذا لم يكن موجوداً"""
-    try:
-        if not os.path.exists(USERS_FILE):
-            default_users = pd.DataFrame({
-                'username': ['admin'],
-                'password': [hashlib.sha256('admin123'.encode()).hexdigest()],
-                'role': ['admin'],
-                'name': ['مدير النظام']
-            })
-            default_users.to_csv(USERS_FILE, index=False, encoding='utf-8-sig')
-            print("✅ تم إنشاء مستخدم افتراضي: admin / admin123")
-    except Exception as e:
-        print(f"خطأ في إنشاء المستخدمين: {e}")
-
-def login_required(f):
-    """ديكور للتحقق من تسجيل الدخول"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 # ============== دوال مساعدة ==============
 
@@ -50,13 +21,13 @@ def load_students_data():
     try:
         if not os.path.exists(STUDENTS_FILE):
             test_data = pd.DataFrame({
-                'student_id': ['1150436838', '1152217368', '1152327969', '1152502371', '1153472889', '1158331023', '1152518682'],
-                'name': ['عبدالله فيصل شندي', 'أحمد محمد علي', 'سارة خالد عبدالله', 'محمد إبراهيم', 'نورة سعيد', 'عمر وليد', 'ليلى محمود'],
-                'grade': ['الأول الثانوي', 'الأول الثانوي', 'الثاني الثانوي', 'الثاني الثانوي', 'الثالث الثانوي', 'الأول الثانوي', 'الثالث الثانوي'],
-                'class': ['أ', 'ب', 'أ', 'ج', 'أ', 'ج', 'ب'],
-                'phone': ['', '', '', '', '', '', ''],
-                'parent_phone': ['', '', '', '', '', '', ''],
-                'notes': ['', '', '', '', '', '', '']
+                'student_id': ['1150436838', '1152217368', '1152327969', '1152502371', '1153472889'],
+                'name': ['عبدالله فيصل شندي', 'أحمد محمد علي', 'سارة خالد عبدالله', 'محمد إبراهيم', 'نورة سعيد'],
+                'grade': ['الأول الثانوي', 'الأول الثانوي', 'الثاني الثانوي', 'الثاني الثانوي', 'الثالث الثانوي'],
+                'class': ['أ', 'ب', 'أ', 'ج', 'أ'],
+                'phone': ['', '', '', '', ''],
+                'parent_phone': ['', '', '', '', ''],
+                'notes': ['', '', '', '', '']
             })
             test_data.to_excel(STUDENTS_FILE, index=False)
             print("✅ تم إنشاء ملف students.xlsx تجريبي")
@@ -107,7 +78,6 @@ def record_attendance(student_id, student_name, grade, class_name, date, time, s
             existing_df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
             existing_today = existing_df[(existing_df['student_id'] == student_id) & (existing_df['date'] == date)]
             if not existing_today.empty:
-                print(f"⚠️ الطالب {student_name} مسجل مسبقاً اليوم")
                 return False, "مسجل مسبقاً"
         
         record = {
@@ -131,73 +101,28 @@ def record_attendance(student_id, student_name, grade, class_name, date, time, s
         else:
             df_new.to_csv(ATTENDANCE_FILE, index=False, encoding='utf-8-sig')
         
-        print(f"✅ تم تسجيل الحضور: {student_name} - {status} في {time}")
         return True, "تم التسجيل"
-        
     except Exception as e:
-        print(f"❌ خطأ في تسجيل الحضور: {e}")
         return False, str(e)
 
 # ============== الصفحات الرئيسية ==============
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """صفحة تسجيل الدخول"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        try:
-            if os.path.exists(USERS_FILE):
-                users_df = pd.read_csv(USERS_FILE, encoding='utf-8-sig')
-                hashed_password = hashlib.sha256(password.encode()).hexdigest()
-                
-                user = users_df[(users_df['username'] == username) & (users_df['password'] == hashed_password)]
-                
-                if not user.empty:
-                    session['logged_in'] = True
-                    session['username'] = username
-                    session['user_name'] = user.iloc[0]['name']
-                    return redirect(url_for('home'))
-        except Exception as e:
-            print(f"خطأ في تسجيل الدخول: {e}")
-        
-        return render_template('login.html', error="اسم المستخدم أو كلمة المرور غير صحيحة")
-    
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    """تسجيل الخروج"""
-    session.clear()
-    return redirect(url_for('login'))
-
 @app.route("/")
 def home():
-    """الصفحة الرئيسية"""
-    if 'logged_in' not in session:
-        return redirect(url_for('login'))
     return render_template("index.html")
 
 @app.route("/scan")
 def scan():
-    if 'logged_in' not in session:
-        return redirect(url_for('login'))
     return render_template("scan.html")
 
 @app.route("/reports")
 def reports():
-    if 'logged_in' not in session:
-        return redirect(url_for('login'))
     return render_template("reports.html")
 
 # ============== API معالجة المسح ==============
 
 @app.route("/process_scan", methods=["POST"])
 def process_scan():
-    if 'logged_in' not in session:
-        return jsonify({"success": False, "message": "الرجاء تسجيل الدخول"})
-    
     try:
         data = request.get_json()
         qr_data = data.get("qr_data", "").strip()
@@ -254,15 +179,12 @@ def process_scan():
         return jsonify(response)
         
     except Exception as e:
-        print(f"❌ خطأ: {e}")
         return jsonify({"success": False, "message": f"حدث خطأ: {str(e)}"})
 
 # ============== API التقارير ==============
 
 @app.route("/api/students_list")
 def students_list():
-    if 'logged_in' not in session:
-        return jsonify({"success": False, "data": []})
     try:
         students_df = load_students_data()
         if students_df is None:
@@ -282,8 +204,6 @@ def students_list():
 
 @app.route("/api/attendance_summary")
 def attendance_summary():
-    if 'logged_in' not in session:
-        return jsonify({"success": False, "error": "غير مصرح"})
     try:
         today = datetime.now().strftime("%Y-%m-%d")
         students_df = load_students_data()
@@ -313,8 +233,6 @@ def attendance_summary():
 
 @app.route("/api/attendance_details/<date>")
 def attendance_details(date):
-    if 'logged_in' not in session:
-        return jsonify({"success": False, "data": []})
     try:
         students_df = load_students_data()
         if students_df is None:
@@ -354,11 +272,9 @@ def attendance_details(date):
 
 @app.route("/api/attendance_chart_data")
 def attendance_chart_data():
-    if 'logged_in' not in session:
-        return jsonify({"success": True, "daily_data": [], "status_distribution": []})
     try:
         if not os.path.exists(ATTENDANCE_FILE):
-            return jsonify({"success": True, "daily_data": [], "status_distribution": []})
+            return jsonify({"success": True, "daily_data": [], "status_distribution": {}})
         
         df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
         df['date'] = pd.to_datetime(df['date'])
@@ -386,8 +302,6 @@ def attendance_chart_data():
 
 @app.route("/api/top_students")
 def top_students():
-    if 'logged_in' not in session:
-        return jsonify({"success": True, "data": []})
     try:
         if not os.path.exists(ATTENDANCE_FILE):
             return jsonify({"success": True, "data": []})
@@ -407,8 +321,6 @@ def top_students():
 
 @app.route("/api/monthly_report")
 def monthly_report():
-    if 'logged_in' not in session:
-        return jsonify({"success": True, "data": []})
     try:
         year = request.args.get('year', datetime.now().year)
         month = request.args.get('month', datetime.now().month)
@@ -447,8 +359,6 @@ def monthly_report():
 
 @app.route("/api/advanced_stats")
 def advanced_stats():
-    if 'logged_in' not in session:
-        return jsonify({"success": True, "total_students": 0, "avg_daily_attendance": 0})
     try:
         students_df = load_students_data()
         total_students = len(students_df) if students_df is not None else 0
@@ -483,8 +393,6 @@ def advanced_stats():
 
 @app.route("/api/absent_students_today")
 def absent_students_today():
-    if 'logged_in' not in session:
-        return jsonify({"success": True, "data": []})
     try:
         today = datetime.now().strftime("%Y-%m-%d")
         students_df = load_students_data()
@@ -514,8 +422,6 @@ def absent_students_today():
 
 @app.route("/api/export_attendance/<date>")
 def export_attendance(date):
-    if 'logged_in' not in session:
-        return jsonify({"error": "غير مصرح"}), 401
     try:
         if not os.path.exists(ATTENDANCE_FILE):
             return jsonify({"error": "لا توجد بيانات"}), 404
@@ -535,8 +441,6 @@ def export_attendance(date):
 
 @app.route("/api/student_report/<student_id>")
 def student_report(student_id):
-    if 'logged_in' not in session:
-        return jsonify({"success": False, "error": "غير مصرح"})
     try:
         students_df = load_students_data()
         student_data = students_df[students_df['student_id'].astype(str) == str(student_id)]
@@ -583,13 +487,24 @@ def student_report(student_id):
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+@app.route("/api/export_full_report")
+def export_full_report():
+    try:
+        if not os.path.exists(ATTENDANCE_FILE):
+            return jsonify({"error": "لا توجد بيانات"}), 404
+        
+        df = pd.read_csv(ATTENDANCE_FILE, encoding='utf-8-sig')
+        filename = f"full_attendance_report_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
+        df.to_excel(filename, index=False)
+        return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":
-    init_users()
     port = int(os.environ.get("PORT", 5000))
     print("=" * 50)
     print("🚀 نظام رصد الحضور والتأخير - يعمل الآن!")
     print(f"⏰ وقت الحضور: {ATTENDANCE_START} - {ATTENDANCE_DEADLINE}")
-    print("👤 مستخدم افتراضي: admin / admin123")
     print("=" * 50)
     app.run(host='0.0.0.0', port=port, debug=False)
