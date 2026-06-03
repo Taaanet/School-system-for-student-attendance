@@ -5,44 +5,139 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام حضور الطلاب</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: 'Tahoma', Arial, sans-serif;
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 20px;
         }
+        
         .container {
             background: white;
-            border-radius: 20px;
-            padding: 40px;
+            border-radius: 30px;
+            padding: 50px 40px;
             text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            animation: fadeIn 0.5s ease-in;
         }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s ease infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
         h1 {
             color: #333;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
+            font-size: 28px;
         }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 14px;
+        }
+        
         .btn {
-            display: inline-block;
+            display: block;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px 40px;
+            padding: 18px 30px;
             font-size: 20px;
             text-decoration: none;
-            border-radius: 50px;
-            margin: 10px;
-            transition: transform 0.2s;
+            border-radius: 60px;
+            margin: 15px 0;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
         }
+        
         .btn:hover {
-            transform: scale(1.05);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
         }
-        .logo {
-            font-size: 60px;
-            margin-bottom: 20px;
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: right;
+        }
+        
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .info-box p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 8px 0;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            .logo {
+                font-size: 60px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .btn {
+                padding: 15px 20px;
+                font-size: 18px;
+            }
         }
     </style>
 </head>
@@ -50,7 +145,28 @@
     <div class="container">
         <div class="logo">📚</div>
         <h1>نظام رصد حضور وتأخر الطلاب</h1>
-        <a href="/scan" class="btn">📷 بدء المسح</a>
+        <p class="subtitle">نظام ذكي لمتابعة حضور الطلاب باستخدام رموز QR</p>
+        
+        <a href="/scan" class="btn">
+            📷 بدء المسح والتسجيل
+        </a>
+        
+        <a href="/reports" class="btn btn-secondary">
+            📊 التقارير والإحصائيات
+        </a>
+        
+        <div class="info-box">
+            <h3>ℹ️ معلومات عن النظام</h3>
+            <p>✅ مسح رمز QR الخاص بالطالب لتسجيل الحضور تلقائياً</p>
+            <p>✅ تحديد الحضور في الوقت المحدد أو التأخير تلقائياً</p>
+            <p>✅ حفظ جميع سجلات الحضور في قاعدة بيانات</p>
+            <p>✅ تقارير يومية وشهرية مع إمكانية التصدير</p>
+            <p>✅ إرسال رسائل للطلاب وأولياء الأمور</p>
+        </div>
+        
+        <div class="footer">
+            نظام الحضور الذكي | جميع الحقوق محفوظة
+        </div>
     </div>
 </body>
 </html>
