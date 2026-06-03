@@ -10,18 +10,15 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
         body {
             font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
             background: #f5f5f5;
             padding: 20px;
         }
-        
         .container {
             max-width: 1400px;
             margin: 0 auto;
         }
-        
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -30,77 +27,48 @@
             margin-bottom: 25px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         }
-        
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            opacity: 0.9;
-        }
-        
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
-        
         .stat-card {
             background: white;
-            padding: 25px;
+            padding: 20px;
             border-radius: 20px;
             text-align: center;
             box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s;
         }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .stat-number {
-            font-size: 42px;
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        .stat-label {
-            color: #666;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-number { font-size: 36px; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; margin-top: 10px; font-size: 14px; }
         .tabs {
             display: flex;
             gap: 12px;
             margin-bottom: 25px;
             flex-wrap: wrap;
         }
-        
         .tab {
             background: white;
             padding: 12px 28px;
             border: none;
             border-radius: 60px;
             cursor: pointer;
-            transition: all 0.3s ease;
             font-size: 16px;
             font-weight: bold;
             color: #333;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.3s;
         }
-        
-        .tab:hover {
-            transform: translateY(-2px);
-        }
-        
+        .tab:hover { transform: translateY(-2px); }
         .tab.active {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
         .tab-content {
             background: white;
             border-radius: 20px;
@@ -108,132 +76,56 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.08);
             animation: fadeIn 0.4s ease-out;
         }
-        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        th, td {
-            padding: 14px;
-            text-align: right;
-            border-bottom: 1px solid #eee;
-        }
-        
+        .table-container { overflow-x: auto; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; }
         th {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            font-weight: bold;
             position: sticky;
             top: 0;
         }
-        
-        tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .present {
-            color: #28a745;
-            font-weight: bold;
-        }
-        
-        .late {
-            color: #fd7e14;
-            font-weight: bold;
-        }
-        
-        .absent {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        
+        tr:hover { background: #f8f9fa; }
+        .present { color: #28a745; font-weight: bold; }
+        .late { color: #fd7e14; font-weight: bold; }
+        .absent { color: #dc3545; font-weight: bold; }
+        .early { color: #17a2b8; font-weight: bold; }
         button, .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 60px;
+            border-radius: 25px;
             cursor: pointer;
-            margin: 10px 5px;
-            text-decoration: none;
-            display: inline-block;
+            margin: 5px;
             font-size: 14px;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
         }
-        
-        button:hover, .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-back {
-            background: #6c757d;
-        }
-        
+        button:hover { transform: translateY(-2px); }
         .date-picker, .search-input {
-            padding: 12px 20px;
+            padding: 10px 15px;
             border: 2px solid #e0e0e0;
-            border-radius: 60px;
+            border-radius: 25px;
             margin: 10px 5px;
             font-size: 14px;
-            font-family: inherit;
         }
-        
-        .date-picker:focus, .search-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px;
-            color: #999;
-        }
-        
-        .empty-state .icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-        
+        .empty-state { text-align: center; padding: 60px; color: #999; }
+        .empty-state .icon { font-size: 64px; margin-bottom: 20px; }
+        .print-btn { background: #6c757d; }
+        .export-btn { background: #28a745; }
         @media print {
-            .no-print {
-                display: none;
-            }
-            .stat-card, .tab-content {
-                box-shadow: none;
-                border: 1px solid #ddd;
-            }
+            .no-print { display: none; }
+            .stat-card, .tab-content { box-shadow: none; border: 1px solid #ddd; }
         }
-        
         @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
-            }
-            
-            .stat-number {
-                font-size: 28px;
-            }
-            
-            .tab {
-                padding: 8px 16px;
-                font-size: 14px;
-            }
-            
-            th, td {
-                padding: 10px;
-                font-size: 12px;
-            }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .stat-number { font-size: 28px; }
+            .tab { padding: 8px 16px; font-size: 14px; }
+            th, td { padding: 8px; font-size: 12px; }
         }
     </style>
 </head>
@@ -242,218 +134,204 @@
     <div class="header no-print">
         <h1>📊 تقارير الحضور والتأخير</h1>
         <p>نظام متابعة حضور الطلاب - إحصائيات وتقارير دقيقة</p>
+        <div style="margin-top: 15px;">
+            <button onclick="window.location.href='/'" class="print-btn">🏠 الرئيسية</button>
+            <button onclick="window.location.href='/scan'" class="print-btn">📷 المسح</button>
+        </div>
     </div>
 
-    <!-- إحصائيات سريعة -->
     <div class="stats-grid" id="stats">
-        <div class="stat-card">
-            <div class="stat-number" id="totalStudents">-</div>
-            <div class="stat-label">📚 إجمالي الطلاب</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="presentCount">-</div>
-            <div class="stat-label">✅ الحاضرون في الوقت</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="lateCount">-</div>
-            <div class="stat-label">⏰ المتأخرون</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="absentCount">-</div>
-            <div class="stat-label">❌ الغائبون</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="attendancePercentage">-</div>
-            <div class="stat-label">📈 نسبة الحضور اليوم</div>
-        </div>
+        <div class="stat-card"><div class="stat-number" id="totalStudents">-</div><div class="stat-label">📚 إجمالي الطلاب</div></div>
+        <div class="stat-card"><div class="stat-number" id="presentCount">-</div><div class="stat-label">✅ الحاضرون</div></div>
+        <div class="stat-card"><div class="stat-number" id="lateCount">-</div><div class="stat-label">⏰ المتأخرون</div></div>
+        <div class="stat-card"><div class="stat-number" id="absentCount">-</div><div class="stat-label">❌ الغائبون</div></div>
+        <div class="stat-card"><div class="stat-number" id="attendancePercentage">-</div><div class="stat-label">📈 نسبة الحضور</div></div>
     </div>
 
-    <!-- تبويبات التقارير -->
     <div class="tabs no-print">
         <button class="tab active" onclick="showTab(event, 'today')">📅 تقرير اليوم</button>
-        <button class="tab" onclick="showTab(event, 'date')">🗓️ تقرير بتاريخ محدد</button>
-        <button class="tab" onclick="showTab(event, 'absent')">❌ الطلاب الغائبون</button>
-        <button class="tab" onclick="showTab(event, 'student')">🔍 بحث عن طالب</button>
-        <button class="tab" onclick="showTab(event, 'all')">📋 جميع السجلات</button>
+        <button class="tab" onclick="showTab(event, 'date')">🗓️ تقرير بتاريخ</button>
+        <button class="tab" onclick="showTab(event, 'absent')">❌ الغائبون اليوم</button>
+        <button class="tab" onclick="showTab(event, 'student')">🔍 تقرير طالب</button>
+        <button class="tab" onclick="showTab(event, 'weekly')">📈 تقرير أسبوعي</button>
     </div>
 
-    <!-- تبويب تقرير اليوم -->
+    <!-- تبويب اليوم -->
     <div id="tab-today" class="tab-content">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
             <h3>📋 تفاصيل حضور اليوم - <span id="todayDate"></span></h3>
-            <div class="no-print">
-                <button onclick="exportToday()">📥 تحميل Excel</button>
-                <button onclick="printReport()">🖨️ طباعة</button>
-            </div>
+            <div><button onclick="exportToday()" class="export-btn">📥 تحميل Excel</button><button onclick="window.print()" class="print-btn">🖨️ طباعة</button></div>
         </div>
         <div id="todayTable" class="table-container"></div>
     </div>
 
     <!-- تبويب تاريخ محدد -->
     <div id="tab-date" class="tab-content" style="display:none;">
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-            <input type="date" id="selectedDate" class="date-picker">
-            <button onclick="loadDateReport()">عرض التقرير</button>
-        </div>
+        <input type="date" id="selectedDate" class="date-picker"><button onclick="loadDateReport()">عرض التقرير</button><button onclick="exportDateReport()" class="export-btn">📥 تصدير</button>
         <div id="dateReport"></div>
     </div>
 
-    <!-- تبويب الطلاب الغائبين -->
+    <!-- تبويب الغائبين -->
     <div id="tab-absent" class="tab-content" style="display:none;">
         <h3>❌ قائمة الطلاب الغائبين اليوم</h3>
         <div id="absentTable" class="table-container"></div>
     </div>
 
-    <!-- تبويب بحث طالب -->
+    <!-- تبويب تقرير طالب -->
     <div id="tab-student" class="tab-content" style="display:none;">
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-            <input type="text" id="studentSearch" class="search-input" placeholder="أدخل رقم الطالب أو الاسم" style="width: 300px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="studentSearch" class="search-input" placeholder="رقم الطالب أو الاسم" style="width: 250px;">
             <button onclick="searchStudent()">🔍 بحث</button>
         </div>
         <div id="studentReport"></div>
     </div>
 
-    <!-- تبويب جميع السجلات -->
-    <div id="tab-all" class="tab-content" style="display:none;">
-        <h3>📋 جميع سجلات الحضور</h3>
-        <div id="allRecordsTable" class="table-container"></div>
-    </div>
-    
-    <div class="no-print" style="margin-top: 20px; text-align: center;">
-        <button onclick="window.location.href='/'" class="btn-back">🏠 العودة للرئيسية</button>
+    <!-- تبويب تقرير أسبوعي -->
+    <div id="tab-weekly" class="tab-content" style="display:none;">
+        <h3>📈 تقرير الحضور الأسبوعي</h3>
+        <div id="weeklyTable" class="table-container"></div>
     </div>
 </div>
 
 <script>
-// تحميل الإحصائيات عند تحميل الصفحة
-loadStats();
-loadTodayAttendance();
+let currentData = null;
 
-function showTab(event, tabName) {
-    // إخفاء كل التبويبات
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.style.display = 'none';
-    });
-    document.getElementById(`tab-${tabName}`).style.display = 'block';
-    
-    // تحديث active class
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    // تحميل البيانات حسب التبويب
-    if (tabName === 'today') {
-        loadTodayAttendance();
-    } else if (tabName === 'absent') {
-        loadAbsentStudents();
-    } else if (tabName === 'all') {
-        loadAllRecords();
-    }
-}
-
-// تحميل الإحصائيات
 async function loadStats() {
     try {
-        const response = await fetch('/api/attendance_summary');
-        const data = await response.json();
-        
+        const res = await fetch('/api/attendance_summary');
+        const data = await res.json();
         if (data.success) {
             document.getElementById('totalStudents').textContent = data.total_students || 0;
-            document.getElementById('presentCount').textContent = data.present || 0;
+            document.getElementById('presentCount').textContent = (data.present || 0) + (data.early || 0);
             document.getElementById('lateCount').textContent = data.late || 0;
             document.getElementById('absentCount').textContent = data.absent || 0;
             document.getElementById('attendancePercentage').textContent = `${data.percentage || 0}%`;
             document.getElementById('todayDate').textContent = data.date;
         }
-    } catch (error) {
-        console.error('خطأ في تحميل الإحصائيات:', error);
-    }
+    } catch(e) { console.error(e); }
 }
 
-// تحميل حضور اليوم
+function showTab(event, tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+    document.getElementById(`tab-${tabName}`).style.display = 'block';
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+    if (tabName === 'today') loadTodayAttendance();
+    else if (tabName === 'absent') loadAbsentStudents();
+    else if (tabName === 'weekly') loadWeeklyReport();
+}
+
 async function loadTodayAttendance() {
     const today = new Date().toISOString().split('T')[0];
     await loadAttendanceByDate(today, 'todayTable');
 }
 
-// تحميل حضور بتاريخ محدد
 async function loadDateReport() {
     const date = document.getElementById('selectedDate').value;
-    if (!date) {
-        alert('⚠️ الرجاء اختيار تاريخ');
-        return;
-    }
+    if (!date) { alert('الرجاء اختيار تاريخ'); return; }
     await loadAttendanceByDate(date, 'dateReport');
 }
 
 async function loadAttendanceByDate(date, elementId) {
     try {
-        const response = await fetch(`/api/attendance_details/${date}`);
-        const data = await response.json();
-        
+        const res = await fetch(`/api/attendance_details/${date}`);
+        const data = await res.json();
         const container = document.getElementById(elementId);
-        
         if (!data.success || data.data.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">📭</div>
-                    <h3>لا توجد بيانات</h3>
-                    <p>لا يوجد سجلات حضور لهذا التاريخ</p>
-                </div>
-            `;
+            container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>لا توجد بيانات</h3></div>';
             return;
         }
-        
-        let html = `<div style="margin-bottom: 15px;">
-                    <strong>📅 التاريخ: ${date}</strong> | 
-                    <strong>👥 عدد الحضور: ${data.count}</strong>
-                   </div>
-                   <table>
-                    <thead>
-                        <tr><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th></tr>
-                    </thead>
-                    <tbody>`;
-        
+        let html = `<div style="margin-bottom:15px;"><strong>📅 التاريخ: ${date}</strong> | 👥 الحضور: ${data.present} | ⏰ المتأخرون: ${data.late} | ❌ الغائبون: ${data.absent}</div>
+                    <table><thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>`;
+        let idx = 1;
         data.data.forEach(record => {
-            let statusClass = record.status === 'حاضر في الوقت' ? 'present' : 'late';
-            let statusIcon = record.status === 'حاضر في الوقت' ? '✅' : '⏰';
-            
-            html += `<tr>
-                        <td>${record.student_id}</td>
-                        <td>${record.student_name}</td>
-                        <td>${record.grade}</td>
-                        <td>${record.class}</td>
-                        <td>${record.time}</td>
-                        <td class="${statusClass}">${statusIcon} ${record.status}</td>
-                     </tr>`;
+            let statusClass = '', statusIcon = '';
+            if (record.status === 'حاضر في الوقت') { statusClass = 'present'; statusIcon = '✅'; }
+            else if (record.status === 'متأخر') { statusClass = 'late'; statusIcon = '⏰'; }
+            else if (record.status === 'قبل الموعد') { statusClass = 'early'; statusIcon = '⏳'; }
+            else { statusClass = 'absent'; statusIcon = '❌'; }
+            html += `<tr><td>${idx++}</td><td>${record.student_id}</td><td>${record.student_name}</td><td>${record.grade}</td><td>${record.class}</td><td>${record.time !== '-' ? record.time : '---'}</td><td class="${statusClass}">${statusIcon} ${record.status}</td></tr>`;
         });
-        
         html += '</tbody></table>';
         container.innerHTML = html;
-    } catch (error) {
-        console.error('خطأ:', error);
-        document.getElementById(elementId).innerHTML = '<div class="empty-state">⚠️ خطأ في تحميل البيانات</div>';
-    }
+        currentData = data;
+    } catch(e) { console.error(e); }
 }
 
-// تحميل الطلاب الغائبين
 async function loadAbsentStudents() {
     try {
-        const response = await fetch('/api/absent_students');
-        const data = await response.json();
-        
+        const res = await fetch('/api/absent_students_today');
+        const data = await res.json();
         const container = document.getElementById('absentTable');
-        
         if (!data.success || data.data.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">🎉</div>
-                    <h3>لا يوجد غائبون</h3>
-                    <p>جميع الطلاب حاضرون اليوم!</p>
-                </div>
-            `;
+            container.innerHTML = '<div class="empty-state"><div class="icon">🎉</div><h3>لا يوجد غائبون اليوم!</h3></div>';
             return;
         }
-        
-        let html = `<
+        let html = '<table><thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th></tr></thead><tbody>';
+        data.data.forEach((s, i) => { html += `<tr><td>${i+1}</td><td>${s.student_id}</td><td>${s.name}</td><td>${s.grade}</td><td>${s.class}</td></tr>`; });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch(e) { console.error(e); }
+}
+
+async function searchStudent() {
+    const searchTerm = document.getElementById('studentSearch').value.trim();
+    if (!searchTerm) { alert('الرجاء إدخال رقم الطالب'); return; }
+    try {
+        const res = await fetch(`/api/student_report/${searchTerm}`);
+        const data = await res.json();
+        const container = document.getElementById('studentReport');
+        if (!data.success) {
+            container.innerHTML = `<div class="empty-state"><div class="icon">❌</div><h3>${data.error || 'لم يتم العثور على الطالب'}</h3></div>`;
+            return;
+        }
+        let html = `<div class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card"><div class="stat-number">${data.total_days}</div><div class="stat-label">أيام الدراسة</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#28a745;">${data.present}</div><div class="stat-label">✅ حاضر</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#fd7e14;">${data.late}</div><div class="stat-label">⏰ متأخر</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:#dc3545;">${data.absent}</div><div class="stat-label">❌ غائب</div></div>
+            <div class="stat-card"><div class="stat-number">${data.attendance_rate}%</div><div class="stat-label">نسبة الحضور</div></div>
+        </div>
+        <h4>${data.student_name} - الصف ${data.grade} - الشعبة ${data.class}</h4>
+        <div class="table-container"><table><thead><tr><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>`;
+        data.records.forEach(r => {
+            let statusIcon = r.status === 'حاضر في الوقت' ? '✅' : (r.status === 'متأخر' ? '⏰' : (r.status === 'قبل الموعد' ? '⏳' : '❌'));
+            html += `<tr><td>${r.date}</td><td>${r.time}</td><td>${statusIcon} ${r.status}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    } catch(e) { console.error(e); }
+}
+
+async function loadWeeklyReport() {
+    try {
+        const res = await fetch('/api/weekly_report');
+        const data = await res.json();
+        const container = document.getElementById('weeklyTable');
+        if (!data.success) { container.innerHTML = '<div class="empty-state">لا توجد بيانات</div>'; return; }
+        let html = '<table><thead><tr><th>اليوم</th><th>التاريخ</th><th>✅ الحاضرون</th><th>⏰ المتأخرون</th><th>📈 نسبة الحضور</th></tr></thead><tbody>';
+        data.data.forEach(d => {
+            const total = d.present + d.late;
+            const percentage = total > 0 ? Math.round((d.present / total) * 100) : 0;
+            html += `<tr><td><strong>${d.day_name}</strong></td><td>${d.date}</td><td class="present">${d.present}</td><td class="late">${d.late}</td><td>${percentage}%</td></tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch(e) { console.error(e); }
+}
+
+function exportToday() {
+    const today = new Date().toISOString().split('T')[0];
+    window.location.href = `/api/export_attendance/${today}`;
+}
+function exportDateReport() {
+    const date = document.getElementById('selectedDate').value;
+    if (date) window.location.href = `/api/export_attendance/${date}`;
+    else alert('اختر تاريخ أولاً');
+}
+
+loadStats();
+loadTodayAttendance();
+</script>
+</body>
+</html>
