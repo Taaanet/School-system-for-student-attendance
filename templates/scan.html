@@ -168,382 +168,253 @@
     <div class="manual-section">
         <h3 style="margin-bottom: 10px;">🖊️ إدخال يدوي</h3>
         <div class="manual-input">
-            <input type="text" id="manualId" placeholder="أدخل رقمId" placeholder="أدخل رقم الطالب">
-            <button onclick="processManual()"> الطالب">
-            <button onclick="تسجيل الحprocessManual()">تسجيل الحضور</buttonضور</button>
+            <input type="text" id="manualId" placeholder="أدخل رقم الطالب">
+            <button onclick="registerStudent()">✅ تسجيل الحضور</button>
         </div>
-        <div>
-        </div>
-        <div id id="quickStudents="quickStudents" class="quick" class="quick-buttons"></div>
-    </-buttons"></div>
+        <div id="quickStudents" class="quick-buttons"></div>
     </div>
     
-   div>
-    
-    <div class=" <div class="nav-buttonsnav-buttons">
-        <a href="/">🏠 الرئيسية">
+    <div class="nav-buttons">
         <a href="/">🏠 الرئيسية</a>
-       </a>
-        <a href="/ <a href="/reports">📊 التقاريرreports">📊 التقارير</a>
-       </a>
-        <a href="/ <a href="/logout">🚪 خروج</alogout">🚪 خروج</a>
-    </div>
-</div>
-
->
+        <a href="/reports">📊 التقارير</a>
     </div>
 </div>
 
 <script>
-const video = document.getElementById('<script>
 const video = document.getElementById('video');
-const canvasvideo');
-const canvas = document.getElementById(' = document.getElementById('canvas');
-const ctx = canvas.getcanvas');
-const ctx = canvas.getContext('Context('2d');
-const startBtn =2d');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 const startBtn = document.getElementById('startCameraBtn');
-const document.getElementById('startCameraBtn');
-const stopBtn = document stopBtn = document.getElementById('stopCamera.getElementById('stopCameraBtn');
-const cameraBtn');
-const cameraStatus = document.getElementById('cameraStatusStatus = document.getElementById('cameraStatus');
-const resultDiv');
+const stopBtn = document.getElementById('stopCameraBtn');
+const cameraStatus = document.getElementById('cameraStatus');
 const resultDiv = document.getElementById('result');
-
-let stream = document.getElementById = null;
-let scanning = false;
-('result');
 
 let stream = null;
 let scanning = false;
-let animationId =let animationId = null;
+let animationId = null;
 
-function show null;
-
-function showResult(message, typeResult(message, type, studentData, studentData = = null) {
-    null) {
+// عرض النتيجة
+function showResult(message, type, studentData = null) {
     resultDiv.style.display = 'block';
- resultDiv.style.display = 'block';
-    resultDiv.className = `result    resultDiv.className = `result-box ${type-box ${type}`;
+    resultDiv.className = `result-box ${type}`;
     
-   }`;
-    
-    if (studentData if (studentData) {
-        const) {
-        const statusIcon = studentData.status_icon statusIcon = studentData.status_icon || (student || (studentData.status === 'Data.status === 'حاضر في الوقت' ? '✅حاضر في الوقت' ? '✅' : '' : '⏰');
+    if (studentData && studentData.student_name) {
+        const statusIcon = studentData.status === 'حاضر في الوقت' ? '✅' : (studentData.status === 'متأخر' ? '⏰' : '⚠️');
         resultDiv.innerHTML = `
-            <div⏰');
-        resultDiv.innerHTML = `
-            <div style="font-weight style="font-weight: bold; margin: bold; margin-bottom: 10px;">${status-bottom: 10px;">${statusIcon} ${messageIcon} ${message}</div>
-           }</div>
-            <div class=" <div class="student-card">
-                <p>student-card">
-                <p>🧑‍🎓🧑‍🎓 <strong>الاسم:</strong> ${studentData.student_name}</p <strong>الاسم:</strong> ${studentData.student_name}</p>
-                <p>
-                <p>📚 <strong>الصف>📚 <strong>الصف:</strong> ${:</strong> ${studentData.studentstudentData.student_grade} -_grade} - الشعبة ${studentData.student_class الشعبة ${studentData.student_class}</p>
-               }</p>
-                <p> <p>⏰ <strong⏰ <strong>وقت التس>وقت التسجيل:</strong>جيل:</strong> ${studentData.time}</p>
-                ${studentData.time <p>📅 <strong>التاريخ:</}</p>
-                <p>📅 <strong>strong> ${studentDataالتاريخ:</strong> ${studentData.date}</p.date}</p>
->
+            <div style="font-weight: bold; margin-bottom: 10px;">${statusIcon} ${message}</div>
+            <div class="student-card">
+                <p>🧑‍🎓 <strong>الاسم:</strong> ${studentData.student_name}</p>
+                <p>📚 <strong>الصف:</strong> ${studentData.student_grade} - الشعبة ${studentData.student_class}</p>
+                <p>⏰ <strong>وقت التسجيل:</strong> ${studentData.time || 'الآن'}</p>
+                <p>📅 <strong>التاريخ:</strong> ${studentData.date || new Date().toISOString().split('T')[0]}</p>
             </div>
         `;
-               </div>
-        ` } else {
-       ;
     } else {
-        resultDiv.innerHTML = resultDiv.innerHTML = message;
+        resultDiv.innerHTML = message;
     }
-    result message;
-    }
-    resultDiv.scDiv.scrollIntoView({rollIntoView({ behavior: 's behavior: 'smooth', block: 'nearest' });
+    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-async functionmooth', block: 'nearest' });
-}
-
-async function sendToServer(studentId) {
+// دالة التسجيل (المهمة الرئيسية)
+async function registerStudent(studentId) {
+    const id = studentId || document.getElementById('manualId').value.trim();
+    
+    if (!id) {
+        showResult("⚠️ الرجاء إدخال رقم الطالب", "error");
+        return false;
+    }
+    
+    showResult("🔄 جاري تسجيل الحضور...", "info");
+    
     try {
- sendToServer(studentId) {
-           const try {
-        const response = await fetch('/process_scan response = await fetch('/process_scan', {
-           ', {
+        const response = await fetch('/api/register', {
             method: 'POST',
-            headers: { method: 'POST',
-            headers: 'Content-Type': { 'Content-Type': 'application/json' 'application/json' },
-            body: JSON.stringify({ q },
-            body: JSON.stringify({ qr_data: studentId })
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ student_id: id })
         });
-r_data: studentId })
-        });
-        return await response.json();
-    }        return await response.json();
-    catch (error) } catch (error) {
-        return { {
-        return { success: false, success: false, message: `خطأ في الاتصال message: `خطأ في الاتصال:: ${error.message}` };
-    }
- ${error.message}` };
+        
+        const data = await response.json();
+        console.log("الرد من الخادم:", data);
+        
+        if (data.success) {
+            showResult(data.message, "success", data);
+            document.getElementById('manualId').value = '';
+            
+            // تشغيل صوت عند النجاح
+            try {
+                const audio = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
+                audio.play().catch(e => console.log("صوت غير متاح"));
+            } catch(e) {}
+            
+            return true;
+        } else {
+            showResult(`❌ ${data.message}`, "error");
+            return false;
+        }
+    } catch (error) {
+        console.error("خطأ في الاتصال:", error);
+        showResult(`❌ خطأ في الاتصال بالخادم: ${error.message}`, "error");
+        return false;
     }
 }
 
-async function handleScannedCode(}
-
+// معالجة المسح من الكاميرا
 async function handleScannedCode(decodedText) {
-decodedText)    if (! {
     if (!decodedText) return;
     
-decodedText) return;
+    console.log("✅ تم مسح الرقم:", decodedText);
     
+    // إيقاف المسح مؤقتاً
     stopScanner();
-    showResult("    stopScanner();
-    showResult("🔄 جاري مع🔄 جاري معالجة البيانات...الجة البيانات...", "info");
     
-    const data", "info");
+    // تسجيل الحضور
+    const success = await registerStudent(decodedText);
     
-    const data = await sendTo = await sendToServer(decodedText);
-    
-   Server(decoded if (data.successText);
-    
-    if (data.success) {
-        showResult) {
-        showResult(data.message, "success", data(data.message, "success", data);
-        //);
-        // تشغيل صوت عند تشغيل صوت عند الن النجاح
-       جاح
-        try {
-            const audio = new Audio try {
-            const('https://www audio = new Audio.soundjay.com('https://www.soundjay.com/misc/sounds/misc/sounds/bell-ringing/bell-ringing-05.mp3');
-            audio.play();
--05.mp3');
-            audio.play();
-        } catch(e        } catch(e) {}
-    }) {}
-    } else {
-        show else {
-        showResult(`❌Result(`❌ ${data.message}`, "error");
- ${data.message}`, "error");
-    }
-    
-       }
-    
-    setTimeout(() => { if (stream && setTimeout(() => { if (stream && !scanning) !scanning) startScanner(); }, 3000);
- startScanner(); },}
-
-async function scan 3000);
+    // إعادة تشغيل الكاميرا بعد 3 ثوانٍ
+    setTimeout(() => {
+        if (stream && !scanning) {
+            startScanner();
+        }
+    }, 3000);
 }
 
+// مسح الإطار الحالي من الفيديو
 async function scanFrame() {
-   Frame() {
-    if (!scanning || if (!scanning || !video.videoWidth || !video.videoHeight) !video.videoWidth || !video.videoHeight) {
-        animationId = requestAnimation {
-        animationId = requestAnimationFrame(scanFrameFrame(scanFrame);
-        return;
-    }
-    
-    canvas.width = video);
+    if (!scanning || !video.videoWidth || !video.videoHeight) {
+        animationId = requestAnimationFrame(scanFrame);
         return;
     }
     
     canvas.width = video.videoWidth;
-.videoWidth;
-    canvas.height =    canvas.height = video.videoHeight video.videoHeight;
-    ctx.draw;
-    ctx.drawImage(video,Image(video, 0, 0, canvas.width 0, , canvas.height);
-0, canvas.width, canvas.height);
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    const image    
-    const imageData = ctx.getData = ctx.getImageData(0ImageData(0, 0,, 0, canvas.width, canvas.height);
-    const canvas.width, canvas code = jsQR(imageData.data, canvas.width,.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, canvas.width, canvas.height);
     
-    if (code && code.data) canvas.height);
-    
     if (code && code.data) {
-        await handle {
         await handleScannedCode(code.data.trim());
-   ScannedCode(code.data.trim());
     }
-    
-    animationId = requestAnimation }
     
     animationId = requestAnimationFrame(scanFrame);
 }
 
-async functionFrame(scanFrame);
-}
-
+// تشغيل الكاميرا
 async function startScanner() {
-    if (stream startScanner() {
-    if (stream) stopScanner) stopScanner();
+    if (stream) stopScanner();
     
     try {
-       ();
-    
-    try {
-        cameraStatus.innerHTML = cameraStatus.innerHTML = "📷 جاري تشغيل "📷 جاري تشغيل الكاميرا...";
-        stream = الكاميرا...";
-        stream = await navigator. await navigator.mediaDevices.getUserMedia({ videomediaDevices.getUserMedia({ video: { facingMode: { exact:: { facingMode: { exact: "environment" } } });
-        "environment" } } });
-        video.srcObject = video.srcObject = stream;
-        video.style.display = "block";
-        await stream;
+        cameraStatus.innerHTML = "📷 جاري تشغيل الكاميرا...";
+        
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: { exact: "environment" } } 
+        });
+        
+        video.srcObject = stream;
         video.style.display = "block";
         await video.play();
-        scanning = true;
- video.play();
+        
         scanning = true;
         scanFrame();
-        startBtn        scanFrame();
-        startBtn.style.style.display = "none.display = "none";
-        stopBtn.style.display = "";
-        stopBtnblock";
-        cameraStatus.innerHTML = "✅ الكاميرا.style.display = "block";
-        cameraStatus.innerHTML = "✅ الكاميرا تعمل. وجه تعمل. وجه الهاتف نحو رم الهاتف نحو رمز QR.";
-ز QR.";
+        
+        startBtn.style.display = "none";
+        stopBtn.style.display = "block";
+        cameraStatus.innerHTML = "✅ الكاميرا تعمل. وجه الهاتف نحو رمز QR.";
+        
     } catch(err) {
+        console.error("خطأ الكاميرا:", err);
+        
+        // محاولة ثانية بدون تحديد الكاميرا الخلفية
         try {
-            stream = await navigator.mediaDevices.get    } catch(err) {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ videoUserMedia({ video: true });
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
-            video: true });
-            video.srcObject =.style.display = " stream;
-            videoblock";
-            await.style.display = "block";
-            await video video.play();
+            video.style.display = "block";
+            await video.play();
             scanning = true;
             scanFrame();
-.play();
-            scanning = true;
-            scanFrame();
-            startBtn.style            startBtn.style.display = ".display = "none";
+            startBtn.style.display = "none";
+            stopBtn.style.display = "block";
+            cameraStatus.innerHTML = "✅ الكاميرا تعمل. وجه الهاتف نحو رمز QR.";
+        } catch(err2) {
+            let errorMsg = "❌ لا يمكن تشغيل الكاميرا.\n\n";
+            if (err2.name === 'NotAllowedError') {
+                errorMsg += "🔒 يرجى السماح باستخدام الكاميرا:\n";
+                errorMsg += "1. اضغط على زر 'السماح' عند طلب الإذن\n";
+                errorMsg += "2. اذهب إلى إعدادات الهاتف > التطبيقات > المتصفح > الأذونات > الكاميرا > سماح";
+            } else {
+                errorMsg += "💡 الحلول:\n";
+                errorMsg += "• استخدم متصفح Google Chrome\n";
+                errorMsg += "• تأكد من أن الرابط يبدأ بـ https://\n";
+                errorMsg += "• أعد تشغيل الهاتف";
+            }
+            showResult(errorMsg, "error");
+            cameraStatus.innerHTML = "❌ لا يمكن تشغيل الكاميرا";
+            startBtn.style.display = "block";
             stopBtn.style.display = "none";
-            stopBtnblock";
-            camera.style.display = "Status.innerHTML = "block";
-            cameraStatus.innerHTML = "✅ الكاميرا تعمل. وجه✅ الكاميرا تعمل. وجه الهاتف نحو رمز QR.";
- الهاتف نحو رمز QR.";
-        } catch(err        } catch(err2) {
-            show2) {
-           Result("❌ showResult("❌ لا يمكن تشغ لا يمكن تشغيل الكاميرايل الكاميرا. تأكد من منح الإذن. تأكد من منح الإذن.", "error");
-            startBtn.style.", "error");
-            startBtn.style.display = ".display = "block";
-            stopblock";
-            stopBtn.style.display = "none";
-       Btn.style.display = }
-    }
-}
-
- "none";
         }
     }
 }
 
-function stopScanner()function stopScanner() {
+// إيقاف الكاميرا
+function stopScanner() {
     scanning = false;
     if (animationId) {
-    scanning = false;
-    if (animationId) { cancelAnimationFrame { cancelAnimationFrame(animationId);(animationId); animationId = null animationId = null; }
-    if (stream) {; }
-    if (stream) { stream.getTracks stream.getTracks().forEach(t().forEach(trackrack => track.stop()); stream = null; => track.stop()); stream = null; }
-    video.srcObject = null;
-    video.style.display }
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
     video.srcObject = null;
     video.style.display = "none";
- = "none";
     startBtn.style.display = "block";
-    stopBtn    startBtn.style.display = "block.style.display = "";
     stopBtn.style.display = "none";
-    cameranone";
     cameraStatus.innerHTML = "";
-Status.innerHTML = "";
 }
 
-async function process}
-
-async function processManual() {
-   Manual() {
-    const manualId = const manualId = document.getElementById('manualId').value.trim document.getElementById('manualId').value.trim();
-    if (!();
-    if (!manualId) {manualId) { showResult("⚠ showResult("⚠️ الرجاء إدخال رقم الطالب", "error"); return️ الرجاء إدخال رقم الطالب", "error"); return; }
-    show; }
-    showResult("Result("🔄 جاري مع🔄 جاري معالجة البيانات...الجة البيانات...", "info");
-", "info");
-    const data = await sendToServer    const data = await sendToServer(manualId);
-(manualId);
-    if (data    if (data.success) {
-        showResult(data.message.success) {
-        showResult(data.message, "success", data);
-        document.getElementById('manual, "success", data);
-        document.getElementById('manualIdId').value = '';
-').value = '';
-    } else {
-    } else {
-        showResult(`❌ ${data        showResult(`❌ ${data.message}`, ".message}`, "error");
-    }
-error");
-    }
-}
-
-async function load}
-
+// تحميل أسماء الطلاب للأزرار السريعة
 async function loadQuickStudents() {
     try {
-       QuickStudents() {
-    try {
-        const response = await const response = await fetch('/api/students_list');
-        const data = await fetch('/api/students_list');
+        const response = await fetch('/api/students_list');
         const data = await response.json();
-        response.json();
         if (data.success && data.data) {
-            const container if (data.success && data.data) {
-            const container = document.getElementById(' = document.getElementById('quickStudents');
-            container.innerHTML = '';
-           quickStudents');
-            container.innerHTML = '';
-            data.data.slice data.data.slice(0, (0, 8).forEach(student8).forEach(student => {
-                const => {
-                const btn = document.createElement btn = document.createElement('button');
-               ('button');
-                btn.textContent = student.name.length > btn.textContent = student.name.length > 10 ? student 10 ? student.name.slice(0, 8.name.slice(0) + '.., 8' : student.name) + '..' : student.name;
-                btn.onclick = () =>;
+            const container = document.getElementById('quickStudents');
+            container.innerHTML = '<span style="font-size:12px; color:#666;">تسجيل سريع:</span>';
+            data.data.slice(0, 6).forEach(student => {
+                const btn = document.createElement('button');
+                btn.textContent = student.name.length > 10 ? student.name.slice(0, 8) + '..' : student.name;
+                btn.title = student.student_id;
                 btn.onclick = () => {
-                    document.getElementById('manualId'). {
-                    document.getElementByIdvalue = student.st('manualId').value = student.student_id;
-                   udent_id;
-                    processManual();
-                };
-                container.appendChild processManual();
+                    document.getElementById('manualId').value = student.student_id;
+                    registerStudent(student.student_id);
                 };
                 container.appendChild(btn);
-           (btn);
             });
         }
-    } catch(e) });
-        }
-    } catch(e) { { console.log(e); console.log(e); }
+    } catch(e) {
+        console.log("خطأ في تحميل الأسماء:", e);
+    }
 }
 
-startBtn }
-}
+// أحداث الأزرار
+startBtn.addEventListener('click', startScanner);
+stopBtn.addEventListener('click', stopScanner);
 
-startBtn.addEventListener.addEventListener('click',('click', startScanner);
-stopBtn.addEventListener('click', stopScanner);
- startScanner);
-stopBtn.addEventListener('click', stopScanner);
+// تحميل الأسماء عند فتح الصفحة
 loadQuickStudents();
 
-window.addEventListener('beforeunload', ()loadQuickStudents();
-
-window.addEventListener('before => {
-    ifunload', () => {
-    if (stream) stream (stream) stream.getTracks.getTracks().().forEach(track => track.stop());
-   forEach(track => track.stop());
- if (animationId    if (animationId) cancelAnimationFrame) cancelAnimationFrame(animationId(animationId);
-});
-</script>
-);
+// تنظيف عند مغادرة الصفحة
+window.addEventListener('beforeunload', () => {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+    }
 });
 </script>
 </body>
-</</body>
 </html>
