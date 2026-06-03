@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+<meta charset="UTF-8">
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+</head>
+<body>
+
+<h2>مسح بطاقة الطالب</h2>
+
+<div id="reader"></div>
+
+<script>
+
+function onScanSuccess(decodedText){
+
+    alert("تم قراءة الكود: " + decodedText);
+
+}
+
+let scanner = new Html5QrcodeScanner(
+    "reader",
+    {fps:10, qrbox:250}
+);
+
+scanner.render(onScanSuccess);
+
+</script>
+
+</body>
+</html>
