@@ -1,85 +1,51 @@
 <!DOCTYPE html>
-
 <html dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>مسح بطاقة الطالب</title>
+<meta charset="UTF-8">
 
-```
 <script src="https://unpkg.com/html5-qrcode"></script>
-
-<style>
-    body{
-        font-family: Arial;
-        text-align:center;
-        margin:20px;
-    }
-
-    #reader{
-        width:350px;
-        margin:auto;
-    }
-
-    #result{
-        margin-top:20px;
-        padding:15px;
-        font-size:22px;
-        font-weight:bold;
-        color:green;
-    }
-</style>
-```
 
 </head>
 <body>
 
-```
 <h2>مسح بطاقة الطالب</h2>
 
 <div id="reader"></div>
 
-<div id="result">
-    بانتظار قراءة البطاقة...
-</div>
-```
-
 <script>
-
-function onScanSuccess(decodedText) {
-
-    document.getElementById("result").innerHTML =
-        "رقم الطالب: " + decodedText;
-
-}
-
 Html5Qrcode.getCameras().then(devices => {
 
-    let cameraId = devices[0].id;
+    let result = "";
 
-    if(devices.length > 1){
-        cameraId = devices[devices.length - 1].id;
-    }
+    devices.forEach((device, index) => {
+        result += index + " : " + device.label + "\n";
+    });
 
-    const html5QrCode = new Html5Qrcode("reader");
-
-    html5QrCode.start(
-        cameraId,
-        {
-            fps:10,
-            qrbox:250
-        },
-        onScanSuccess
-    );
+    alert(result);
 
 }).catch(err => {
-
-    document.getElementById("result").innerHTML =
-        "خطأ في تشغيل الكاميرا";
-
-    console.log(err);
-
+    alert(err);
 });
+</script>
 
+
+<script>
+function onScanSuccess(decodedText) {
+    alert("تمت قراءة الكود: " + decodedText);
+}
+
+const html5QrCode = new Html5Qrcode("reader");
+
+html5QrCode.start(
+    { facingMode: "environment" },
+    {
+        fps: 10,
+        qrbox: 250
+    },
+    onScanSuccess
+).catch(err => {
+    console.log(err);
+});
 </script>
 
 </body>
