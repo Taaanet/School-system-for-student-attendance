@@ -29,28 +29,49 @@
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .logo { font-size: 80px; margin-bottom: 20px; animation: bounce 1s ease infinite; }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        /* شعار المدرسة */
+        .school-logo {
+            position: relative;
+            margin-bottom: 20px;
         }
-        h1 { color: #333; margin-bottom: 10px; font-size: 28px; }
-        .subtitle { color: #666; margin-bottom: 40px; font-size: 14px; }
+        .logo-circle {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .logo-circle span {
+            font-size: 50px;
+        }
+        .school-name {
+            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        h1 { color: #333; margin-bottom: 10px; font-size: 24px; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
         .btn {
             display: block;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 18px 30px;
-            font-size: 20px;
+            padding: 15px 25px;
+            font-size: 18px;
             text-decoration: none;
             border-radius: 60px;
-            margin: 15px 0;
+            margin: 12px 0;
             transition: all 0.3s ease;
             font-weight: bold;
         }
         .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
         .btn-secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         .btn-reports { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .btn-logout { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); margin-top: 20px; }
         .info-box {
             background: #f8f9fa;
             border-radius: 15px;
@@ -68,19 +89,41 @@
             text-align: center;
         }
         .time-info span { font-weight: bold; color: #667eea; }
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .welcome { color: #667eea; font-weight: bold; }
         .footer { margin-top: 30px; color: #999; font-size: 12px; }
         @media (max-width: 600px) {
-            .container { padding: 30px 20px; }
-            .logo { font-size: 60px; }
-            h1 { font-size: 24px; }
-            .btn { padding: 15px 20px; font-size: 18px; }
+            .container { padding: 25px 20px; }
+            h1 { font-size: 20px; }
+            .btn { padding: 12px 20px; font-size: 16px; }
+            .logo-circle { width: 80px; height: 80px; }
+            .logo-circle span { font-size: 40px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">📚</div>
-        <h1>نظام رصد حضور وتأخر الطلاب</h1>
+        <!-- شعار المدرسة -->
+        <div class="school-logo">
+            <div class="logo-circle">
+                <span>🏫</span>
+            </div>
+            <div class="school-name">مدرسة منارات المدينة الثانوية</div>
+        </div>
+        
+        <div class="user-info">
+            <span class="welcome">👋 مرحباً {{ session.get('user_name', 'مدير النظام') }}</span>
+            <a href="/logout" style="color: #dc3545; text-decoration: none; font-size: 14px;">🚪 خروج</a>
+        </div>
+        
+        <h1>نظام  حضور  الطلاب</h1>
         <p class="subtitle">نظام ذكي لمتابعة حضور الطلاب باستخدام رموز QR</p>
         
         <div class="time-info">
@@ -93,20 +136,22 @@
         </a>
         
         <a href="/reports" class="btn btn-reports">
-            📊 التقارير والإحصائيات
+            📊 التقارير والإحصائيات المتقدمة
         </a>
         
         <div class="info-box">
             <h3>ℹ️ معلومات عن النظام</h3>
             <p>✅ مسح رمز QR الخاص بالطالب لتسجيل الحضور تلقائياً</p>
             <p>✅ الحضور من 7:00 - 7:30 (حاضر) / بعد 7:30 (متأخر)</p>
-            <p>✅ الطالب الذي لا يسجل حضوره يعتبر غائباً في التقارير</p>
-            <p>✅ حفظ جميع سجلات الحضور مع إمكانية التصدير</p>
-            <p>✅ تقارير يومية وشهرية وأسبوعية وفردية</p>
+            <p>✅ منع تسجيل الطالب أكثر من مرة في نفس اليوم</p>
+            <p>✅ إرسال إشعارات واتساب ورسائل نصية</p>
+            <p>✅ رسوم بيانية وإحصائيات متقدمة</p>
+            <p>✅ تقارير يومية، شهرية، وأفضل الطلاب حضوراً</p>
         </div>
         
         <div class="footer">
-            نظام الحضور الذكي | جميع الحقوق محفوظة
+           نظام الحضور الذكي | جميع الحقوق محفوظة <br>
+             talawy_code by taaanet@gmail.com & 0554289816
         </div>
     </div>
 </body>

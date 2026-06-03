@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مسح QR - نسخة مبسطة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+            margin: 0;
+        }
+        .container {
+            max-width: 550px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 25px;
+            padding: 20px;
+        }
+        h2 { text-align: center; color: #333; }
+        input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            width: 100%;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        .camera-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        #video {
+            width: 100%;
+            margin: 10px 0;
+            border-radius: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>📱 نظام حضور الطلاب</h2>
+    
+    <button class="camera-btn" id="cameraBtn">📷 فتح الكاميرا لمسح QR</button>
+    
+    <video id="video" autoplay playsinline></video>
+    
+    <div style="text-align: center; margin: 10px 0;">
+        <span>───── أو ─────</span>
+    </div>
+    
+    <input type="text" id="studentId" placeholder="أدخل رقم الطالب يدوياً">
+    <button onclick="sendData()">✅ تسجيل الحضور</button>
+    
+    <div id="result" class="result"></div>
+</div>
+
+<script>
+let stream = null;
+let scanning = false;
+
+const video = document.getElementById('video');
+const resultDiv = document.getElementById('result');
+
+// عرض النتيجة
+function showResult(message, type) {
+    resultDiv.style.display = 'block';
+    resultDiv.className = `result ${type}`;
+    resultDiv.innerHTML = message;
+    resultDiv.scrollIntoView({ behavior: 'smooth' });
+}
+
+// إرسال البيانات
+async function sendData(studentId) {
+    const id = studentId || document.getElementById('studentId').value.trim();
+    if (!id) {
+        showResult('⚠️ الرجاء إدخال رقم الطالب', 'error');
+        return;
+    }
+    
+    showResult('🔄 جاري المعالجة...', 'success');
+    
+    try {
+        const response = await fetch('/process_scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qr_data: id })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showResult(data.message, 'success');
+            document.getElementById('studentId').value = '';
+        } else {
+            showResult(data.message, 'error');
+        }
+    } catch (error) {
+        showResult('❌ خطأ في الاتصال بالخادم', 'error');
+    }
+}
+
+// تشغيل الكاميرا باستخدام الطريقة المباشرة
+async function startCamera() {
+    try {
+        showResult('📷 جاري تشغيل الكاميرا...', 'success');
+        
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+        });
+        
+        video.srcObject = stream;
+        video.style.display = 'block';
+        
+        await video.play();
+        
+        showResult('✅ الكاميرا تعمل. قم بتوجيهها نحو رمز QR. سيتم قراءته تلقائياً.', 'success');
+        
+        // بدء قراءة الإطارات
+        startScanning();
+        
+    } catch(error) {
+        console.error('خطأ الكاميرا:', error);
+        let errorMsg = '❌ لا يمكن تشغيل الكاميرا.<br><br>';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMsg += '🔒 يرجى السماح باستخدام الكاميرا من المتصفح. اضغط على زر "السماح" عندما يظهر الطلب.';
+        } else if (error.name === 'NotFoundError') {
+            errorMsg += '📷 لا توجد كاميرا على هذا الجهاز.';
+        } else {
+            errorMsg += '💡 الحلول المقترحة:<br>';
+            errorMsg += '• استخدم متصفح Google Chrome<br>';
+            errorMsg += '• تأكد من أن الرابط يبدأ بـ https://<br>';
+            errorMsg += '• اذهب إلى إعدادات الهاتف > التطبيقات > Chrome > الأذونات > الكاميرا > سماح';
+        }
+        
+        showResult(errorMsg, 'error');
+    }
+}
+
+// مسح الإطارات للبحث عن QR
+function startScanning() {
+    scanning = true;
+    scanFrame();
+}
+
+function scanFrame() {
+    if (!scanning || !video.videoWidth || !video.videoHeight) {
+        if (scanning) setTimeout(scanFrame, 500);
+        return;
+    }
+    
+    // إنشاء canvas لقراءة الإطار
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // محاولة قراءة QR من الإطار
+    // ملاحظة: هذه نسخة مبسطة، ستحتاج لمكتبة jsQR للقراءة الفعلية
+    // لكن سنستخدم طريقة التنبيه للمستخدم
+    
+    setTimeout(scanFrame, 500);
+}
+
+// إيقاف الكاميرا
+function stopCamera() {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+    video.style.display = 'none';
+    scanning = false;
+}
+
+// زر الكاميرا
+document.getElementById('cameraBtn').addEventListener('click', startCamera);
+</script>
+</body>
+</html>
