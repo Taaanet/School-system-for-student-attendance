@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
 
@@ -23,7 +23,8 @@ def load_students_data():
             return None
         
         df = pd.read_excel(STUDENTS_FILE)
-        df['student_id'] = df['student_id'].astype(str)
+        # تنظيف البيانات
+        df['student_id'] = df['student_id'].astype(str).str.strip()
         return df
     except Exception as e:
         print(f"خطأ في تحميل ملف Excel: {e}")
@@ -32,6 +33,14 @@ def load_students_data():
 def record_attendance(student_id, student_name, grade, class_name, date, time, status, notes=""):
     """تسجيل الحضور في ملف CSV"""
     try:
+        # التحقق من عدم تسجيل نفس الطالب مرتين في نفس اليوم
+        if os.path.exists(ATTENDANCE_FILE):
+            existing_df = pd.read_csv(ATTENDANCE_FILE)
+            existing_today = existing_df[(existing_df['student_id'] == student_id) & (existing_df['date'] == date)]
+            if not existing_today.empty:
+                print(f"⚠️ الطالب {student_name} مسجل مسبقاً اليوم")
+                return False, "مسجل مسبقاً"
+        
         record = {
             'student_id': student_id,
             'student_name': student_name,
@@ -54,23 +63,41 @@ def record_attendance(student_id, student_name, grade, class_name, date, time, s
             df_new.to_csv(ATTENDANCE_FILE, index=False, encoding='utf-8-sig')
         
         print(f"✅ تم تسجيل الحضور: {student_name} - {status} في {time}")
-        return True
+        return True, "تم التسجيل"
     except Exception as e:
         print(f"❌ خطأ في تسجيل الحضور: {e}")
-        return False
+        return False, str(e)
 
-def send_message(phone, student_name, status, time):
-    """إرسال رسالة للطالب أو ولي الأمر"""
-    # هذا مجرد نموذج - يمكنك تفعيل الخدمة الفعلية لاحقاً
-    message = f"مرحباً {student_name}، تم تسجيل حضورك {status} الساعة {time}"
-    print(f"📱 جاري إرسال رسالة إلى {phone}: {message}")
+def find_student_flexible(students_df, student_id):
+    """البحث عن الطالب بمرونة"""
+    # تنظيف ID المدخل
+    search_id = str(student_id).strip()
     
-    # مثال باستخدام Twilio (قم بتفعيله عند الحاجة):
-    # from twilio.rest import Client
-    # client = Client(account_sid, auth_token)
-    # client.messages.create(body=message, from_='+1234567890', to=phone)
+    # 1. بحث عادي
+    student = students_df[students_df['student_id'] == search_id]
+    if not student.empty:
+        return student, search_id
     
-    return True
+    # 2. إزالة الأصفار من البداية
+    if search_id.startswith('0'):
+        without_zeros = str(int(search_id))
+        student = students_df[students_df['student_id'] == without_zeros]
+        if not student.empty:
+            return student, without_zeros
+    
+    # 3. إضافة أصفار إلى 3 خانات
+    if len(search_id) < 3:
+        with_zeros = search_id.zfill(3)
+        student = students_df[students_df['student_id'] == with_zeros]
+        if not student.empty:
+            return student, with_zeros
+    
+    # 4. بحث جزئي (إذا كان الرقم جزء من المعرف)
+    student = students_df[students_df['student_id'].str.contains(search_id, na=False, case=False)]
+    if not student.empty:
+        return student, student.iloc[0]['student_id']
+    
+    return None, search_id
 
 def get_attendance_status(current_time):
     """تحديد حالة الحضور حسب الوقت"""
@@ -96,6 +123,16 @@ def reports():
     """صفحة التقارير"""
     return render_template("reports.html")
 
+@app.route("/qr_codes")
+def qr_codes_page():
+    """صفحة عرض رموز QR"""
+    return render_template("qr_codes.html")
+
+@app.route("/debug")
+def debug():
+    """صفحة تصحيح الأخطاء"""
+    return render_template("debug.html")
+
 # ============== API معالجة المسح ==============
 
 @app.route("/process_scan", methods=["POST", "GET"])
@@ -112,7 +149,7 @@ def process_scan():
     else:  # GET
         qr_data = request.args.get("qr_data")
     
-    print(f"📱 تم استلام البيانات: {qr_data}")
+    print(f"📱 تم استلام البيانات: '{qr_data}'")
     
     # التحقق من وجود البيانات
     if not qr_data:
@@ -121,8 +158,6 @@ def process_scan():
             "message": "⚠️ لم يتم استلام بيانات QR",
             "status": "error"
         }), 400
-    
-    student_id = str(qr_data).strip()
     
     # تحميل بيانات الطلاب
     students_df = load_students_data()
@@ -134,22 +169,28 @@ def process_scan():
             "status": "error"
         }), 500
     
-    # البحث عن الطالب
-    student = students_df[students_df['student_id'] == student_id]
+    # البحث المرن عن الطالب
+    result, found_id = find_student_flexible(students_df, qr_data)
     
-    if student.empty:
+    if result is None:
+        # عرض المعرفات المتاحة للمساعدة في التصحيح
+        available_ids = students_df['student_id'].tolist()[:10]  # أول 10 فقط
         return jsonify({
             "success": False,
-            "message": f"⚠️ لم يتم العثور على طالب بالرقم: {student_id}",
-            "status": "error"
+            "message": f"⚠️ لم يتم العثور على طالب بالرقم: '{qr_data}'\n\n✅ المعرفات المتاحة في النظام:\n{', '.join(available_ids[:5])}...",
+            "status": "error",
+            "scanned_id": qr_data,
+            "available_ids": available_ids
         }), 404
     
     # استخراج معلومات الطالب
-    student_name = student.iloc[0]['name']
-    student_grade = student.iloc[0]['grade']
-    student_class = student.iloc[0]['class']
-    student_phone = str(student.iloc[0].get('phone', '')) if pd.notna(student.iloc[0].get('phone', '')) else ''
-    student_notes = str(student.iloc[0].get('notes', '')) if pd.notna(student.iloc[0].get('notes', '')) else ''
+    student = result.iloc[0]
+    student_id = found_id
+    student_name = student['name']
+    student_grade = student['grade']
+    student_class = student['class']
+    student_phone = str(student.get('phone', '')) if pd.notna(student.get('phone', '')) else ''
+    student_notes = str(student.get('notes', '')) if pd.notna(student.get('notes', '')) else ''
     
     # الوقت الحالي
     now = datetime.now()
@@ -160,12 +201,22 @@ def process_scan():
     status, status_icon = get_attendance_status(current_time)
     
     # تسجيل الحضور
-    record_attendance(student_id, student_name, student_grade, student_class, 
+    success, msg = record_attendance(student_id, student_name, student_grade, student_class, 
                      current_date, current_time, status, student_notes)
     
-    # إرسال رسالة (إذا كان هناك رقم جوال)
-    if student_phone and student_phone != 'nan' and len(student_phone) > 5:
-        send_message(student_phone, student_name, status, current_time)
+    if not success and msg == "مسجل مسبقاً":
+        return jsonify({
+            "success": True,
+            "message": f"⚠️ {student_name} مسجل الحضور مسبقاً اليوم",
+            "status": "already_registered",
+            "status_icon": "⚠️",
+            "student_name": student_name,
+            "student_grade": student_grade,
+            "student_class": student_class,
+            "time": current_time,
+            "date": current_date,
+            "student_id": student_id
+        })
     
     # تجهيز رسالة النتيجة
     if status == "حاضر في الوقت":
@@ -382,41 +433,9 @@ def all_attendance():
         print(f"❌ خطأ في all_attendance: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route("/api/stats/weekly")
-def weekly_stats():
-    """إحصائيات الأسبوع الحالي"""
-    try:
-        if not os.path.exists(ATTENDANCE_FILE):
-            return jsonify({"success": True, "data": []})
-        
-        df = pd.read_csv(ATTENDANCE_FILE)
-        df['date'] = pd.to_datetime(df['date'])
-        
-        # آخر 7 أيام
-        today = datetime.now()
-        week_ago = today - timedelta(days=7)
-        
-        weekly_data = df[df['date'] >= week_ago]
-        
-        stats = []
-        for date, group in weekly_data.groupby(weekly_data['date'].dt.date):
-            stats.append({
-                "date": str(date),
-                "present": len(group[group['status'] == 'حاضر في الوقت']),
-                "late": len(group[group['status'] == 'متأخر']),
-                "total": len(group)
-            })
-        
-        return jsonify({"success": True, "data": stats})
-    except Exception as e:
-        print(f"❌ خطأ في weekly_stats: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# ============== API إدارة الطلاب ==============
-
-@app.route("/api/students")
-def get_all_students():
-    """الحصول على جميع الطلاب"""
+@app.route("/api/students_list")
+def students_list():
+    """الحصول على قائمة جميع الطلاب"""
     try:
         students_df = load_students_data()
         if students_df is None:
@@ -428,69 +447,6 @@ def get_all_students():
             "count": len(students_df)
         })
     except Exception as e:
-        print(f"❌ خطأ في get_all_students: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/add_student", methods=["POST"])
-def add_student():
-    """إضافة طالب جديد إلى ملف Excel"""
-    try:
-        data = request.get_json()
-        
-        new_student = pd.DataFrame([{
-            'student_id': str(data.get('student_id')),
-            'name': data.get('name'),
-            'grade': data.get('grade'),
-            'class': data.get('class'),
-            'phone': data.get('phone', ''),
-            'notes': data.get('notes', '')
-        }])
-        
-        if os.path.exists(STUDENTS_FILE):
-            existing_df = pd.read_excel(STUDENTS_FILE)
-            updated_df = pd.concat([existing_df, new_student], ignore_index=True)
-        else:
-            updated_df = new_student
-        
-        updated_df.to_excel(STUDENTS_FILE, index=False)
-        
-        return jsonify({
-            "success": True,
-            "message": f"تم إضافة الطالب {data.get('name')} بنجاح"
-        })
-    except Exception as e:
-        print(f"❌ خطأ في add_student: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# ============== API إحصائيات عامة ==============
-
-@app.route("/api/dashboard_stats")
-def dashboard_stats():
-    """إحصائيات عامة للوحة التحكم"""
-    try:
-        students_df = load_students_data()
-        total_students = len(students_df) if students_df is not None else 0
-        
-        # إحصائيات الحضور الكلية
-        if os.path.exists(ATTENDANCE_FILE):
-            df = pd.read_csv(ATTENDANCE_FILE)
-            total_attendance_records = len(df)
-            
-            # أكثر الطلاب حضوراً
-            top_students = df.groupby('student_name').size().sort_values(ascending=False).head(5).to_dict()
-        else:
-            total_attendance_records = 0
-            top_students = {}
-        
-        return jsonify({
-            "success": True,
-            "total_students": total_students,
-            "total_attendance_records": total_attendance_records,
-            "top_students": top_students,
-            "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
-    except Exception as e:
-        print(f"❌ خطأ في dashboard_stats: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 # ============== تشغيل التطبيق ==============
@@ -502,8 +458,11 @@ if __name__ == "__main__":
     print(f"📁 ملف الحضور: {ATTENDANCE_FILE}")
     print(f"⏰ وقت الحضور المحدد: {ATTENDANCE_DEADLINE}")
     print("=" * 50)
-    print("📍 قم بفتح الرابط التالي في المتصفح:")
-    print("   http://localhost:5000")
+    print("📍 قم بفتح الروابط التالية:")
+    print("   🏠 الرئيسية: http://localhost:5000")
+    print("   📷 صفحة المسح: http://localhost:5000/scan")
+    print("   📊 التقارير: http://localhost:5000/reports")
+    print("   🔍 التصحيح: http://localhost:5000/debug")
     print("=" * 50)
     
     app.run(debug=True, host='0.0.0.0', port=5000)
