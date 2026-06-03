@@ -225,7 +225,7 @@
     
     <!-- قسم الطلاب السريع -->
     <div class="quick-section">
-        <div class="quick-title">⚡ تسجيل سريع لطلاب اليوم:</div>
+        <div class="quick-title">⚡ تسجيل سريع:</div>
         <div id="quickStudents" class="quick-buttons">
             <span style="color:#999; font-size:12px;">جاري التحميل...</span>
         </div>
@@ -302,7 +302,7 @@ function showResult(message, type, studentData = null) {
     resultDiv.className = `result-box ${type}`;
     
     if (studentData && studentData.student_name) {
-        const statusIcon = studentData.status === 'حاضر في الوقت' ? '✅' : (studentData.status === 'متأخر' ? '⏰' : '⚠️');
+        const statusIcon = studentData.status === 'حاضر' ? '✅' : (studentData.status === 'متأخر' ? '⏰' : '⚠️');
         resultDiv.innerHTML = `
             <div style="font-weight: bold; margin-bottom: 10px;">${statusIcon} ${message}</div>
             <div class="student-card">
@@ -425,14 +425,16 @@ function stopScanner() {
 // ========== تحميل قائمة الطلاب للأزرار السريعة ==========
 async function loadQuickStudents() {
     try {
+        console.log("جاري تحميل الطلاب...");
         const response = await fetch('/api/students_list');
         const data = await response.json();
+        console.log("بيانات الطلاب:", data);
         
         const container = document.getElementById('quickStudents');
         
         if (data.success && data.data && data.data.length > 0) {
             container.innerHTML = '';
-            data.data.forEach(student => {
+            data.data.slice(0, 6).forEach(student => {
                 const btn = document.createElement('button');
                 btn.textContent = `${student.name}`;
                 btn.title = `رقم: ${student.student_id}`;
@@ -443,10 +445,10 @@ async function loadQuickStudents() {
                 container.appendChild(btn);
             });
         } else {
-            container.innerHTML = '<span style="color:#999; font-size:12px;">لا توجد بيانات طلاب - أضف طلاباً في ملف Excel</span>';
+            container.innerHTML = '<span style="color:#999; font-size:12px;">لا توجد بيانات طلاب</span>';
         }
     } catch(e) {
-        console.log("خطأ:", e);
+        console.error("خطأ في تحميل الطلاب:", e);
         document.getElementById('quickStudents').innerHTML = '<span style="color:#999; font-size:12px;">خطأ في تحميل البيانات</span>';
     }
 }
