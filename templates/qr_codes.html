@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رموز QR للطلاب</title>
+    <style>
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .qr-img {
+            width: 180px;
+            height: 180px;
+            margin: 15px auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            background: white;
+        }
+        h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .student-id {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 12px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .no-print {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            .card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header no-print">
+        <h1>📱 رموز QR للطلاب</h1>
+        <p>قم بطباعة هذه الرموز وتوزيعها على الطلاب</p>
+        <button onclick="window.print()">🖨️ طباعة الكل</button>
+        <button onclick="window.location.href='/scan'">📷 الذهاب للمسح</button>
+        <button onclick="window.location.href='/'">🏠 الرئيسية</button>
+    </div>
+    
+    <div class="grid" id="qrGrid">
+        <div class="card">⏳ جاري تحميل البيانات...</div>
+    </div>
+</div>
+
+<script>
+async function loadQRCodes() {
+    try {
+        // تحميل بيانات الطلاب
+        const response = await fetch('/api/students_list');
+        const data = await response.json();
+        
+        if (!data.success || data.data.length === 0) {
+            document.getElementById('qrGrid').innerHTML = `
+                <div class="card">
+                    <h3>⚠️ لا توجد بيانات</h3>
+                    <p>يرجى التأكد من وجود ملف students.xlsx</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const grid = document.getElementById('qrGrid');
+        grid.innerHTML = '';
+        
+        data.data.forEach(student => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(student.student_id)}`;
+            
+            card.innerHTML = `
+                <h3>${student.name}</h3>
+                <div class="student-id">رقم: ${student.student_id}</div>
+                <p>📚 ${student.grade} | 🏫 ${student.class}</p>
+                <img class="qr-img" src="${qrUrl}" alt="QR Code">
+                <div class="no-print">
+                    <button onclick="window.open('${qrUrl}', '_blank')">📥 تحميل</button>
+                    <button onclick="printCard(this)">🖨️ طباعة</button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('خطأ:', error);
+        document.getElementById('qrGrid').innerHTML = `
+            <div class="card">
+                <h3>❌ خطأ</h3>
+                <p>حدث خطأ في تحميل البيانات</p>
+            </div>
+        `;
+    }
+}
+
+function printCard(btn) {
+    const card = btn.closest('.card');
+    const printContents = card.outerHTML;
+    const originalContents = document.body.innerHTML;
+    
+    document.body.innerHTML = `
+        <div style="padding: 20px; text-align: center;">
+            ${printContents}
+        </div>
+    `;
+    window.print();
+    document.body.innerHTML = originalContents;
+    location.reload();
+}
+
+loadQRCodes();
+</script>
+</body>
+</html>
