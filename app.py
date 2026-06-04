@@ -6,6 +6,8 @@ import os
 import json
 import pandas as pd
 from functools import wraps
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
@@ -22,21 +24,127 @@ app.config['MAIL_DEFAULT_SENDER'] = 'taaanet@gmail.com'
 
 mail = Mail(app)
 
-# ============== إعدادات النظام ==============
-ATTENDANCE_START = "07:00:00"
-ATTENDANCE_DEADLINE = "07:30:00"
-STUDENTS_FILE = 'students.xlsx'
-ATTENDANCE_FILE = 'attendance.json'
-USERS_FILE = 'users.json'
+# ============== إعدادات Google Sheets ==============
+SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+SHEET_NAME = "نظام حضور الطلاب"
+
+def get_google_client():
+    """الحصول على عميل Google Sheets"""
+    try:
+        # محاولة قراءة من متغير البيئة (لـ Render)
+        creds_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+        
+        if creds_json:
+            creds_dict = json.loads(creds_json)
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+        else:
+            # محاولة قراءة من الملف المحلي
+            creds = ServiceAccountCredentials.from_json_keyfile_name('google-credentials.json', SCOPE)
+        
+        client = gspread.authorize(creds)
+        return client
+    except Exception as e:
+        print(f"خطأ في الاتصال بـ Google Sheets: {e}")
+        return None
+
+def get_or_create_sheet():
+    """الحصول على ورقة العمل أو إنشاؤها"""
+    client = get_google_client()
+    if not client:
+        return None, None
+    
+    try:
+        # محاولة فتح الورقة الموجودة
+        sheet = client.open(SHEET_NAME)
+    except:
+        # إنشاء ورقة جديدة
+        sheet = client.create(SHEET_NAME)
+        print(f"✅ تم إنشاء ورقة جديدة: {SHEET_NAME}")
+    
+    # ورقة الطلاب
+    try:
+        students_ws = sheet.worksheet("الطلاب")
+    except:
+        students_ws = sheet.add_worksheet(title="الطلاب", rows="1000", cols="20")
+        # إضافة الرؤوس
+        headers = ['student_id', 'name', 'grade', 'class', 'phone', 'parent_phone', 'notes']
+        students_ws.append_row(headers)
+        
+        # إضافة بيانات تجريبية
+        sample_data = [
+            ['1150436838', 'عبدالله فيصل شندي', 'الأول الثانوي', 'أ', '', '', ''],
+            ['1152217368', 'أحمد محمد علي', 'الأول الثانوي', 'ب', '', '', ''],
+            ['1152327969', 'سارة خالد', 'الثاني الثانوي', 'أ', '', '', ''],
+            ['1152502371', 'محمد إبراهيم', 'الثاني الثانوي', 'ج', '', '', ''],
+            ['1153472889', 'نورة سعيد', 'الثالث الثانوي', 'أ', '', '', '']
+        ]
+        for row in sample_data:
+            students_ws.append_row(row)
+    
+    # ورقة الحضور
+    try:
+        attendance_ws = sheet.worksheet("الحضور")
+    except:
+        attendance_ws = sheet.add_worksheet(title="الحضور", rows="10000", cols="20")
+        headers = ['student_id', 'student_name', 'grade', 'class', 'date', 'time', 'status', 'timestamp']
+        attendance_ws.append_row(headers)
+    
+    return students_ws, attendance_ws
+
+def load_students():
+    """تحميل الطلاب من Google Sheets"""
+    try:
+        students_ws, _ = get_or_create_sheet()
+        if not students_ws:
+            return []
+        
+        records = students_ws.get_all_records()
+        return records
+    except Exception as e:
+        print(f"خطأ في تحميل الطلاب: {e}")
+        return []
+
+def load_attendance():
+    """تحميل سجلات الحضور من Google Sheets"""
+    try:
+        _, attendance_ws = get_or_create_sheet()
+        if not attendance_ws:
+            return []
+        
+        records = attendance_ws.get_all_records()
+        return records
+    except Exception as e:
+        print(f"خطأ في تحميل الحضور: {e}")
+        return []
+
+def save_attendance(record):
+    """حفظ سجل حضور جديد في Google Sheets"""
+    try:
+        _, attendance_ws = get_or_create_sheet()
+        if not attendance_ws:
+            return False
+        
+        attendance_ws.append_row([
+            record['student_id'],
+            record['student_name'],
+            record['grade'],
+            record['class'],
+            record['date'],
+            record['time'],
+            record['status'],
+            record['timestamp']
+        ])
+        return True
+    except Exception as e:
+        print(f"خطأ في حفظ الحضور: {e}")
+        return False
 
 # ============== دوال البريد الإلكتروني ==============
 def send_report_email(recipient, subject, body, attachment_path=None):
     """إرسال تقرير عبر البريد الإلكتروني"""
     try:
-        # التحقق من وجود كلمة مرور البريد
         if not app.config['MAIL_PASSWORD']:
-            print("⚠️ كلمة مرور البريد الإلكتروني غير مضبوطة")
-            return False, "كلمة مرور البريد الإلكتروني غير مضبوطة في الإعدادات"
+            return False, "كلمة مرور البريد الإلكتروني غير مضبوطة"
         
         msg = Message(subject, recipients=[recipient])
         msg.html = body
@@ -50,15 +158,15 @@ def send_report_email(recipient, subject, body, attachment_path=None):
                 )
         
         mail.send(msg)
-        print(f"✅ تم إرسال البريد إلى {recipient}")
         return True, "تم الإرسال بنجاح"
     except Exception as e:
-        print(f"❌ خطأ في إرسال البريد: {e}")
         return False, str(e)
 
 # ============== بيانات المستخدمين ==============
+USERS_FILE = 'users.json'
+
 def load_users():
-    """تحميل بيانات المستخدمين من ملف JSON"""
+    """تحميل بيانات المستخدمين"""
     try:
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
@@ -92,30 +200,26 @@ def save_users(users):
         print(f"خطأ في حفظ المستخدمين: {e}")
 
 def can_login(username):
-    """التحقق من إمكانية تسجيل الدخول"""
     users = load_users()
     if username not in users:
         return False, "اسم المستخدم غير موجود"
     
     user = users[username]
-    
     if user['role'] == 'admin':
         return True, None
     
     if user['max_logins'] is not None and user['login_count'] >= user['max_logins']:
-        return False, f"لقد تجاوزت الحد المسموح به ({user['max_logins']} مرات). الرجاء التواصل مع المدير."
+        return False, f"لقد تجاوزت الحد المسموح به ({user['max_logins']} مرات)"
     
     return True, None
 
 def increment_login_count(username):
-    """زيادة عدد مرات الدخول"""
     users = load_users()
     if username in users and users[username]['role'] != 'admin':
         users[username]['login_count'] = users[username].get('login_count', 0) + 1
         save_users(users)
 
 def reset_login_count(username):
-    """إعادة تعيين عدد مرات الدخول"""
     users = load_users()
     if username in users:
         users[username]['login_count'] = 0
@@ -124,7 +228,6 @@ def reset_login_count(username):
     return False
 
 def get_remaining_logins(username):
-    """الحصول على عدد المحاولات المتبقية"""
     users = load_users()
     if username not in users:
         return 0
@@ -144,60 +247,19 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ============== دوال مساعدة ==============
-def load_students():
-    """تحميل الطلاب من ملف Excel"""
-    try:
-        if not os.path.exists(STUDENTS_FILE):
-            test_data = pd.DataFrame({
-                'student_id': ['1150436838', '1152217368', '1152327969', '1152502371', '1153472889'],
-                'name': ['عبدالله فيصل شندي', 'أحمد محمد علي', 'سارة خالد', 'محمد إبراهيم', 'نورة سعيد'],
-                'grade': ['الأول الثانوي', 'الأول الثانوي', 'الثاني الثانوي', 'الثاني الثانوي', 'الثالث الثانوي'],
-                'class': ['أ', 'ب', 'أ', 'ج', 'أ'],
-                'phone': ['', '', '', '', ''],
-                'parent_phone': ['', '', '', '', '']
-            })
-            test_data.to_excel(STUDENTS_FILE, index=False)
-        
-        df = pd.read_excel(STUDENTS_FILE)
-        df['student_id'] = df['student_id'].astype(str).str.strip()
-        return df.to_dict('records')
-    except Exception as e:
-        print(f"خطأ في تحميل الطلاب: {e}")
-        return []
+# ============== تحميل البيانات من Google Sheets ==============
+students = load_students()
+attendance_records = load_attendance()
 
-def load_attendance():
-    """تحميل سجلات الحضور"""
-    try:
-        if os.path.exists(ATTENDANCE_FILE):
-            with open(ATTENDANCE_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return []
-    except:
-        return []
-
-def save_attendance(records):
-    """حفظ سجلات الحضور"""
-    try:
-        with open(ATTENDANCE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(records, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        print(f"خطأ في حفظ الحضور: {e}")
-        return False
+ATTENDANCE_DEADLINE = "07:30:00"
 
 def get_attendance_status():
-    """تحديد حالة الحضور"""
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     if current_time <= ATTENDANCE_DEADLINE:
         return "حاضر", current_time
     else:
         return "متأخر", current_time
-
-# تحميل البيانات
-students = load_students()
-attendance_records = load_attendance()
 
 # ============== صفحات المصادقة ==============
 @app.route('/login', methods=['GET', 'POST'])
@@ -210,7 +272,6 @@ def login():
         
         if username in users and users[username]['password'] == password:
             can_login_flag, message = can_login(username)
-            
             if not can_login_flag:
                 return render_template('login.html', error=message)
             
@@ -329,19 +390,21 @@ def register_attendance():
             'timestamp': datetime.now().isoformat()
         }
         
-        attendance_records.append(new_record)
-        save_attendance(attendance_records)
-        
-        return jsonify({
-            "success": True,
-            "message": f"✅ تم تسجيل حضور {student['name']} - {status} الساعة {current_time}",
-            "student_name": student['name'],
-            "student_grade": student['grade'],
-            "student_class": student['class'],
-            "time": current_time,
-            "date": current_date,
-            "status": status
-        })
+        # حفظ في Google Sheets
+        if save_attendance(new_record):
+            attendance_records.append(new_record)
+            return jsonify({
+                "success": True,
+                "message": f"✅ تم تسجيل حضور {student['name']} - {status} الساعة {current_time}",
+                "student_name": student['name'],
+                "student_grade": student['grade'],
+                "student_class": student['class'],
+                "time": current_time,
+                "date": current_date,
+                "status": status
+            })
+        else:
+            return jsonify({"success": False, "message": "فشل حفظ البيانات في Google Sheets"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
@@ -546,7 +609,6 @@ def dashboard_stats():
 @app.route("/api/export_today_excel")
 @login_required
 def export_today_excel():
-    """تصدير تقرير اليوم إلى Excel"""
     try:
         today = datetime.now().strftime("%Y-%m-%d")
         filename = f"attendance_report_{today}.xlsx"
@@ -578,7 +640,6 @@ def export_today_excel():
 @app.route("/api/export_monthly_excel")
 @login_required
 def export_monthly_excel():
-    """تصدير تقرير شهري إلى Excel"""
     try:
         year = request.args.get('year', datetime.now().year)
         month = request.args.get('month', datetime.now().month)
@@ -612,7 +673,6 @@ def export_monthly_excel():
 @app.route("/api/export_student_excel/<student_id>")
 @login_required
 def export_student_excel(student_id):
-    """تصدير تقرير طالب فردي إلى Excel"""
     try:
         student = None
         for s in students:
@@ -638,7 +698,6 @@ def export_student_excel(student_id):
 @app.route("/api/export_attendance/<date>")
 @login_required
 def export_attendance(date):
-    """تصدير تقرير بتاريخ محدد"""
     try:
         filename = f"attendance_{date}.xlsx"
         
@@ -666,23 +725,32 @@ def export_attendance(date):
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-# ============== APIs إرسال التقارير عبر البريد ==============
+@app.route("/api/export_all_data")
+@login_required
+def export_all_data():
+    try:
+        if not attendance_records:
+            return jsonify({"success": False, "message": "لا توجد بيانات للتصدير"})
+        
+        filename = f"all_attendance_data_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
+        
+        df = pd.DataFrame(attendance_records)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/send_today_report_email")
 @login_required
 def send_today_report_email():
-    """إرسال تقرير اليوم إلى البريد الإلكتروني"""
     try:
         today = datetime.now().strftime("%Y-%m-%d")
         filename = f"attendance_report_{today}.xlsx"
         
-        # التحقق من إعدادات البريد
         if not app.config['MAIL_PASSWORD']:
-            return jsonify({
-                "success": False, 
-                "message": "⚠️ خدمة البريد الإلكتروني غير مضبوطة. يرجى إضافة EMAIL_PASSWORD في إعدادات Render."
-            })
+            return jsonify({"success": False, "message": "خدمة البريد الإلكتروني غير مضبوطة"})
         
-        # إنشاء التقرير
         result = []
         for student in students:
             record = None
@@ -703,7 +771,6 @@ def send_today_report_email():
         df = pd.DataFrame(result)
         df.to_excel(filename, index=False, engine='openpyxl')
         
-        # إحصائيات للتقرير
         present_count = len([r for r in result if r['الحالة'] == 'حاضر'])
         late_count = len([r for r in result if r['الحالة'] == 'متأخر'])
         absent_count = len([r for r in result if r['الحالة'] == 'غائب'])
@@ -725,8 +792,6 @@ def send_today_report_email():
             <hr>
             <p>📎 المرفق: ملف Excel يحتوي على تفاصيل الحضور الكاملة</p>
             <p>📅 تم الإرسال بواسطة: <strong>نظام رصد حضور الطلاب</strong></p>
-            <hr>
-            <p style="font-size: 12px; color: #888;">هذا بريد آلي، الرجاء عدم الرد عليه.</p>
         </body>
         </html>
         """
@@ -748,19 +813,14 @@ def send_today_report_email():
 @app.route("/api/send_monthly_report_email")
 @login_required
 def send_monthly_report_email():
-    """إرسال تقرير شهري إلى البريد الإلكتروني"""
     try:
         year = request.args.get('year', datetime.now().year)
         month = request.args.get('month', datetime.now().month)
         
         filename = f"monthly_report_{year}_{month}.xlsx"
         
-        # التحقق من إعدادات البريد
         if not app.config['MAIL_PASSWORD']:
-            return jsonify({
-                "success": False, 
-                "message": "⚠️ خدمة البريد الإلكتروني غير مضبوطة. يرجى إضافة EMAIL_PASSWORD في إعدادات Render."
-            })
+            return jsonify({"success": False, "message": "خدمة البريد الإلكتروني غير مضبوطة"})
         
         monthly_stats = []
         for student in students:
@@ -794,8 +854,6 @@ def send_monthly_report_email():
             <hr>
             <p>📎 المرفق: ملف Excel يحتوي على إحصائيات الحضور الشهرية الكاملة</p>
             <p>📅 تم الإرسال بواسطة: <strong>نظام رصد حضور الطلاب</strong></p>
-            <hr>
-            <p style="font-size: 12px; color: #888;">هذا بريد آلي، الرجاء عدم الرد عليه.</p>
         </body>
         </html>
         """
@@ -817,17 +875,17 @@ def send_monthly_report_email():
 @app.route("/api/load_excel")
 @login_required
 def load_excel():
-    global students
+    global students, attendance_records
     students = load_students()
-    return jsonify({"success": True, "message": f"تم تحميل {len(students)} طالب"})
+    attendance_records = load_attendance()
+    return jsonify({"success": True, "message": f"تم تحميل {len(students)} طالب و {len(attendance_records)} سجل"})
 
 @app.route("/api/clear_attendance")
 @login_required
 def clear_attendance():
     global attendance_records
     attendance_records = []
-    save_attendance(attendance_records)
-    return jsonify({"success": True, "message": "تم مسح جميع سجلات الحضور"})
+    return jsonify({"success": True, "message": "تم مسح سجلات الحضور (محلياً فقط)"})
 
 @app.route("/api/stats")
 @login_required
@@ -836,15 +894,18 @@ def stats():
         "success": True,
         "students_count": len(students),
         "attendance_count": len(attendance_records),
-        "storage": "local_json"
+        "storage": "google_sheets"
     })
 
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":
+    # تهيئة Google Sheets والبيانات
+    get_or_create_sheet()
     students = load_students()
     attendance_records = load_attendance()
+    
     print("=" * 50)
-    print("🚀 نظام الحضور يعمل الآن!")
+    print("🚀 نظام الحضور يعمل الآن مع Google Sheets!")
     print(f"📚 تم تحميل {len(students)} طالب")
     print(f"📋 لدينا {len(attendance_records)} سجل حضور")
     print("=" * 50)
@@ -854,9 +915,8 @@ if __name__ == "__main__":
         max_logins = "غير محدود" if data['role'] == 'admin' else data.get('max_logins', 5)
         print(f"   - {username} (الدور: {data['role']}, الحد الأقصى: {max_logins})")
     print("=" * 50)
-    print("📧 إعدادات البريد:")
-    print(f"   MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
-    print(f"   MAIL_PASSWORD: {'✓ تم تعيينه' if app.config['MAIL_PASSWORD'] else '✗ لم يتم تعيينه'}")
+    print("📊 Google Sheets:")
+    print(f"   📁 اسم الورقة: {SHEET_NAME}")
     print("=" * 50)
     
     port = int(os.environ.get("PORT", 5000))

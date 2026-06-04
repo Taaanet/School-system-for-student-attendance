@@ -1,8 +1,7 @@
 Flask==3.1.2
 flask-cors==5.0.0
-pymongo==4.10.1
-dnspython==2.7.0
 pandas==2.2.3
 openpyxl==3.1.5
-gunicorn==23.0.0
 flask-mail==0.10.0
+gspread==6.1.2
+oauth2client==4.1.3
