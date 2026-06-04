@@ -1,11 +1,8 @@
-# ملفات Google API السرية
-credentials.json
-token.pickle
-
 # ملفات البيانات
 attendance.json
+users.json
 
-# ملفات مؤقتة
+# ملفات Python
 __pycache__/
 *.pyc
 .env
@@ -13,3 +10,7 @@ __pycache__/
 # ملفات التقارير
 *.xlsx
 !students.xlsx
+
+# ملفات Google (إذا استخدمتها لاحقاً)
+credentials.json
+token.pickle
