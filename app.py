@@ -15,12 +15,86 @@ ATTENDANCE_START = "07:00:00"
 ATTENDANCE_DEADLINE = "07:30:00"
 STUDENTS_FILE = 'students.xlsx'
 ATTENDANCE_FILE = 'attendance.json'
+USERS_FILE = 'users.json'
 
 # ============== بيانات المستخدمين ==============
-USERS = {
-    'admin': 'admin123',
-    'teacher': 'teacher123'
-}
+def load_users():
+    """تحميل بيانات المستخدمين من ملف JSON"""
+    try:
+        if os.path.exists(USERS_FILE):
+            with open(USERS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except:
+        pass
+    
+    default_users = {
+        'taha_mohamad': {
+            'password': 'Het@onet0hros',
+            'role': 'admin',
+            'login_count': 0,
+            'max_logins': None
+        },
+        'admin': {
+            'password': 'admin123',
+            'role': 'user',
+            'login_count': 0,
+            'max_logins': 5
+        }
+    }
+    save_users(default_users)
+    return default_users
+
+def save_users(users):
+    """حفظ بيانات المستخدمين"""
+    try:
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(users, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"خطأ في حفظ المستخدمين: {e}")
+
+def can_login(username):
+    """التحقق من إمكانية تسجيل الدخول"""
+    users = load_users()
+    if username not in users:
+        return False, "اسم المستخدم غير موجود"
+    
+    user = users[username]
+    
+    if user['role'] == 'admin':
+        return True, None
+    
+    if user['max_logins'] is not None and user['login_count'] >= user['max_logins']:
+        return False, f"لقد تجاوزت الحد المسموح به ({user['max_logins']} مرات). الرجاء التواصل مع المدير."
+    
+    return True, None
+
+def increment_login_count(username):
+    """زيادة عدد مرات الدخول"""
+    users = load_users()
+    if username in users and users[username]['role'] != 'admin':
+        users[username]['login_count'] = users[username].get('login_count', 0) + 1
+        save_users(users)
+
+def reset_login_count(username):
+    """إعادة تعيين عدد مرات الدخول"""
+    users = load_users()
+    if username in users:
+        users[username]['login_count'] = 0
+        save_users(users)
+        return True
+    return False
+
+def get_remaining_logins(username):
+    """الحصول على عدد المحاولات المتبقية"""
+    users = load_users()
+    if username not in users:
+        return 0
+    user = users[username]
+    if user['role'] == 'admin':
+        return "غير محدود"
+    max_logins = user.get('max_logins', 5)
+    used = user.get('login_count', 0)
+    return max(max_logins - used, 0)
 
 # ============== دوال المصادقة ==============
 def login_required(f):
@@ -54,7 +128,7 @@ def load_students():
         return []
 
 def load_attendance():
-    """تحميل سجلات الحضور من ملف JSON"""
+    """تحميل سجلات الحضور"""
     try:
         if os.path.exists(ATTENDANCE_FILE):
             with open(ATTENDANCE_FILE, 'r', encoding='utf-8') as f:
@@ -64,7 +138,7 @@ def load_attendance():
         return []
 
 def save_attendance(records):
-    """حفظ سجلات الحضور إلى ملف JSON"""
+    """حفظ سجلات الحضور"""
     try:
         with open(ATTENDANCE_FILE, 'w', encoding='utf-8') as f:
             json.dump(records, f, ensure_ascii=False, indent=2)
@@ -74,24 +148,13 @@ def save_attendance(records):
         return False
 
 def get_attendance_status():
-    """تحديد حالة الحضور حسب الوقت"""
+    """تحديد حالة الحضور"""
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     if current_time <= ATTENDANCE_DEADLINE:
         return "حاضر", current_time
     else:
         return "متأخر", current_time
-
-def send_whatsapp_message(phone, message):
-    """إرسال رسالة واتساب"""
-    whatsapp_url = f"https://wa.me/{phone}?text={message.replace(' ', '%20')}"
-    print(f"📱 واتساب إلى {phone}: {message}")
-    return whatsapp_url
-
-def send_sms(phone, message):
-    """إرسال رسالة نصية SMS"""
-    print(f"📱 SMS إلى {phone}: {message}")
-    return True
 
 # تحميل البيانات
 students = load_students()
@@ -104,12 +167,24 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        if username in USERS and USERS[username] == password:
+        users = load_users()
+        
+        if username in users and users[username]['password'] == password:
+            can_login_flag, message = can_login(username)
+            
+            if not can_login_flag:
+                return render_template('login.html', error=message)
+            
+            increment_login_count(username)
+            
             session['logged_in'] = True
             session['username'] = username
+            session['role'] = users[username]['role']
+            session['remaining_logins'] = get_remaining_logins(username)
+            
             return redirect(url_for('home'))
         
-        return render_template('login.html', error="بيانات الدخول غير صحيحة")
+        return render_template('login.html', error="اسم المستخدم أو كلمة المرور غير صحيحة")
     
     return render_template('login.html')
 
@@ -117,6 +192,35 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/users_list')
+@login_required
+def users_list():
+    if session.get('role') != 'admin':
+        return redirect(url_for('home'))
+    
+    users = load_users()
+    users_data = []
+    for username, data in users.items():
+        users_data.append({
+            'username': username,
+            'role': data['role'],
+            'login_count': data.get('login_count', 0),
+            'max_logins': data.get('max_logins', 'غير محدود') if data['role'] == 'admin' else data.get('max_logins', 5),
+            'remaining': get_remaining_logins(username)
+        })
+    
+    return render_template('users_list.html', users=users_data)
+
+@app.route('/reset_logins/<username>')
+@login_required
+def reset_logins(username):
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"})
+    
+    if reset_login_count(username):
+        return jsonify({"success": True, "message": f"تم إعادة تعيين عدد محاولات {username}"})
+    return jsonify({"success": False, "message": "المستخدم غير موجود"})
 
 # ============== الصفحات الرئيسية ==============
 @app.route("/")
@@ -189,15 +293,6 @@ def register_attendance():
         attendance_records.append(new_record)
         save_attendance(attendance_records)
         
-        # إرسال إشعارات
-        if student.get('phone'):
-            message = f"📚 تقرير حضور: تم تسجيل {student['name']} - {status} الساعة {current_time}"
-            send_whatsapp_message(student['phone'], message)
-        
-        if student.get('parent_phone'):
-            message = f"📚 تنبيه: تم تسجيل حضور {student['name']} بنجاح"
-            send_sms(student['parent_phone'], message)
-        
         return jsonify({
             "success": True,
             "message": f"✅ تم تسجيل حضور {student['name']} - {status} الساعة {current_time}",
@@ -211,7 +306,7 @@ def register_attendance():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-# ============== API التقارير والإحصائيات ==============
+# ============== API التقارير ==============
 @app.route("/api/students_list")
 @login_required
 def students_list():
@@ -365,7 +460,6 @@ def monthly_report():
 @app.route("/api/attendance_chart")
 @login_required
 def attendance_chart():
-    """بيانات للرسوم البيانية"""
     today = datetime.now().strftime("%Y-%m-%d")
     total = len(students)
     
@@ -384,7 +478,6 @@ def attendance_chart():
 @app.route("/api/dashboard_stats")
 @login_required
 def dashboard_stats():
-    """إحصائيات لوحة التحكم"""
     today = datetime.now().strftime("%Y-%m-%d")
     total = len(students)
     
@@ -393,7 +486,6 @@ def dashboard_stats():
     late = len([r for r in today_records if r['status'] == 'متأخر'])
     percentage = round(((present + late) / total) * 100, 1) if total > 0 else 0
     
-    # أفضل طالب
     present_counts = {}
     for r in attendance_records:
         if r['status'] == 'حاضر':
@@ -441,7 +533,7 @@ if __name__ == "__main__":
     students = load_students()
     attendance_records = load_attendance()
     print("=" * 50)
-    print(f"🚀 نظام الحضور يعمل الآن!")
+    print("🚀 نظام الحضور يعمل الآن!")
     print(f"📚 تم تحميل {len(students)} طالب")
     print(f"📋 لدينا {len(attendance_records)} سجل حضور")
     print("=" * 50)
