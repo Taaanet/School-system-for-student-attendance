@@ -66,17 +66,19 @@
             border-radius: 10px;
             margin-top: 20px;
             font-size: 12px;
-            text-align: right;
+            text-align: center;
         }
-        .admin-card, .teacher-card {
+        .teacher-card {
             background: #f8f9fa;
             padding: 10px;
             border-radius: 10px;
-            margin-bottom: 10px;
+            margin-top: 10px;
+            text-align: right;
         }
-        .admin-card { border-right: 4px solid #667eea; }
         .teacher-card { border-right: 4px solid #28a745; }
         code { background: #e9ecef; padding: 2px 5px; border-radius: 5px; }
+        hr { margin: 10px 0; border: none; border-top: 1px solid #ddd; }
+        .note { color: #666; font-size: 11px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -96,16 +98,15 @@
         </form>
         
         <div class="info">
-            <strong>📋 معلومات الدخول:</strong><br>
-            <div class="admin-card">
-                👑 <strong>مدير النظام (دخول غير محدود)</strong><br>
-                اسم المستخدم: <code>taha_mohamad</code><br>
-                كلمة المرور: <code>Het@onet0hros</code>
-            </div>
+            <strong>📋 معلومات الدخول للمعلمين:</strong><br>
             <div class="teacher-card">
                 👨‍🏫 <strong>معلم (5 مرات فقط)</strong><br>
                 اسم المستخدم: <code>admin</code><br>
                 كلمة المرور: <code>admin123</code>
+            </div>
+            <hr>
+            <div class="note">
+                ℹ️ ملاحظة: يمكن للمعلم تسجيل الدخول 5 مرات فقط. بعد انتهاء المحاولات، يرجى التواصل مع المدير.
             </div>
         </div>
     </div>
