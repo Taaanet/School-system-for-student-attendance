@@ -5,12 +5,9 @@ import os
 import json
 import pandas as pd
 from functools import wraps
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import pickle
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
@@ -26,61 +23,90 @@ USERS_FILE = 'users.json'
 # ============== إعدادات Google Drive ==============
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 CREDENTIALS_FILE = 'credentials.json'
-TOKEN_FILE = 'token.pickle'
 
 def get_google_drive_service():
-    """الحصول على خدمة Google Drive"""
-    creds = None
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, 'rb') as token:
-            creds = pickle.load(token)
-    
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not os.path.exists(CREDENTIALS_FILE):
-                print("⚠️ ملف credentials.json غير موجود")
-                return None
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
+    """الحصول على خدمة Google Drive باستخدام متغير البيئة أو الملف المحلي"""
+    try:
+        creds = None
         
-        with open(TOKEN_FILE, 'wb') as token:
-            pickle.dump(creds, token)
-    
-    return build('drive', 'v3', credentials=creds)
+        # المحاولة الأولى: قراءة من متغير البيئة (لـ Render)
+        credentials_json = os.environ.get('GOOGLE_CREDENTIALS')
+        
+        if credentials_json:
+            print("✅ استخدام بيانات الاعتماد من متغير البيئة")
+            creds_dict = json.loads(credentials_json)
+            creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+        else:
+            # المحاولة الثانية: قراءة من الملف المحلي (للتطوير المحلي)
+            if os.path.exists(CREDENTIALS_FILE):
+                print(f"✅ استخدام بيانات الاعتماد من ملف {CREDENTIALS_FILE}")
+                creds = service_account.Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+            else:
+                print("⚠️ لا يوجد ملف credentials.json ولا متغير بيئة GOOGLE_CREDENTIALS")
+                return None
+        
+        if creds:
+            service = build('drive', 'v3', credentials=creds)
+            print("✅ تم إنشاء خدمة Google Drive بنجاح")
+            return service
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"❌ خطأ في إنشاء خدمة Drive: {e}")
+        return None
 
 def upload_to_google_drive(file_path, folder_name="Attendance Reports"):
     """رفع ملف إلى Google Drive"""
     try:
         service = get_google_drive_service()
         if not service:
+            print("❌ لا يمكن رفع الملف: خدمة Google Drive غير متاحة")
             return None
         
-        # البحث عن مجلد التقارير
-        results = service.files().list(q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false", fields="files(id, name)").execute()
+        # البحث عن مجلد التقارير أو إنشاؤه
+        results = service.files().list(
+            q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+            fields="files(id, name)"
+        ).execute()
+        
         folders = results.get('files', [])
         
         if folders:
             folder_id = folders[0]['id']
+            print(f"📁 تم العثور على المجلد: {folder_name}")
         else:
+            # إنشاء مجلد جديد
             file_metadata = {
                 'name': folder_name,
                 'mimeType': 'application/vnd.google-apps.folder'
             }
             folder = service.files().create(body=file_metadata, fields='id').execute()
             folder_id = folder.get('id')
+            print(f"📁 تم إنشاء مجلد جديد: {folder_name}")
         
+        # رفع الملف
         file_metadata = {
             'name': os.path.basename(file_path),
             'parents': [folder_id]
         }
-        media = MediaFileUpload(file_path, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        file = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
+        media = MediaFileUpload(
+            file_path,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
         
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink'
+        ).execute()
+        
+        print(f"✅ تم رفع الملف بنجاح: {file.get('webViewLink')}")
         return file.get('webViewLink')
+        
     except Exception as e:
-        print(f"خطأ في الرفع: {e}")
+        print(f"❌ خطأ في الرفع إلى Google Drive: {e}")
         return None
 
 # ============== بيانات المستخدمين ==============
@@ -668,38 +694,36 @@ def upload_to_drive(report_type):
     """رفع تقرير إلى Google Drive"""
     try:
         today = datetime.now().strftime("%Y-%m-%d")
+        filename = f"attendance_report_{today}.xlsx"
         
-        if report_type == 'today':
-            filename = f"attendance_report_{today}.xlsx"
+        # إنشاء التقرير
+        result = []
+        for student in students:
+            record = None
+            for r in attendance_records:
+                if r['student_id'] == student['student_id'] and r['date'] == today:
+                    record = r
+                    break
             
-            result = []
-            for student in students:
-                record = None
-                for r in attendance_records:
-                    if r['student_id'] == student['student_id'] and r['date'] == today:
-                        record = r
-                        break
-                
-                result.append({
-                    'رقم الطالب': student['student_id'],
-                    'اسم الطالب': student['name'],
-                    'الصف': student['grade'],
-                    'الشعبة': student['class'],
-                    'وقت التسجيل': record['time'] if record else '-',
-                    'الحالة': record['status'] if record else 'غائب'
-                })
-            
-            df = pd.DataFrame(result)
-            df.to_excel(filename, index=False, engine='openpyxl')
-            
-            drive_link = upload_to_google_drive(filename)
-            
-            if drive_link:
-                return jsonify({"success": True, "drive_link": drive_link, "message": "تم الرفع إلى Google Drive"})
-            else:
-                return jsonify({"success": False, "message": "فشل الرفع إلى Google Drive"})
+            result.append({
+                'رقم الطالب': student['student_id'],
+                'اسم الطالب': student['name'],
+                'الصف': student['grade'],
+                'الشعبة': student['class'],
+                'وقت التسجيل': record['time'] if record else '-',
+                'الحالة': record['status'] if record else 'غائب'
+            })
+        
+        df = pd.DataFrame(result)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        # رفع إلى Google Drive
+        drive_link = upload_to_google_drive(filename)
+        
+        if drive_link:
+            return jsonify({"success": True, "drive_link": drive_link, "message": "تم الرفع إلى Google Drive"})
         else:
-            return jsonify({"success": False, "message": "نوع التقرير غير معروف"})
+            return jsonify({"success": False, "message": "فشل الرفع إلى Google Drive"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
