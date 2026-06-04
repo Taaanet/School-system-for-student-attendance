@@ -128,14 +128,8 @@
             margin: 0;
             background: #28a745;
         }
-        .quick-section {
-            margin-top: 15px;
-        }
-        .quick-title {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-        }
+        .quick-section { margin-top: 15px; }
+        .quick-title { font-size: 13px; color: #666; margin-bottom: 8px; }
         .quick-buttons {
             display: flex;
             flex-wrap: wrap;
@@ -175,11 +169,7 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        hr {
-            margin: 15px 0;
-            border: none;
-            border-top: 1px solid #eee;
-        }
+        hr { margin: 15px 0; border: none; border-top: 1px solid #eee; }
         @media (max-width: 550px) {
             .container { padding: 15px; }
             button { padding: 10px 16px; font-size: 14px; }
@@ -195,7 +185,6 @@
         <a href="/reports" class="btn-icon">📊 التقارير</a>
     </div>
     
-    <!-- قسم الكاميرا -->
     <div class="camera-section">
         <div style="font-weight: bold; margin-bottom: 10px;">📷 مسح QR Code</div>
         <div class="camera-area">
@@ -209,12 +198,10 @@
         <div id="cameraStatus" class="status-text"></div>
     </div>
     
-    <!-- منطقة النتائج -->
     <div id="result" class="result-box"></div>
     
     <hr>
     
-    <!-- قسم الإدخال اليدوي -->
     <div class="manual-section">
         <div class="manual-title">🖊️ إدخال رقم الطالب يدوياً</div>
         <div class="input-group">
@@ -223,7 +210,6 @@
         </div>
     </div>
     
-    <!-- قسم الطلاب السريع -->
     <div class="quick-section">
         <div class="quick-title">⚡ تسجيل سريع:</div>
         <div id="quickStudents" class="quick-buttons">
@@ -231,15 +217,15 @@
         </div>
     </div>
     
-    <!-- أزرار التنقل -->
     <div class="nav-buttons">
         <a href="/">🏠 الرئيسية</a>
         <a href="/reports">📊 التقارير</a>
+        <a href="/dashboard">📈 لوحة التحكم</a>
+        <a href="/logout">🚪 خروج</a>
     </div>
 </div>
 
 <script>
-// عناصر DOM
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -253,7 +239,6 @@ let stream = null;
 let scanning = false;
 let animationId = null;
 
-// ========== دالة التسجيل الرئيسية ==========
 async function registerStudent(studentId) {
     if (!studentId || studentId.trim() === '') {
         showResult("⚠️ الرجاء إدخال رقم الطالب", "error");
@@ -266,14 +251,11 @@ async function registerStudent(studentId) {
     try {
         const response = await fetch('/api/register', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ student_id: id })
         });
         
         const data = await response.json();
-        console.log("الرد:", data);
         
         if (data.success) {
             showResult(data.message, "success", data);
@@ -284,19 +266,15 @@ async function registerStudent(studentId) {
             return false;
         }
     } catch (error) {
-        console.error("خطأ:", error);
         showResult(`❌ خطأ في الاتصال: ${error.message}`, "error");
         return false;
     }
 }
 
-// ========== الإدخال اليدوي ==========
 function registerManually() {
-    const studentId = studentIdInput.value;
-    registerStudent(studentId);
+    registerStudent(studentIdInput.value);
 }
 
-// ========== عرض النتيجة ==========
 function showResult(message, type, studentData = null) {
     resultDiv.style.display = 'block';
     resultDiv.className = `result-box ${type}`;
@@ -318,23 +296,13 @@ function showResult(message, type, studentData = null) {
     resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ========== معالجة المسح من الكاميرا ==========
 async function handleScannedCode(decodedText) {
     if (!decodedText) return;
-    
-    console.log("✅ تم مسح الرقم:", decodedText);
     stopScanner();
     await registerStudent(decodedText);
-    
-    // إعادة تشغيل الكاميرا بعد 3 ثوانٍ
-    setTimeout(() => {
-        if (stream && !scanning) {
-            startScanner();
-        }
-    }, 3000);
+    setTimeout(() => { if (stream && !scanning) startScanner(); }, 3000);
 }
 
-// ========== مسح الإطار من الفيديو ==========
 async function scanFrame() {
     if (!scanning || !video.videoWidth || !video.videoHeight) {
         animationId = requestAnimationFrame(scanFrame);
@@ -355,34 +323,21 @@ async function scanFrame() {
     animationId = requestAnimationFrame(scanFrame);
 }
 
-// ========== تشغيل الكاميرا ==========
 async function startScanner() {
     if (stream) stopScanner();
     
     try {
         cameraStatus.innerHTML = "📷 جاري تشغيل الكاميرا...";
-        cameraStatus.style.color = "#667eea";
-        
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: { exact: "environment" } } 
-        });
-        
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
         video.srcObject = stream;
         video.style.display = "block";
         await video.play();
-        
         scanning = true;
         scanFrame();
-        
         startBtn.style.display = "none";
         stopBtn.style.display = "block";
         cameraStatus.innerHTML = "✅ الكاميرا تعمل - وجه الهاتف نحو رمز QR";
-        cameraStatus.style.color = "#28a745";
-        
     } catch(err) {
-        console.error("خطأ:", err);
-        
-        // محاولة ثانية
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
@@ -393,28 +348,19 @@ async function startScanner() {
             startBtn.style.display = "none";
             stopBtn.style.display = "block";
             cameraStatus.innerHTML = "✅ الكاميرا تعمل - وجه الهاتف نحو رمز QR";
-            cameraStatus.style.color = "#28a745";
         } catch(err2) {
             cameraStatus.innerHTML = "❌ لا يمكن تشغيل الكاميرا - تأكد من منح الإذن";
-            cameraStatus.style.color = "#dc3545";
-            showResult("❌ لا يمكن تشغيل الكاميرا. الرجاء استخدام الإدخال اليدوي بدلاً من ذلك.", "error");
+            showResult("❌ لا يمكن تشغيل الكاميرا. الرجاء استخدام الإدخال اليدوي.", "error");
             startBtn.style.display = "block";
             stopBtn.style.display = "none";
         }
     }
 }
 
-// ========== إيقاف الكاميرا ==========
 function stopScanner() {
     scanning = false;
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-    }
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-    }
+    if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+    if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
     video.srcObject = null;
     video.style.display = "none";
     startBtn.style.display = "block";
@@ -422,21 +368,17 @@ function stopScanner() {
     cameraStatus.innerHTML = "";
 }
 
-// ========== تحميل قائمة الطلاب للأزرار السريعة ==========
 async function loadQuickStudents() {
     try {
-        console.log("جاري تحميل الطلاب...");
         const response = await fetch('/api/students_list');
         const data = await response.json();
-        console.log("بيانات الطلاب:", data);
-        
         const container = document.getElementById('quickStudents');
         
         if (data.success && data.data && data.data.length > 0) {
             container.innerHTML = '';
             data.data.slice(0, 6).forEach(student => {
                 const btn = document.createElement('button');
-                btn.textContent = `${student.name}`;
+                btn.textContent = student.name;
                 btn.title = `رقم: ${student.student_id}`;
                 btn.onclick = () => {
                     studentIdInput.value = student.student_id;
@@ -445,36 +387,21 @@ async function loadQuickStudents() {
                 container.appendChild(btn);
             });
         } else {
-            container.innerHTML = '<span style="color:#999; font-size:12px;">لا توجد بيانات طلاب</span>';
+            container.innerHTML = '<span style="color:#999;">لا توجد بيانات طلاب</span>';
         }
     } catch(e) {
-        console.error("خطأ في تحميل الطلاب:", e);
-        document.getElementById('quickStudents').innerHTML = '<span style="color:#999; font-size:12px;">خطأ في تحميل البيانات</span>';
+        document.getElementById('quickStudents').innerHTML = '<span style="color:#999;">خطأ في التحميل</span>';
     }
 }
 
-// ========== أحداث ==========
 startBtn.addEventListener('click', startScanner);
 stopBtn.addEventListener('click', stopScanner);
-
-// السماح بإرسال الإدخال بالضغط على Enter
-studentIdInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        registerManually();
-    }
-});
-
-// تحميل القائمة عند فتح الصفحة
+studentIdInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') registerManually(); });
 loadQuickStudents();
 
-// تنظيف عند مغادرة الصفحة
 window.addEventListener('beforeunload', () => {
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-    }
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-    }
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    if (animationId) cancelAnimationFrame(animationId);
 });
 </script>
 </body>
