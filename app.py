@@ -33,6 +33,11 @@ USERS_FILE = 'users.json'
 def send_report_email(recipient, subject, body, attachment_path=None):
     """إرسال تقرير عبر البريد الإلكتروني"""
     try:
+        # التحقق من وجود كلمة مرور البريد
+        if not app.config['MAIL_PASSWORD']:
+            print("⚠️ كلمة مرور البريد الإلكتروني غير مضبوطة")
+            return False, "كلمة مرور البريد الإلكتروني غير مضبوطة في الإعدادات"
+        
         msg = Message(subject, recipients=[recipient])
         msg.html = body
         
@@ -46,10 +51,10 @@ def send_report_email(recipient, subject, body, attachment_path=None):
         
         mail.send(msg)
         print(f"✅ تم إرسال البريد إلى {recipient}")
-        return True
+        return True, "تم الإرسال بنجاح"
     except Exception as e:
         print(f"❌ خطأ في إرسال البريد: {e}")
-        return False
+        return False, str(e)
 
 # ============== بيانات المستخدمين ==============
 def load_users():
@@ -537,7 +542,7 @@ def dashboard_stats():
         "total_records": len(attendance_records)
     })
 
-# ============== APIs التصدير والإرسال ==============
+# ============== APIs التصدير ==============
 @app.route("/api/export_today_excel")
 @login_required
 def export_today_excel():
@@ -670,6 +675,13 @@ def send_today_report_email():
         today = datetime.now().strftime("%Y-%m-%d")
         filename = f"attendance_report_{today}.xlsx"
         
+        # التحقق من إعدادات البريد
+        if not app.config['MAIL_PASSWORD']:
+            return jsonify({
+                "success": False, 
+                "message": "⚠️ خدمة البريد الإلكتروني غير مضبوطة. يرجى إضافة EMAIL_PASSWORD في إعدادات Render."
+            })
+        
         # إنشاء التقرير
         result = []
         for student in students:
@@ -719,7 +731,7 @@ def send_today_report_email():
         </html>
         """
         
-        success = send_report_email(
+        success, message = send_report_email(
             recipient='taaanet@gmail.com',
             subject=f'📊 تقرير حضور الطلاب - {today}',
             body=html_body,
@@ -729,7 +741,7 @@ def send_today_report_email():
         if success:
             return jsonify({"success": True, "message": "✅ تم إرسال التقرير إلى البريد الإلكتروني"})
         else:
-            return jsonify({"success": False, "message": "❌ فشل إرسال التقرير"})
+            return jsonify({"success": False, "message": f"❌ فشل الإرسال: {message}"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -742,6 +754,13 @@ def send_monthly_report_email():
         month = request.args.get('month', datetime.now().month)
         
         filename = f"monthly_report_{year}_{month}.xlsx"
+        
+        # التحقق من إعدادات البريد
+        if not app.config['MAIL_PASSWORD']:
+            return jsonify({
+                "success": False, 
+                "message": "⚠️ خدمة البريد الإلكتروني غير مضبوطة. يرجى إضافة EMAIL_PASSWORD في إعدادات Render."
+            })
         
         monthly_stats = []
         for student in students:
@@ -781,7 +800,7 @@ def send_monthly_report_email():
         </html>
         """
         
-        success = send_report_email(
+        success, message = send_report_email(
             recipient='taaanet@gmail.com',
             subject=f'📊 تقرير حضور الطلاب الشهري - {months[int(month)-1]} {year}',
             body=html_body,
@@ -791,7 +810,7 @@ def send_monthly_report_email():
         if success:
             return jsonify({"success": True, "message": "✅ تم إرسال التقرير الشهري إلى البريد الإلكتروني"})
         else:
-            return jsonify({"success": False, "message": "❌ فشل إرسال التقرير"})
+            return jsonify({"success": False, "message": f"❌ فشل الإرسال: {message}"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -834,6 +853,10 @@ if __name__ == "__main__":
     for username, data in users.items():
         max_logins = "غير محدود" if data['role'] == 'admin' else data.get('max_logins', 5)
         print(f"   - {username} (الدور: {data['role']}, الحد الأقصى: {max_logins})")
+    print("=" * 50)
+    print("📧 إعدادات البريد:")
+    print(f"   MAIL_USERNAME: {app.config['MAIL_USERNAME']}")
+    print(f"   MAIL_PASSWORD: {'✓ تم تعيينه' if app.config['MAIL_PASSWORD'] else '✗ لم يتم تعيينه'}")
     print("=" * 50)
     
     port = int(os.environ.get("PORT", 5000))
