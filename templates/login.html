@@ -35,7 +35,6 @@
             border-radius: 15px;
             font-size: 16px;
             font-family: inherit;
-            transition: all 0.3s;
         }
         input:focus {
             outline: none;
@@ -52,7 +51,6 @@
             cursor: pointer;
             margin-top: 20px;
             font-weight: bold;
-            transition: all 0.3s;
         }
         button:hover { transform: translateY(-2px); }
         .error {
@@ -64,12 +62,21 @@
         }
         .info {
             background: #d1ecf1;
-            color: #0c5460;
-            padding: 10px;
+            padding: 15px;
             border-radius: 10px;
             margin-top: 20px;
             font-size: 12px;
+            text-align: right;
         }
+        .admin-card, .teacher-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .admin-card { border-right: 4px solid #667eea; }
+        .teacher-card { border-right: 4px solid #28a745; }
+        code { background: #e9ecef; padding: 2px 5px; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -83,13 +90,23 @@
         {% endif %}
         
         <form method="POST">
-            <input type="text" name="username" placeholder="اسم المستخدم" required autocomplete="off">
+            <input type="text" name="username" placeholder="اسم المستخدم" required>
             <input type="password" name="password" placeholder="كلمة المرور" required>
             <button type="submit">دخول</button>
         </form>
         
         <div class="info">
-            🔐 المستخدم الافتراضي: admin / admin123
+            <strong>📋 معلومات الدخول:</strong><br>
+            <div class="admin-card">
+                👑 <strong>مدير النظام (دخول غير محدود)</strong><br>
+                اسم المستخدم: <code>taha_mohamad</code><br>
+                كلمة المرور: <code>Het@onet0hros</code>
+            </div>
+            <div class="teacher-card">
+                👨‍🏫 <strong>معلم (5 مرات فقط)</strong><br>
+                اسم المستخدم: <code>admin</code><br>
+                كلمة المرور: <code>admin123</code>
+            </div>
         </div>
     </div>
 </body>

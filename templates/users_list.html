@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة المستخدمين</title>
+    <style>
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        th { background: #667eea; color: white; }
+        .btn {
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .nav-buttons {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .nav-buttons a {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 5px;
+            display: inline-block;
+        }
+        .warning { color: #fd7e14; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>👥 إدارة المستخدمين</h1>
+        <a href="/" style="color:white;">🏠 الرئيسية</a>
+    </div>
+
+    <table>
+        <thead><tr><th>اسم المستخدم</th><th>الدور</th><th>عدد مرات الدخول</th><th>الحد الأقصى</th><th>المتبقي</th><th>إجراء</th></tr></thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td><strong>{{ user.username }}</strong></td>
+                <td>{% if user.role == 'admin' %}👑 مدير{% else %}👨‍🏫 معلم{% endif %}</td>
+                <td>{{ user.login_count }}</td>
+                <td>{{ user.max_logins }}</td>
+                <td class="{% if user.remaining < 3 %}warning{% endif %}">{{ user.remaining }}</td>
+                <td>{% if user.role != 'admin' %}<a href="/reset_logins/{{ user.username }}" class="btn" onclick="return confirm('هل أنت متأكد؟')">🔄 إعادة تعيين</a>{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="nav-buttons">
+        <a href="/">🏠 الرئيسية</a>
+        <a href="/scan">📷 المسح</a>
+        <a href="/reports">📊 التقارير</a>
+        <a href="/dashboard">📈 لوحة التحكم</a>
+    </div>
+</div>
+</body>
+</html>

@@ -23,11 +23,6 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             max-width: 500px;
             width: 100%;
-            animation: fadeIn 0.5s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         .school-logo { margin-bottom: 20px; }
         .logo-circle {
@@ -39,45 +34,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         .logo-circle span { font-size: 50px; }
         .school-name { margin-top: 10px; font-size: 18px; font-weight: bold; color: #667eea; }
         h1 { color: #333; margin-bottom: 10px; font-size: 24px; }
         .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
-        .btn {
-            display: block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 25px;
-            font-size: 18px;
-            text-decoration: none;
-            border-radius: 60px;
-            margin: 12px 0;
-            transition: all 0.3s ease;
-            font-weight: bold;
-        }
-        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
-        .btn-secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .btn-reports { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .btn-dashboard { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
-        .btn-logout { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); margin-top: 20px; }
-        .info-box {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 30px;
-            text-align: right;
-        }
-        .info-box h3 { color: #667eea; margin-bottom: 10px; font-size: 18px; }
-        .info-box p { color: #666; font-size: 14px; line-height: 1.6; margin: 8px 0; }
-        .time-info {
-            background: #e7f3ff;
-            border-radius: 15px;
-            padding: 15px;
-            margin-top: 20px;
-            text-align: center;
-        }
         .user-info {
             display: flex;
             justify-content: space-between;
@@ -87,13 +48,44 @@
             border-bottom: 1px solid #eee;
         }
         .welcome { color: #667eea; font-weight: bold; }
-        .footer { margin-top: 30px; color: #999; font-size: 12px; }
+        .btn {
+            display: block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 25px;
+            font-size: 18px;
+            text-decoration: none;
+            border-radius: 60px;
+            margin: 12px 0;
+            font-weight: bold;
+        }
+        .btn-reports { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .btn-dashboard { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
+        .time-info {
+            background: #e7f3ff;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: right;
+        }
+        .info-box h3 { color: #667eea; margin-bottom: 10px; }
+        .login-alert {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
         @media (max-width: 600px) {
             .container { padding: 25px 20px; }
             h1 { font-size: 20px; }
             .btn { padding: 12px 20px; font-size: 16px; }
-            .logo-circle { width: 80px; height: 80px; }
-            .logo-circle span { font-size: 40px; }
         }
     </style>
 </head>
@@ -106,8 +98,17 @@
         
         <div class="user-info">
             <span class="welcome">👋 مرحباً {{ session.get('username', 'مدير النظام') }}</span>
-            <a href="/logout" style="color: #dc3545; text-decoration: none; font-size: 14px;">🚪 خروج</a>
+            {% if session.get('role') == 'admin' %}
+                <a href="/users_list" style="color: #667eea; text-decoration: none;">👥 إدارة المستخدمين</a>
+            {% endif %}
+            <a href="/logout" style="color: #dc3545; text-decoration: none;">🚪 خروج</a>
         </div>
+        
+        {% if session.get('role') != 'admin' and session.get('remaining_logins') is not none %}
+        <div class="login-alert">
+            🔑 عدد مرات الدخول المتبقية: <strong>{{ session.get('remaining_logins') }}</strong> من أصل 5
+        </div>
+        {% endif %}
         
         <h1>نظام الحضور الذكي</h1>
         <p class="subtitle">نظام ذكي لمتابعة حضور الطلاب باستخدام رموز QR</p>
@@ -125,16 +126,16 @@
             <h3>ℹ️ معلومات عن النظام</h3>
             <p>✅ مسح رمز QR الخاص بالطالب لتسجيل الحضور تلقائياً</p>
             <p>✅ الحضور من 7:00 - 7:30 (حاضر) / بعد 7:30 (متأخر)</p>
-            <p>✅  لا يسجل الطالب أكثر من مرة في نفس اليوم</p>
+            <p>✅  تسجيل الطالب مرة واحدة في نفس اليوم</p>
             <p>✅ رسوم بيانية وإحصائيات متقدمة</p>
             <p>✅ تقارير يومية، شهرية، وأفضل الطلاب حضوراً</p>
         </div>
-        
-        <div class="footer">
+<div class="footer">
 
 نظام الحضور الذكي | جميع الحقوق محفوظة<br>
 Taha_Mohamad © 2026 E-mail:taaanet@gmail.com phone:0554289816
 </div>
+
     </div>
 </body>
 </html>
