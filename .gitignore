@@ -10,7 +10,3 @@ __pycache__/
 # ملفات التقارير
 *.xlsx
 !students.xlsx
-
-# ملفات Google (إذا استخدمتها لاحقاً)
-credentials.json
-token.pickle

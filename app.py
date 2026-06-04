@@ -1,17 +1,26 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_cors import CORS
+from flask_mail import Mail, Message
 from datetime import datetime, timedelta
 import os
 import json
 import pandas as pd
 from functools import wraps
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 CORS(app)
+
+# ============== إعدادات البريد الإلكتروني ==============
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'taaanet@gmail.com'
+app.config['MAIL_PASSWORD'] = os.environ.get('EMAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = 'taaanet@gmail.com'
+
+mail = Mail(app)
 
 # ============== إعدادات النظام ==============
 ATTENDANCE_START = "07:00:00"
@@ -20,94 +29,27 @@ STUDENTS_FILE = 'students.xlsx'
 ATTENDANCE_FILE = 'attendance.json'
 USERS_FILE = 'users.json'
 
-# ============== إعدادات Google Drive ==============
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
-CREDENTIALS_FILE = 'credentials.json'
-
-def get_google_drive_service():
-    """الحصول على خدمة Google Drive باستخدام متغير البيئة أو الملف المحلي"""
+# ============== دوال البريد الإلكتروني ==============
+def send_report_email(recipient, subject, body, attachment_path=None):
+    """إرسال تقرير عبر البريد الإلكتروني"""
     try:
-        creds = None
+        msg = Message(subject, recipients=[recipient])
+        msg.html = body
         
-        # المحاولة الأولى: قراءة من متغير البيئة (لـ Render)
-        credentials_json = os.environ.get('GOOGLE_CREDENTIALS')
+        if attachment_path and os.path.exists(attachment_path):
+            with app.open_resource(attachment_path) as fp:
+                msg.attach(
+                    os.path.basename(attachment_path),
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    fp.read()
+                )
         
-        if credentials_json:
-            print("✅ استخدام بيانات الاعتماد من متغير البيئة")
-            creds_dict = json.loads(credentials_json)
-            creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-        else:
-            # المحاولة الثانية: قراءة من الملف المحلي (للتطوير المحلي)
-            if os.path.exists(CREDENTIALS_FILE):
-                print(f"✅ استخدام بيانات الاعتماد من ملف {CREDENTIALS_FILE}")
-                creds = service_account.Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
-            else:
-                print("⚠️ لا يوجد ملف credentials.json ولا متغير بيئة GOOGLE_CREDENTIALS")
-                return None
-        
-        if creds:
-            service = build('drive', 'v3', credentials=creds)
-            print("✅ تم إنشاء خدمة Google Drive بنجاح")
-            return service
-        else:
-            return None
-            
+        mail.send(msg)
+        print(f"✅ تم إرسال البريد إلى {recipient}")
+        return True
     except Exception as e:
-        print(f"❌ خطأ في إنشاء خدمة Drive: {e}")
-        return None
-
-def upload_to_google_drive(file_path, folder_name="Attendance Reports"):
-    """رفع ملف إلى Google Drive"""
-    try:
-        service = get_google_drive_service()
-        if not service:
-            print("❌ لا يمكن رفع الملف: خدمة Google Drive غير متاحة")
-            return None
-        
-        # البحث عن مجلد التقارير أو إنشاؤه
-        results = service.files().list(
-            q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-            fields="files(id, name)"
-        ).execute()
-        
-        folders = results.get('files', [])
-        
-        if folders:
-            folder_id = folders[0]['id']
-            print(f"📁 تم العثور على المجلد: {folder_name}")
-        else:
-            # إنشاء مجلد جديد
-            file_metadata = {
-                'name': folder_name,
-                'mimeType': 'application/vnd.google-apps.folder'
-            }
-            folder = service.files().create(body=file_metadata, fields='id').execute()
-            folder_id = folder.get('id')
-            print(f"📁 تم إنشاء مجلد جديد: {folder_name}")
-        
-        # رفع الملف
-        file_metadata = {
-            'name': os.path.basename(file_path),
-            'parents': [folder_id]
-        }
-        media = MediaFileUpload(
-            file_path,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            resumable=True
-        )
-        
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id, webViewLink'
-        ).execute()
-        
-        print(f"✅ تم رفع الملف بنجاح: {file.get('webViewLink')}")
-        return file.get('webViewLink')
-        
-    except Exception as e:
-        print(f"❌ خطأ في الرفع إلى Google Drive: {e}")
-        return None
+        print(f"❌ خطأ في إرسال البريد: {e}")
+        return False
 
 # ============== بيانات المستخدمين ==============
 def load_users():
@@ -120,8 +62,8 @@ def load_users():
         pass
     
     default_users = {
-        'taha_mohamad': {
-            'password': 'Het@onet0hros',
+        'Taha_Mohamed': {
+            'password': 'hetaonet0hros',
             'role': 'admin',
             'login_count': 0,
             'max_logins': None
@@ -595,7 +537,7 @@ def dashboard_stats():
         "total_records": len(attendance_records)
     })
 
-# ============== APIs التصدير إلى Excel و Google Drive ==============
+# ============== APIs التصدير والإرسال ==============
 @app.route("/api/export_today_excel")
 @login_required
 def export_today_excel():
@@ -688,45 +630,6 @@ def export_student_excel(student_id):
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-@app.route("/api/upload_to_drive/<report_type>")
-@login_required
-def upload_to_drive(report_type):
-    """رفع تقرير إلى Google Drive"""
-    try:
-        today = datetime.now().strftime("%Y-%m-%d")
-        filename = f"attendance_report_{today}.xlsx"
-        
-        # إنشاء التقرير
-        result = []
-        for student in students:
-            record = None
-            for r in attendance_records:
-                if r['student_id'] == student['student_id'] and r['date'] == today:
-                    record = r
-                    break
-            
-            result.append({
-                'رقم الطالب': student['student_id'],
-                'اسم الطالب': student['name'],
-                'الصف': student['grade'],
-                'الشعبة': student['class'],
-                'وقت التسجيل': record['time'] if record else '-',
-                'الحالة': record['status'] if record else 'غائب'
-            })
-        
-        df = pd.DataFrame(result)
-        df.to_excel(filename, index=False, engine='openpyxl')
-        
-        # رفع إلى Google Drive
-        drive_link = upload_to_google_drive(filename)
-        
-        if drive_link:
-            return jsonify({"success": True, "drive_link": drive_link, "message": "تم الرفع إلى Google Drive"})
-        else:
-            return jsonify({"success": False, "message": "فشل الرفع إلى Google Drive"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
 @app.route("/api/export_attendance/<date>")
 @login_required
 def export_attendance(date):
@@ -755,6 +658,140 @@ def export_attendance(date):
         df.to_excel(filename, index=False, engine='openpyxl')
         
         return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+# ============== APIs إرسال التقارير عبر البريد ==============
+@app.route("/api/send_today_report_email")
+@login_required
+def send_today_report_email():
+    """إرسال تقرير اليوم إلى البريد الإلكتروني"""
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        filename = f"attendance_report_{today}.xlsx"
+        
+        # إنشاء التقرير
+        result = []
+        for student in students:
+            record = None
+            for r in attendance_records:
+                if r['student_id'] == student['student_id'] and r['date'] == today:
+                    record = r
+                    break
+            
+            result.append({
+                'رقم الطالب': student['student_id'],
+                'اسم الطالب': student['name'],
+                'الصف': student['grade'],
+                'الشعبة': student['class'],
+                'وقت التسجيل': record['time'] if record else '-',
+                'الحالة': record['status'] if record else 'غائب'
+            })
+        
+        df = pd.DataFrame(result)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        # إحصائيات للتقرير
+        present_count = len([r for r in result if r['الحالة'] == 'حاضر'])
+        late_count = len([r for r in result if r['الحالة'] == 'متأخر'])
+        absent_count = len([r for r in result if r['الحالة'] == 'غائب'])
+        
+        html_body = f"""
+        <html dir="rtl">
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Arial; padding: 20px;">
+            <h2 style="color: #667eea;">📊 تقرير حضور الطلاب</h2>
+            <h3>التاريخ: {today}</h3>
+            <hr>
+            <h3>📈 ملخص الحضور:</h3>
+            <ul>
+                <li>✅ الحاضرون: <strong>{present_count}</strong></li>
+                <li>⏰ المتأخرون: <strong>{late_count}</strong></li>
+                <li>❌ الغائبون: <strong>{absent_count}</strong></li>
+                <li>📚 إجمالي الطلاب: <strong>{len(result)}</strong></li>
+            </ul>
+            <hr>
+            <p>📎 المرفق: ملف Excel يحتوي على تفاصيل الحضور الكاملة</p>
+            <p>📅 تم الإرسال بواسطة: <strong>نظام رصد حضور الطلاب</strong></p>
+            <hr>
+            <p style="font-size: 12px; color: #888;">هذا بريد آلي، الرجاء عدم الرد عليه.</p>
+        </body>
+        </html>
+        """
+        
+        success = send_report_email(
+            recipient='taaanet@gmail.com',
+            subject=f'📊 تقرير حضور الطلاب - {today}',
+            body=html_body,
+            attachment_path=filename
+        )
+        
+        if success:
+            return jsonify({"success": True, "message": "✅ تم إرسال التقرير إلى البريد الإلكتروني"})
+        else:
+            return jsonify({"success": False, "message": "❌ فشل إرسال التقرير"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/send_monthly_report_email")
+@login_required
+def send_monthly_report_email():
+    """إرسال تقرير شهري إلى البريد الإلكتروني"""
+    try:
+        year = request.args.get('year', datetime.now().year)
+        month = request.args.get('month', datetime.now().month)
+        
+        filename = f"monthly_report_{year}_{month}.xlsx"
+        
+        monthly_stats = []
+        for student in students:
+            student_records = [r for r in attendance_records if r['student_id'] == student['student_id']]
+            present = len([r for r in student_records if r['status'] == 'حاضر'])
+            late = len([r for r in student_records if r['status'] == 'متأخر'])
+            
+            monthly_stats.append({
+                'رقم الطالب': student['student_id'],
+                'اسم الطالب': student['name'],
+                'الصف': student['grade'],
+                'الشعبة': student['class'],
+                'عدد أيام الحضور': present,
+                'عدد أيام التأخير': late,
+                'الغياب': len(student_records) - (present + late),
+                'نسبة الحضور': round((present + late) / len(student_records) * 100, 1) if len(student_records) > 0 else 0
+            })
+        
+        df = pd.DataFrame(monthly_stats)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
+                  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+        
+        html_body = f"""
+        <html dir="rtl">
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Arial; padding: 20px;">
+            <h2 style="color: #667eea;">📊 تقرير حضور الطلاب الشهري</h2>
+            <h3>{months[int(month)-1]} {year}</h3>
+            <hr>
+            <p>📎 المرفق: ملف Excel يحتوي على إحصائيات الحضور الشهرية الكاملة</p>
+            <p>📅 تم الإرسال بواسطة: <strong>نظام رصد حضور الطلاب</strong></p>
+            <hr>
+            <p style="font-size: 12px; color: #888;">هذا بريد آلي، الرجاء عدم الرد عليه.</p>
+        </body>
+        </html>
+        """
+        
+        success = send_report_email(
+            recipient='taaanet@gmail.com',
+            subject=f'📊 تقرير حضور الطلاب الشهري - {months[int(month)-1]} {year}',
+            body=html_body,
+            attachment_path=filename
+        )
+        
+        if success:
+            return jsonify({"success": True, "message": "✅ تم إرسال التقرير الشهري إلى البريد الإلكتروني"})
+        else:
+            return jsonify({"success": False, "message": "❌ فشل إرسال التقرير"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
