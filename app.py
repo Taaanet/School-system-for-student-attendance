@@ -1,10 +1,16 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
 import json
 import pandas as pd
 from functools import wraps
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+import pickle
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
@@ -16,6 +22,66 @@ ATTENDANCE_DEADLINE = "07:30:00"
 STUDENTS_FILE = 'students.xlsx'
 ATTENDANCE_FILE = 'attendance.json'
 USERS_FILE = 'users.json'
+
+# ============== إعدادات Google Drive ==============
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+CREDENTIALS_FILE = 'credentials.json'
+TOKEN_FILE = 'token.pickle'
+
+def get_google_drive_service():
+    """الحصول على خدمة Google Drive"""
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            if not os.path.exists(CREDENTIALS_FILE):
+                print("⚠️ ملف credentials.json غير موجود")
+                return None
+            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+    
+    return build('drive', 'v3', credentials=creds)
+
+def upload_to_google_drive(file_path, folder_name="Attendance Reports"):
+    """رفع ملف إلى Google Drive"""
+    try:
+        service = get_google_drive_service()
+        if not service:
+            return None
+        
+        # البحث عن مجلد التقارير
+        results = service.files().list(q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false", fields="files(id, name)").execute()
+        folders = results.get('files', [])
+        
+        if folders:
+            folder_id = folders[0]['id']
+        else:
+            file_metadata = {
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder'
+            }
+            folder = service.files().create(body=file_metadata, fields='id').execute()
+            folder_id = folder.get('id')
+        
+        file_metadata = {
+            'name': os.path.basename(file_path),
+            'parents': [folder_id]
+        }
+        media = MediaFileUpload(file_path, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        file = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
+        
+        return file.get('webViewLink')
+    except Exception as e:
+        print(f"خطأ في الرفع: {e}")
+        return None
 
 # ============== بيانات المستخدمين ==============
 def load_users():
@@ -503,6 +569,171 @@ def dashboard_stats():
         "total_records": len(attendance_records)
     })
 
+# ============== APIs التصدير إلى Excel و Google Drive ==============
+@app.route("/api/export_today_excel")
+@login_required
+def export_today_excel():
+    """تصدير تقرير اليوم إلى Excel"""
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        filename = f"attendance_report_{today}.xlsx"
+        
+        result = []
+        for student in students:
+            record = None
+            for r in attendance_records:
+                if r['student_id'] == student['student_id'] and r['date'] == today:
+                    record = r
+                    break
+            
+            result.append({
+                'رقم الطالب': student['student_id'],
+                'اسم الطالب': student['name'],
+                'الصف': student['grade'],
+                'الشعبة': student['class'],
+                'وقت التسجيل': record['time'] if record else '-',
+                'الحالة': record['status'] if record else 'غائب'
+            })
+        
+        df = pd.DataFrame(result)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/export_monthly_excel")
+@login_required
+def export_monthly_excel():
+    """تصدير تقرير شهري إلى Excel"""
+    try:
+        year = request.args.get('year', datetime.now().year)
+        month = request.args.get('month', datetime.now().month)
+        
+        filename = f"monthly_report_{year}_{month}.xlsx"
+        
+        monthly_stats = []
+        for student in students:
+            student_records = [r for r in attendance_records if r['student_id'] == student['student_id']]
+            present = len([r for r in student_records if r['status'] == 'حاضر'])
+            late = len([r for r in student_records if r['status'] == 'متأخر'])
+            
+            monthly_stats.append({
+                'رقم الطالب': student['student_id'],
+                'اسم الطالب': student['name'],
+                'الصف': student['grade'],
+                'الشعبة': student['class'],
+                'عدد أيام الحضور': present,
+                'عدد أيام التأخير': late,
+                'الغياب': len(student_records) - (present + late),
+                'نسبة الحضور': round((present + late) / len(student_records) * 100, 1) if len(student_records) > 0 else 0
+            })
+        
+        df = pd.DataFrame(monthly_stats)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/export_student_excel/<student_id>")
+@login_required
+def export_student_excel(student_id):
+    """تصدير تقرير طالب فردي إلى Excel"""
+    try:
+        student = None
+        for s in students:
+            if s['student_id'] == student_id:
+                student = s
+                break
+        
+        if not student:
+            return jsonify({"success": False, "error": "الطالب غير موجود"})
+        
+        filename = f"student_{student_id}_report.xlsx"
+        
+        records = [r for r in attendance_records if r['student_id'] == student_id]
+        records.sort(key=lambda x: x['date'], reverse=True)
+        
+        df = pd.DataFrame(records)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/upload_to_drive/<report_type>")
+@login_required
+def upload_to_drive(report_type):
+    """رفع تقرير إلى Google Drive"""
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        if report_type == 'today':
+            filename = f"attendance_report_{today}.xlsx"
+            
+            result = []
+            for student in students:
+                record = None
+                for r in attendance_records:
+                    if r['student_id'] == student['student_id'] and r['date'] == today:
+                        record = r
+                        break
+                
+                result.append({
+                    'رقم الطالب': student['student_id'],
+                    'اسم الطالب': student['name'],
+                    'الصف': student['grade'],
+                    'الشعبة': student['class'],
+                    'وقت التسجيل': record['time'] if record else '-',
+                    'الحالة': record['status'] if record else 'غائب'
+                })
+            
+            df = pd.DataFrame(result)
+            df.to_excel(filename, index=False, engine='openpyxl')
+            
+            drive_link = upload_to_google_drive(filename)
+            
+            if drive_link:
+                return jsonify({"success": True, "drive_link": drive_link, "message": "تم الرفع إلى Google Drive"})
+            else:
+                return jsonify({"success": False, "message": "فشل الرفع إلى Google Drive"})
+        else:
+            return jsonify({"success": False, "message": "نوع التقرير غير معروف"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/export_attendance/<date>")
+@login_required
+def export_attendance(date):
+    """تصدير تقرير بتاريخ محدد"""
+    try:
+        filename = f"attendance_{date}.xlsx"
+        
+        result = []
+        for student in students:
+            record = None
+            for r in attendance_records:
+                if r['student_id'] == student['student_id'] and r['date'] == date:
+                    record = r
+                    break
+            
+            result.append({
+                'رقم الطالب': student['student_id'],
+                'اسم الطالب': student['name'],
+                'الصف': student['grade'],
+                'الشعبة': student['class'],
+                'وقت التسجيل': record['time'] if record else '-',
+                'الحالة': record['status'] if record else 'غائب'
+            })
+        
+        df = pd.DataFrame(result)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/load_excel")
 @login_required
 def load_excel():
@@ -536,6 +767,12 @@ if __name__ == "__main__":
     print("🚀 نظام الحضور يعمل الآن!")
     print(f"📚 تم تحميل {len(students)} طالب")
     print(f"📋 لدينا {len(attendance_records)} سجل حضور")
+    print("=" * 50)
+    print("👥 المستخدمون:")
+    users = load_users()
+    for username, data in users.items():
+        max_logins = "غير محدود" if data['role'] == 'admin' else data.get('max_logins', 5)
+        print(f"   - {username} (الدور: {data['role']}, الحد الأقصى: {max_logins})")
     print("=" * 50)
     
     port = int(os.environ.get("PORT", 5000))
