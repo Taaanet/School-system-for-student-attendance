@@ -58,8 +58,8 @@
         }
         .btn-excel { background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
         .btn-print { background: #17a2b8; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
-        .btn-drive { background: #4285f4; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
-        .btn-excel:hover, .btn-print:hover, .btn-drive:hover { opacity: 0.8; transform: translateY(-2px); }
+        .btn-email { background: #ea4335; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
+        .btn-excel:hover, .btn-print:hover, .btn-email:hover { opacity: 0.8; transform: translateY(-2px); }
         .tabs {
             display: flex;
             gap: 10px;
@@ -142,6 +142,7 @@
             <a href="/">🏠 الرئيسية</a>
             <a href="/scan">📷 المسح</a>
             <a href="/dashboard">📈 لوحة التحكم</a>
+            <a href="/users_list">👥 إدارة المستخدمين</a>
             <a href="/logout">🚪 خروج</a>
         </div>
     </div>
@@ -161,7 +162,7 @@
         <div class="action-buttons no-print">
             <button class="btn-excel" onclick="exportTodayExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printTodayReport()">🖨️ طباعة</button>
-            <button class="btn-drive" onclick="uploadTodayToDrive()">☁️ حفظ في Google Drive</button>
+            <button class="btn-email" onclick="sendTodayReportEmail()">📧 إرسال إلى البريد</button>
         </div>
         <h3>📋 تفاصيل حضور اليوم - <span id="todayDate"></span></h3>
         <div id="todayTable" class="table-container"></div>
@@ -193,6 +194,7 @@
             <button onclick="loadMonthlyReport()">عرض التقرير</button>
             <button class="btn-excel" onclick="exportMonthlyExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printMonthlyReport()">🖨️ طباعة</button>
+            <button class="btn-email" onclick="sendMonthlyReportEmail()">📧 إرسال إلى البريد</button>
         </div>
         <div id="monthlyReport"></div>
     </div>
@@ -221,6 +223,7 @@
         <a href="/">🏠 الرئيسية</a>
         <a href="/scan">📷 المسح</a>
         <a href="/dashboard">📈 لوحة التحكم</a>
+        <a href="/users_list">👥 إدارة المستخدمين</a>
     </div>
 </div>
 
@@ -241,19 +244,6 @@ async function loadStats() {
                 <div class="stat-card"><div class="stat-number">${data.percentage}%</div><div class="stat-label">📈 نسبة الحضور</div></div>
             `;
             document.getElementById('todayDate').innerHTML = data.date;
-            
-            if (statusChart) statusChart.destroy();
-            const ctx = document.getElementById('statusChart');
-            if (ctx) {
-                statusChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['حاضر', 'متأخر', 'غائب'],
-                        datasets: [{ data: [data.present, data.late, data.absent], backgroundColor: ['#28a745', '#fd7e14', '#dc3545'] }]
-                    },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-                });
-            }
         }
     } catch(e) { console.error(e); }
 }
@@ -321,7 +311,7 @@ async function loadMonthlyReport() {
                 <td class="absent">${d.absent}</td>
             </tr>`;
         });
-        html += '</tbody></table></div>';
+        html += '</tbody><table></div>';
         container.innerHTML = html;
     } catch(e) { console.error(e); }
 }
@@ -336,7 +326,7 @@ async function loadAbsentStudents() {
             container.innerHTML = '<div style="text-align:center; padding:40px;">🎉 لا يوجد غائبون اليوم</div>';
             return;
         }
-        let html = '<div class="table-container"><table><thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th></tr></thead><tbody>';
+        let html = '<div class="table-container"><tr><thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th></tr></thead><tbody>';
         data.data.forEach((s, i) => {
             html += `<tr><td>${i+1}</td><td>${s.student_id}</td><td>${s.name}</td><td>${s.grade}</td><td>${s.class}</td></tr>`;
         });
@@ -384,7 +374,7 @@ function showTab(tabName) {
     else if (tabName === 'monthly') loadMonthlyReport();
 }
 
-// ========== دوال التصدير والطباعة ==========
+// ========== دوال التصدير ==========
 function exportTodayExcel() {
     window.location.href = '/api/export_today_excel';
 }
@@ -431,6 +421,7 @@ function exportAbsentExcel() {
     }
 }
 
+// ========== دوال الطباعة ==========
 function printTodayReport() {
     const content = document.getElementById('todayTable').innerHTML;
     const date = document.getElementById('todayDate').innerText;
@@ -494,21 +485,46 @@ function printAbsentReport() {
     printWindow.print();
 }
 
-async function uploadTodayToDrive() {
+// ========== دوال إرسال البريد ==========
+async function sendTodayReportEmail() {
     const btn = event.target;
     const originalText = btn.textContent;
-    btn.textContent = "⏳ جاري الرفع...";
+    btn.textContent = "⏳ جاري الإرسال...";
     btn.disabled = true;
     
     try {
-        const response = await fetch('/api/upload_to_drive/today');
+        const response = await fetch('/api/send_today_report_email');
         const data = await response.json();
         
-        if (data.success && data.drive_link) {
-            alert('✅ تم حفظ التقرير في Google Drive بنجاح!');
-            window.open(data.drive_link, '_blank');
+        if (data.success) {
+            alert('✅ تم إرسال التقرير إلى البريد الإلكتروني بنجاح!');
         } else {
-            alert('❌ فشل حفظ التقرير: ' + (data.message || 'خطأ غير معروف'));
+            alert('❌ فشل الإرسال: ' + (data.message || 'خطأ غير معروف'));
+        }
+    } catch (error) {
+        alert('❌ خطأ في الاتصال: ' + error.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function sendMonthlyReportEmail() {
+    const month = document.getElementById('monthSelect').value;
+    const year = document.getElementById('yearSelect').value;
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ جاري الإرسال...";
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/send_monthly_report_email?month=${month}&year=${year}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ تم إرسال التقرير الشهري إلى البريد الإلكتروني بنجاح!');
+        } else {
+            alert('❌ فشل الإرسال: ' + (data.message || 'خطأ غير معروف'));
         }
     } catch (error) {
         alert('❌ خطأ في الاتصال: ' + error.message);
