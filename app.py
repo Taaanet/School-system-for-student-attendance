@@ -51,17 +51,6 @@ def get_or_create_sheet():
         students_ws = sheet.add_worksheet(title="الطلاب", rows="1000", cols="20")
         headers = ['student_id', 'name', 'grade', 'class', 'phone', 'parent_phone', 'notes']
         students_ws.append_row(headers)
-        
-        # إضافة بيانات تجريبية
-        sample_data = [
-            ['1150436838', 'عبدالله فيصل شندي', 'الأول الثانوي', 'أ', '', '', ''],
-            ['1152217368', 'أحمد محمد علي', 'الأول الثانوي', 'ب', '', '', ''],
-            ['1152327969', 'سارة خالد', 'الثاني الثانوي', 'أ', '', '', ''],
-            ['1152502371', 'محمد إبراهيم', 'الثاني الثانوي', 'ج', '', '', ''],
-            ['1153472889', 'نورة سعيد', 'الثالث الثانوي', 'أ', '', '', '']
-        ]
-        for row in sample_data:
-            students_ws.append_row(row)
     
     # ورقة الحضور
     try:
@@ -167,6 +156,28 @@ def get_attendance_status():
     else:
         return "متأخر", current_time
 
+# ============== دوال البريد الإلكتروني ==============
+def send_report_email(recipient, subject, body, attachment_path=None):
+    try:
+        if not app.config['MAIL_PASSWORD']:
+            return False, "كلمة مرور البريد الإلكتروني غير مضبوطة"
+        
+        msg = Message(subject, recipients=[recipient])
+        msg.html = body
+        
+        if attachment_path and os.path.exists(attachment_path):
+            with app.open_resource(attachment_path) as fp:
+                msg.attach(
+                    os.path.basename(attachment_path),
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    fp.read()
+                )
+        
+        mail.send(msg)
+        return True, "تم الإرسال بنجاح"
+    except Exception as e:
+        return False, str(e)
+
 # ============== بيانات المستخدمين ==============
 USERS_FILE = 'users.json'
 
@@ -240,10 +251,6 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-
-# تحميل البيانات من Google Sheets
-students = load_students()
-attendance_records = load_attendance()
 
 # ============== صفحات المصادقة ==============
 @app.route('/login', methods=['GET', 'POST'])
@@ -329,6 +336,10 @@ def reports():
 @login_required
 def dashboard():
     return render_template("dashboard.html")
+
+# ============== تحميل البيانات ==============
+students = load_students()
+attendance_records = load_attendance()
 
 # ============== API التسجيل ==============
 @app.route("/api/register", methods=["POST"])
@@ -583,6 +594,7 @@ def export_all_data():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+# ============== API إرسال البريد ==============
 @app.route("/api/send_today_report_email")
 @login_required
 def send_today_report_email():
@@ -620,11 +632,66 @@ def send_today_report_email():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+# ============== API إدارة البيانات (المضافة والمحدثة) ==============
+@app.route("/api/upload_local_students")
+@login_required
+def upload_local_students():
+    """رفع الطلاب من ملف Excel المحلي إلى Google Sheets"""
+    try:
+        # التحقق من وجود ملف Excel
+        if not os.path.exists('students.xlsx'):
+            return jsonify({"success": False, "message": "ملف students.xlsx غير موجود"})
+        
+        # قراءة الطلاب من ملف Excel
+        df = pd.read_excel('students.xlsx')
+        records = df.to_dict('records')
+        
+        # الحصول على ورقة الطلاب
+        students_ws, _ = get_or_create_sheet()
+        if not students_ws:
+            return jsonify({"success": False, "message": "فشل الاتصال بـ Google Sheets"})
+        
+        # مسح البيانات القديمة (مع ترك الصف الأول للعناوين)
+        # نحدد عدد الصفوف ونحذف من الصف 2 إلى النهاية
+        all_rows = students_ws.get_all_values()
+        if len(all_rows) > 1:
+            # حذف الصفوف من 2 إلى آخر صف
+            for i in range(len(all_rows) - 1, 0, -1):
+                students_ws.delete_row(i + 1)
+        
+        # إضافة الطلاب الجدد
+        count = 0
+        for record in records:
+            try:
+                students_ws.append_row([
+                    str(record.get('student_id', '')),
+                    str(record.get('name', '')),
+                    str(record.get('grade', '')),
+                    str(record.get('class', '')),
+                    str(record.get('phone', '')),
+                    str(record.get('parent_phone', '')),
+                    str(record.get('notes', ''))
+                ])
+                count += 1
+            except Exception as e:
+                print(f"خطأ في إضافة الطالب {record.get('student_id')}: {e}")
+        
+        # إعادة تحميل البيانات
+        global students
+        students = load_students()
+        
+        return jsonify({
+            "success": True, 
+            "message": f"✅ تم رفع {count} طالب بنجاح إلى Google Sheets!",
+            "total_students": len(students)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/api/migrate_to_gsheets")
 @login_required
 def migrate_to_gsheets():
     count = migrate_existing_attendance()
-    # إعادة تحميل البيانات
     global students, attendance_records
     students = load_students()
     attendance_records = load_attendance()
@@ -658,12 +725,17 @@ def check_storage():
 @app.route("/api/debug_students")
 @login_required
 def debug_students():
-    return jsonify({"success": True, "count": len(students), "students": students})
+    return jsonify({"success": True, "count": len(students), "students": students[:10]})
 
 @app.route("/api/stats")
 @login_required
 def stats():
-    return jsonify({"success": True, "students_count": len(students), "attendance_count": len(attendance_records), "storage": "google_sheets"})
+    return jsonify({
+        "success": True, 
+        "students_count": len(students), 
+        "attendance_count": len(attendance_records), 
+        "storage": "google_sheets"
+    })
 
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":
@@ -677,6 +749,15 @@ if __name__ == "__main__":
         if old_count > 0:
             attendance_records = load_attendance()
             print(f"✅ تم ترحيل {old_count} سجل قديم")
+    
+    print("=" * 50)
+    print("🚀 نظام الحضور يعمل الآن مع Google Sheets!")
+    print(f"👥 المستخدمون المتاحون:")
+    users = load_users()
+    for username, data in users.items():
+        max_logins = "غير محدود" if data['role'] == 'admin' else data.get('max_logins', 5)
+        print(f"   - {username} (الدور: {data['role']}, الحد الأقصى: {max_logins})")
+    print("=" * 50)
     
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
