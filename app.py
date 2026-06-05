@@ -630,29 +630,58 @@ def send_today_report_email():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-# ============== APIs إدارة البيانات ==============
+@app.route("/api/send_monthly_report_email")
+@login_required
+def send_monthly_report_email():
+    try:
+        year = request.args.get('year', datetime.now().year)
+        month = request.args.get('month', datetime.now().month)
+        filename = f"monthly_report_{year}_{month}.xlsx"
+        if not app.config['MAIL_PASSWORD']:
+            return jsonify({"success": False, "message": "خدمة البريد الإلكتروني غير مضبوطة"})
+        
+        monthly_stats = []
+        for student in students:
+            student_records = [r for r in attendance_records if r.get('student_id') == student.get('student_id')]
+            present = len([r for r in student_records if r.get('status') == 'حاضر'])
+            late = len([r for r in student_records if r.get('status') == 'متأخر'])
+            monthly_stats.append({'رقم الطالب': student.get('student_id'), 'اسم الطالب': student.get('name'),
+                                 'الصف': student.get('grade'), 'الشعبة': student.get('class'),
+                                 'عدد أيام الحضور': present, 'عدد أيام التأخير': late,
+                                 'الغياب': len(student_records) - (present + late),
+                                 'نسبة الحضور': round((present + late) / len(student_records) * 100, 1) if len(student_records) > 0 else 0})
+        df = pd.DataFrame(monthly_stats)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
+                  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+        html_body = f"""<html dir="rtl"><body><h2>📊 تقرير حضور الطلاب الشهري</h2>
+        <h3>{months[int(month)-1]} {year}</h3><hr><p>📎 المرفق: ملف Excel</p></body></html>"""
+        
+        success, msg = send_report_email('taaanet@gmail.com', f'تقرير شهري - {months[int(month)-1]} {year}', html_body, filename)
+        return jsonify({"success": success, "message": msg if not success else "✅ تم الإرسال"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+# ============== APIs إدارة البيانات (المحدثة) ==============
 @app.route("/api/upload_local_students")
 @login_required
 def upload_local_students():
-    """رفع الطلاب من ملف Excel المحلي إلى Google Sheets"""
+    """رفع الطلاب من ملف Excel المحلي إلى Google Sheets (إضافة فقط)"""
     try:
         if not os.path.exists('students.xlsx'):
             return jsonify({"success": False, "message": "ملف students.xlsx غير موجود"})
         
+        # قراءة الطلاب من ملف Excel
         df = pd.read_excel('students.xlsx')
         records = df.to_dict('records')
         
+        # الحصول على ورقة الطلاب
         students_ws, _ = get_or_create_sheet()
         if not students_ws:
             return jsonify({"success": False, "message": "فشل الاتصال بـ Google Sheets"})
         
-        # مسح البيانات القديمة (مع ترك الصف الأول للعناوين)
-        all_rows = students_ws.get_all_values()
-        if len(all_rows) > 1:
-            for i in range(len(all_rows) - 1, 0, -1):
-                students_ws.delete_row(i + 1)
-        
-        # إضافة الطلاب الجدد
+        # إضافة الطلاب الجدد فقط (دون مسح القديم)
         count = 0
         for record in records:
             try:
@@ -669,10 +698,15 @@ def upload_local_students():
             except Exception as e:
                 print(f"خطأ في إضافة الطالب {record.get('student_id')}: {e}")
         
+        # إعادة تحميل البيانات
         global students
         students = load_students()
         
-        return jsonify({"success": True, "message": f"✅ تم رفع {count} طالب بنجاح!", "total_students": len(students)})
+        return jsonify({
+            "success": True, 
+            "message": f"✅ تم إضافة {count} طالب إلى Google Sheets!",
+            "total_students": len(students)
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -699,6 +733,26 @@ def clear_attendance():
     attendance_records = []
     return jsonify({"success": True, "message": "تم مسح سجلات الحضور"})
 
+@app.route("/api/clear_students")
+@login_required
+def clear_students():
+    """مسح جميع الطلاب من Google Sheets"""
+    try:
+        students_ws, _ = get_or_create_sheet()
+        if not students_ws:
+            return jsonify({"error": "لا يمكن الاتصال"})
+        
+        # الحصول على جميع الصفوف
+        all_rows = students_ws.get_all_values()
+        if len(all_rows) > 1:
+            # مسح محتوى الخلايا من الصف 2 إلى آخر صف
+            for row_num in range(len(all_rows), 1, -1):
+                students_ws.delete_rows(row_num)
+        
+        return jsonify({"success": True, "message": "تم مسح جميع الطلاب"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 @app.route("/api/check_storage")
 @login_required
 def check_storage():
@@ -713,6 +767,29 @@ def check_storage():
 @login_required
 def debug_students():
     return jsonify({"success": True, "count": len(students), "students": students[:10]})
+
+@app.route("/api/debug_sheet_headers")
+@login_required
+def debug_sheet_headers():
+    """عرض عناوين الأعمدة في Google Sheets"""
+    try:
+        students_ws, _ = get_or_create_sheet()
+        if not students_ws:
+            return jsonify({"error": "لا يمكن الاتصال بورقة الطلاب"})
+        
+        # جلب أول صف (العناوين)
+        headers = students_ws.row_values(1)
+        
+        # جلب أول 3 طلاب كعينة
+        sample = students_ws.get_all_records()
+        
+        return jsonify({
+            "headers": headers,
+            "sample_count": len(sample),
+            "first_sample": sample[0] if sample else None
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 @app.route("/api/stats")
 @login_required
