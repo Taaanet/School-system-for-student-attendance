@@ -81,7 +81,6 @@ def load_attendance():
         if not attendance_ws:
             return []
         records = attendance_ws.get_all_records()
-        # تحويل البيانات إلى تنسيق موحد
         for record in records:
             record['student_id'] = str(record.get('student_id', ''))
             record['student_name'] = record.get('student_name', '')
@@ -337,7 +336,7 @@ def reports():
 def dashboard():
     return render_template("dashboard.html")
 
-# ============== تحميل البيانات ==============
+# ============== تحميل البيانات الأولية ==============
 students = load_students()
 attendance_records = load_attendance()
 
@@ -367,7 +366,6 @@ def register_attendance():
         status, current_time = get_attendance_status()
         current_date = datetime.now().strftime("%Y-%m-%d")
         
-        # التحقق من عدم التكرار
         for record in attendance_records:
             if record.get('student_id') == student_id and record.get('date') == current_date:
                 return jsonify({"success": False, "message": f"⚠️ {student.get('name')} مسجل مسبقاً اليوم"})
@@ -632,30 +630,25 @@ def send_today_report_email():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-# ============== API إدارة البيانات (المضافة والمحدثة) ==============
+# ============== APIs إدارة البيانات ==============
 @app.route("/api/upload_local_students")
 @login_required
 def upload_local_students():
     """رفع الطلاب من ملف Excel المحلي إلى Google Sheets"""
     try:
-        # التحقق من وجود ملف Excel
         if not os.path.exists('students.xlsx'):
             return jsonify({"success": False, "message": "ملف students.xlsx غير موجود"})
         
-        # قراءة الطلاب من ملف Excel
         df = pd.read_excel('students.xlsx')
         records = df.to_dict('records')
         
-        # الحصول على ورقة الطلاب
         students_ws, _ = get_or_create_sheet()
         if not students_ws:
             return jsonify({"success": False, "message": "فشل الاتصال بـ Google Sheets"})
         
         # مسح البيانات القديمة (مع ترك الصف الأول للعناوين)
-        # نحدد عدد الصفوف ونحذف من الصف 2 إلى النهاية
         all_rows = students_ws.get_all_values()
         if len(all_rows) > 1:
-            # حذف الصفوف من 2 إلى آخر صف
             for i in range(len(all_rows) - 1, 0, -1):
                 students_ws.delete_row(i + 1)
         
@@ -676,15 +669,10 @@ def upload_local_students():
             except Exception as e:
                 print(f"خطأ في إضافة الطالب {record.get('student_id')}: {e}")
         
-        # إعادة تحميل البيانات
         global students
         students = load_students()
         
-        return jsonify({
-            "success": True, 
-            "message": f"✅ تم رفع {count} طالب بنجاح إلى Google Sheets!",
-            "total_students": len(students)
-        })
+        return jsonify({"success": True, "message": f"✅ تم رفع {count} طالب بنجاح!", "total_students": len(students)})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -709,12 +697,11 @@ def load_excel():
 def clear_attendance():
     global attendance_records
     attendance_records = []
-    return jsonify({"success": True, "message": "تم مسح سجلات الحضور (محلياً فقط)"})
+    return jsonify({"success": True, "message": "تم مسح سجلات الحضور"})
 
 @app.route("/api/check_storage")
 @login_required
 def check_storage():
-    """معرفة مكان حفظ البيانات"""
     return jsonify({
         "using_google_sheets": True,
         "attendance_count": len(attendance_records),
@@ -752,11 +739,6 @@ if __name__ == "__main__":
     
     print("=" * 50)
     print("🚀 نظام الحضور يعمل الآن مع Google Sheets!")
-    print(f"👥 المستخدمون المتاحون:")
-    users = load_users()
-    for username, data in users.items():
-        max_logins = "غير محدود" if data['role'] == 'admin' else data.get('max_logins', 5)
-        print(f"   - {username} (الدور: {data['role']}, الحد الأقصى: {max_logins})")
     print("=" * 50)
     
     port = int(os.environ.get("PORT", 5000))
