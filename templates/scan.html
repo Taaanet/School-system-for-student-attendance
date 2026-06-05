@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+            font-family: 'Tahoma', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 15px;
@@ -48,7 +48,6 @@
             border-radius: 12px;
             overflow: hidden;
             margin: 10px 0;
-            position: relative;
             min-height: 280px;
             display: flex;
             align-items: center;
@@ -57,7 +56,6 @@
         #video {
             width: 100%;
             display: none;
-            transform: scaleX(-1);
         }
         .camera-buttons { display: flex; gap: 10px; margin-top: 10px; }
         button {
@@ -70,9 +68,7 @@
             cursor: pointer;
             flex: 1;
             font-weight: bold;
-            transition: all 0.2s;
         }
-        button:active { transform: scale(0.97); }
         .stop-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); display: none; }
         .result-box {
             margin-top: 20px;
@@ -87,7 +83,7 @@
         .error { background: #f8d7da; color: #721c24; border-right: 5px solid #dc3545; }
         .info { background: #d1ecf1; color: #0c5460; border-right: 5px solid #17a2b8; }
         .student-card {
-            background: rgba(255,255,255,0.9);
+            background: #f8f9fa;
             padding: 12px;
             border-radius: 12px;
             margin-top: 12px;
@@ -98,50 +94,18 @@
             padding-top: 15px;
             border-top: 2px dashed #ddd;
         }
-        .manual-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        .input-group input {
+        .manual-input { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
+        .manual-input input {
             flex: 2;
-            padding: 14px;
+            padding: 12px;
             border: 2px solid #e0e0e0;
             border-radius: 25px;
             font-size: 16px;
             text-align: center;
-            font-family: inherit;
         }
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .input-group button {
-            flex: 1;
-            margin: 0;
-            background: #28a745;
-        }
-        .quick-section { margin-top: 15px; }
-        .quick-title { font-size: 13px; color: #666; margin-bottom: 8px; }
-        .quick-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .quick-buttons button {
-            background: #17a2b8;
-            font-size: 13px;
-            padding: 8px 15px;
-            flex: none;
-            width: auto;
-        }
+        .manual-input button { flex: 1; margin: 0; background: #28a745; }
+        .quick-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .quick-buttons button { background: #17a2b8; font-size: 12px; padding: 6px 12px; flex: none; }
         .status-text { text-align: center; margin-top: 8px; font-size: 12px; color: #666; }
         .nav-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .nav-buttons a {
@@ -169,11 +133,9 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        hr { margin: 15px 0; border: none; border-top: 1px solid #eee; }
         @media (max-width: 550px) {
             .container { padding: 15px; }
             button { padding: 10px 16px; font-size: 14px; }
-            .quick-buttons button { padding: 6px 12px; font-size: 12px; }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
@@ -204,23 +166,15 @@
     
     <div class="manual-section">
         <div class="manual-title">🖊️ إدخال رقم الطالب يدوياً</div>
-        <div class="input-group">
-            <input type="text" id="studentIdInput" placeholder="مثال: 1150436838" value="">
-            <button id="registerBtn" onclick="registerManually()">✅ تسجيل الحضور</button>
-        </div>
-    </div>
-    
-    <div class="quick-section">
-        <div class="quick-title">⚡ تسجيل سريع:</div>
-        <div id="quickStudents" class="quick-buttons">
-            <span style="color:#999; font-size:12px;">جاري التحميل...</span>
+        <div class="manual-input">
+            <input type="text" id="manualId" placeholder="مثال: 1150436838">
+            <button onclick="registerManually()">✅ تسجيل الحضور</button>
         </div>
     </div>
     
     <div class="nav-buttons">
         <a href="/">🏠 الرئيسية</a>
         <a href="/reports">📊 التقارير</a>
-        <a href="/dashboard">📈 لوحة التحكم</a>
         <a href="/logout">🚪 خروج</a>
     </div>
 </div>
@@ -233,7 +187,6 @@ const startBtn = document.getElementById('startCameraBtn');
 const stopBtn = document.getElementById('stopCameraBtn');
 const cameraStatus = document.getElementById('cameraStatus');
 const resultDiv = document.getElementById('result');
-const studentIdInput = document.getElementById('studentIdInput');
 
 let stream = null;
 let scanning = false;
@@ -258,8 +211,21 @@ async function registerStudent(studentId) {
         const data = await response.json();
         
         if (data.success) {
-            showResult(data.message, "success", data);
-            studentIdInput.value = '';
+            // عرض الرسالة مع التأكد من وجود البيانات
+            const studentName = data.student_name || 'الطالب';
+            const studentGrade = data.student_grade || '';
+            const studentClass = data.student_class || '';
+            const time = data.time || new Date().toLocaleTimeString('ar-SA');
+            const date = data.date || new Date().toLocaleDateString('ar-SA');
+            
+            showResult(data.message, "success", {
+                student_name: studentName,
+                student_grade: studentGrade,
+                student_class: studentClass,
+                time: time,
+                date: date
+            });
+            document.getElementById('manualId').value = '';
             return true;
         } else {
             showResult(`❌ ${data.message}`, "error");
@@ -272,7 +238,8 @@ async function registerStudent(studentId) {
 }
 
 function registerManually() {
-    registerStudent(studentIdInput.value);
+    const studentId = document.getElementById('manualId').value;
+    registerStudent(studentId);
 }
 
 function showResult(message, type, studentData = null) {
@@ -280,14 +247,14 @@ function showResult(message, type, studentData = null) {
     resultDiv.className = `result-box ${type}`;
     
     if (studentData && studentData.student_name) {
-        const statusIcon = studentData.status === 'حاضر' ? '✅' : (studentData.status === 'متأخر' ? '⏰' : '⚠️');
+        const statusIcon = message.includes('حاضر') ? '✅' : (message.includes('متأخر') ? '⏰' : '⚠️');
         resultDiv.innerHTML = `
             <div style="font-weight: bold; margin-bottom: 10px;">${statusIcon} ${message}</div>
             <div class="student-card">
                 <p>🧑‍🎓 <strong>الاسم:</strong> ${studentData.student_name}</p>
                 <p>📚 <strong>الصف:</strong> ${studentData.student_grade} - الشعبة ${studentData.student_class}</p>
-                <p>⏰ <strong>الوقت:</strong> ${studentData.time || new Date().toLocaleTimeString('ar-SA')}</p>
-                <p>📅 <strong>التاريخ:</strong> ${studentData.date || new Date().toLocaleDateString('ar-SA')}</p>
+                <p>⏰ <strong>الوقت:</strong> ${studentData.time}</p>
+                <p>📅 <strong>التاريخ:</strong> ${studentData.date}</p>
             </div>
         `;
     } else {
@@ -300,7 +267,9 @@ async function handleScannedCode(decodedText) {
     if (!decodedText) return;
     stopScanner();
     await registerStudent(decodedText);
-    setTimeout(() => { if (stream && !scanning) startScanner(); }, 3000);
+    setTimeout(() => {
+        if (stream && !scanning) startScanner();
+    }, 3000);
 }
 
 async function scanFrame() {
@@ -347,9 +316,9 @@ async function startScanner() {
             scanFrame();
             startBtn.style.display = "none";
             stopBtn.style.display = "block";
-            cameraStatus.innerHTML = "✅ الكاميرا تعمل - وجه الهاتف نحو رمز QR";
+            cameraStatus.innerHTML = "✅ الكاميرا تعمل";
         } catch(err2) {
-            cameraStatus.innerHTML = "❌ لا يمكن تشغيل الكاميرا - تأكد من منح الإذن";
+            cameraStatus.innerHTML = "❌ لا يمكن تشغيل الكاميرا";
             showResult("❌ لا يمكن تشغيل الكاميرا. الرجاء استخدام الإدخال اليدوي.", "error");
             startBtn.style.display = "block";
             stopBtn.style.display = "none";
@@ -368,36 +337,11 @@ function stopScanner() {
     cameraStatus.innerHTML = "";
 }
 
-async function loadQuickStudents() {
-    try {
-        const response = await fetch('/api/students_list');
-        const data = await response.json();
-        const container = document.getElementById('quickStudents');
-        
-        if (data.success && data.data && data.data.length > 0) {
-            container.innerHTML = '';
-            data.data.slice(0, 6).forEach(student => {
-                const btn = document.createElement('button');
-                btn.textContent = student.name;
-                btn.title = `رقم: ${student.student_id}`;
-                btn.onclick = () => {
-                    studentIdInput.value = student.student_id;
-                    registerStudent(student.student_id);
-                };
-                container.appendChild(btn);
-            });
-        } else {
-            container.innerHTML = '<span style="color:#999;">لا توجد بيانات طلاب</span>';
-        }
-    } catch(e) {
-        document.getElementById('quickStudents').innerHTML = '<span style="color:#999;">خطأ في التحميل</span>';
-    }
-}
-
 startBtn.addEventListener('click', startScanner);
 stopBtn.addEventListener('click', stopScanner);
-studentIdInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') registerManually(); });
-loadQuickStudents();
+document.getElementById('manualId').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') registerManually();
+});
 
 window.addEventListener('beforeunload', () => {
     if (stream) stream.getTracks().forEach(track => track.stop());
