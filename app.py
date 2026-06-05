@@ -63,13 +63,31 @@ def get_or_create_sheet():
     return students_ws, attendance_ws
 
 def load_students():
-    """تحميل الطلاب من Google Sheets"""
+    """تحميل الطلاب من Google Sheets وتحويل جميع القيم إلى نصوص"""
     try:
         students_ws, _ = get_or_create_sheet()
         if not students_ws:
             return []
         records = students_ws.get_all_records()
-        return records
+        
+        # تحويل جميع القيم إلى نصوص لتجنب أخطاء int/str
+        fixed_records = []
+        for record in records:
+            fixed_record = {}
+            for key, value in record.items():
+                if value is None:
+                    fixed_record[key] = ''
+                elif isinstance(value, (int, float)):
+                    # تحويل الأرقام إلى نصوص
+                    if value == int(value):
+                        fixed_record[key] = str(int(value))
+                    else:
+                        fixed_record[key] = str(value)
+                else:
+                    fixed_record[key] = str(value)
+            fixed_records.append(fixed_record)
+        
+        return fixed_records
     except Exception as e:
         print(f"خطأ في تحميل الطلاب: {e}")
         return []
@@ -83,12 +101,12 @@ def load_attendance():
         records = attendance_ws.get_all_records()
         for record in records:
             record['student_id'] = str(record.get('student_id', ''))
-            record['student_name'] = record.get('student_name', '')
-            record['grade'] = record.get('grade', '')
-            record['class'] = record.get('class', '')
-            record['date'] = record.get('date', '')
-            record['time'] = record.get('time', '')
-            record['status'] = record.get('status', '')
+            record['student_name'] = str(record.get('student_name', ''))
+            record['grade'] = str(record.get('grade', ''))
+            record['class'] = str(record.get('class', ''))
+            record['date'] = str(record.get('date', ''))
+            record['time'] = str(record.get('time', ''))
+            record['status'] = str(record.get('status', ''))
         return records
     except Exception as e:
         print(f"خطأ في تحميل الحضور: {e}")
@@ -340,7 +358,7 @@ def dashboard():
 students = load_students()
 attendance_records = load_attendance()
 
-# ============== API التسجيل ==============
+# ============== API التسجيل (المعدل) ==============
 @app.route("/api/register", methods=["POST"])
 @login_required
 def register_attendance():
@@ -353,28 +371,43 @@ def register_attendance():
         if not student_id:
             return jsonify({"success": False, "message": "الرجاء إدخال رقم الطالب"})
         
+        # البحث عن الطالب - تحويل الأرقام إلى نصوص للمقارنة
         student = None
         for s in students:
-            if s.get('student_id') == student_id:
+            # تحويل student_id في قاعدة البيانات إلى نص
+            db_student_id = str(s.get('student_id', ''))
+            if db_student_id == student_id:
                 student = s
                 break
         
         if not student:
-            available_ids = [s.get('student_id') for s in students[:5]]
-            return jsonify({"success": False, "message": f"الطالب {student_id} غير موجود. الأرقام المتاحة: {', '.join(available_ids)}"})
+            # عرض أول 5 أرقام للمساعدة في التصحيح
+            available_ids = [str(s.get('student_id', '')) for s in students[:5]]
+            return jsonify({
+                "success": False, 
+                "message": f"الطالب {student_id} غير موجود. الأرقام المتاحة: {', '.join(available_ids)}"
+            })
         
         status, current_time = get_attendance_status()
         current_date = datetime.now().strftime("%Y-%m-%d")
         
+        # التحقق من عدم التكرار
         for record in attendance_records:
-            if record.get('student_id') == student_id and record.get('date') == current_date:
-                return jsonify({"success": False, "message": f"⚠️ {student.get('name')} مسجل مسبقاً اليوم"})
+            if str(record.get('student_id', '')) == student_id and record.get('date') == current_date:
+                return jsonify({
+                    "success": False,
+                    "message": f"⚠️ {student.get('name')} مسجل مسبقاً اليوم",
+                    "already_registered": True,
+                    "student_name": str(student.get('name', '')),
+                    "student_grade": str(student.get('grade', '')),
+                    "student_class": str(student.get('class', ''))
+                })
         
         new_record = {
             'student_id': student_id,
-            'student_name': student.get('name'),
-            'grade': student.get('grade'),
-            'class': student.get('class'),
+            'student_name': str(student.get('name', '')),
+            'grade': str(student.get('grade', '')),
+            'class': str(student.get('class', '')),
             'date': current_date,
             'time': current_time,
             'status': status,
@@ -386,9 +419,9 @@ def register_attendance():
             return jsonify({
                 "success": True,
                 "message": f"✅ تم تسجيل حضور {student.get('name')} - {status} الساعة {current_time}",
-                "student_name": student.get('name'),
-                "student_grade": student.get('grade'),
-                "student_class": student.get('class'),
+                "student_name": str(student.get('name', '')),
+                "student_grade": str(student.get('grade', '')),
+                "student_class": str(student.get('class', '')),
                 "time": current_time,
                 "date": current_date,
                 "status": status
@@ -663,25 +696,23 @@ def send_monthly_report_email():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-# ============== APIs إدارة البيانات (المحدثة) ==============
+# ============== APIs إدارة البيانات ==============
 @app.route("/api/upload_local_students")
 @login_required
 def upload_local_students():
-    """رفع الطلاب من ملف Excel المحلي إلى Google Sheets (إضافة فقط)"""
+    """رفع الطلاب من ملف Excel المحلي إلى Google Sheets"""
     try:
         if not os.path.exists('students.xlsx'):
             return jsonify({"success": False, "message": "ملف students.xlsx غير موجود"})
         
-        # قراءة الطلاب من ملف Excel
         df = pd.read_excel('students.xlsx')
         records = df.to_dict('records')
         
-        # الحصول على ورقة الطلاب
         students_ws, _ = get_or_create_sheet()
         if not students_ws:
             return jsonify({"success": False, "message": "فشل الاتصال بـ Google Sheets"})
         
-        # إضافة الطلاب الجدد فقط (دون مسح القديم)
+        # إضافة الطلاب الجدد
         count = 0
         for record in records:
             try:
@@ -698,40 +729,20 @@ def upload_local_students():
             except Exception as e:
                 print(f"خطأ في إضافة الطالب {record.get('student_id')}: {e}")
         
-        # إعادة تحميل البيانات
         global students
         students = load_students()
         
-        return jsonify({
-            "success": True, 
-            "message": f"✅ تم إضافة {count} طالب إلى Google Sheets!",
-            "total_students": len(students)
-        })
+        return jsonify({"success": True, "message": f"✅ تم إضافة {count} طالب!", "total_students": len(students)})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-@app.route("/api/migrate_to_gsheets")
+@app.route("/api/refresh_students")
 @login_required
-def migrate_to_gsheets():
-    count = migrate_existing_attendance()
-    global students, attendance_records
-    students = load_students()
-    attendance_records = load_attendance()
-    return jsonify({"success": True, "message": f"تم ترحيل {count} سجل إلى Google Sheets"})
-
-@app.route("/api/load_excel")
-@login_required
-def load_excel():
+def refresh_students():
+    """تحديث بيانات الطلاب في الذاكرة"""
     global students
     students = load_students()
-    return jsonify({"success": True, "message": f"تم تحميل {len(students)} طالب"})
-
-@app.route("/api/clear_attendance")
-@login_required
-def clear_attendance():
-    global attendance_records
-    attendance_records = []
-    return jsonify({"success": True, "message": "تم مسح سجلات الحضور"})
+    return jsonify({"success": True, "message": f"تم تحديث بيانات الطلاب", "count": len(students)})
 
 @app.route("/api/clear_students")
 @login_required
@@ -742,16 +753,24 @@ def clear_students():
         if not students_ws:
             return jsonify({"error": "لا يمكن الاتصال"})
         
-        # الحصول على جميع الصفوف
+        # الحصول على جميع الصفوف وحذفها
         all_rows = students_ws.get_all_values()
         if len(all_rows) > 1:
-            # مسح محتوى الخلايا من الصف 2 إلى آخر صف
             for row_num in range(len(all_rows), 1, -1):
                 students_ws.delete_rows(row_num)
         
+        global students
+        students = []
         return jsonify({"success": True, "message": "تم مسح جميع الطلاب"})
     except Exception as e:
         return jsonify({"error": str(e)})
+
+@app.route("/api/clear_attendance")
+@login_required
+def clear_attendance():
+    global attendance_records
+    attendance_records = []
+    return jsonify({"success": True, "message": "تم مسح سجلات الحضور"})
 
 @app.route("/api/check_storage")
 @login_required
@@ -768,26 +787,23 @@ def check_storage():
 def debug_students():
     return jsonify({"success": True, "count": len(students), "students": students[:10]})
 
-@app.route("/api/debug_sheet_headers")
+@app.route("/api/find_student/<student_id>")
 @login_required
-def debug_sheet_headers():
-    """عرض عناوين الأعمدة في Google Sheets"""
+def find_student(student_id):
+    """البحث عن طالب محدد"""
     try:
-        students_ws, _ = get_or_create_sheet()
-        if not students_ws:
-            return jsonify({"error": "لا يمكن الاتصال بورقة الطلاب"})
+        search_id = str(student_id).strip()
+        found = None
+        for s in students:
+            if str(s.get('student_id', '')) == search_id:
+                found = s
+                break
         
-        # جلب أول صف (العناوين)
-        headers = students_ws.row_values(1)
-        
-        # جلب أول 3 طلاب كعينة
-        sample = students_ws.get_all_records()
-        
-        return jsonify({
-            "headers": headers,
-            "sample_count": len(sample),
-            "first_sample": sample[0] if sample else None
-        })
+        if found:
+            return jsonify({"success": True, "found": True, "student": found})
+        else:
+            available_ids = [str(s.get('student_id', '')) for s in students[:5]]
+            return jsonify({"success": False, "found": False, "searched_for": search_id, "sample_ids": available_ids})
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -808,14 +824,13 @@ if __name__ == "__main__":
     attendance_records = load_attendance()
     print(f"📚 تم تحميل {len(students)} طالب و {len(attendance_records)} سجل حضور")
     
-    if len(attendance_records) == 0:
-        old_count = migrate_existing_attendance()
-        if old_count > 0:
-            attendance_records = load_attendance()
-            print(f"✅ تم ترحيل {old_count} سجل قديم")
-    
     print("=" * 50)
     print("🚀 نظام الحضور يعمل الآن مع Google Sheets!")
+    print("👥 المستخدمون المتاحون:")
+    users = load_users()
+    for username, data in users.items():
+        max_logins = "غير محدود" if data['role'] == 'admin' else data.get('max_logins', 5)
+        print(f"   - {username} (الدور: {data['role']}, الحد الأقصى: {max_logins})")
     print("=" * 50)
     
     port = int(os.environ.get("PORT", 5000))
