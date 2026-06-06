@@ -172,7 +172,7 @@
             <button class="btn-print" onclick="printTodayReport()">🖨️ طباعة</button>
         </div>
         <h3>📋 تفاصيل حضور اليوم - <span id="todayDate"></span></h3>
-        <div id="todayTable" class="table-container"></div>
+        <div id="todayTable" class="table-container">جاري التحميل...</div>
     </div>
 
     <!-- تبويب تاريخ محدد -->
@@ -234,19 +234,6 @@
 </div>
 
 <script>
-let statusChart = null;
-
-// دالة لتنسيق النص العربي
-function formatText(text) {
-    if (!text) return '-';
-    try {
-        // محاولة فك الترميز
-        return decodeURIComponent(escape(text));
-    } catch(e) {
-        return text;
-    }
-}
-
 // ========== تحميل الإحصائيات ==========
 async function loadStats() {
     try {
@@ -254,65 +241,58 @@ async function loadStats() {
         const data = await res.json();
         if (data.success) {
             document.getElementById('statsGrid').innerHTML = `
-                <div class="stat-card"><div class="stat-number">${data.total_students}</div><div class="stat-label">👨‍🎓 إجمالي الطلاب</div></div>
-                <div class="stat-card"><div class="stat-number" style="color:#28a745;">${data.present}</div><div class="stat-label">✅ الحضور اليوم</div></div>
-                <div class="stat-card"><div class="stat-number" style="color:#fd7e14;">${data.late}</div><div class="stat-label">⏰ التأخير اليوم</div></div>
-                <div class="stat-card"><div class="stat-number" style="color:#dc3545;">${data.absent}</div><div class="stat-label">❌ الغياب اليوم</div></div>
-                <div class="stat-card"><div class="stat-number">${data.percentage}%</div><div class="stat-label">📈 نسبة الحضور</div></div>
+                <div class="stat-card"><div class="stat-number">${data.total_students || 0}</div><div class="stat-label">👨‍🎓 إجمالي الطلاب</div></div>
+                <div class="stat-card"><div class="stat-number" style="color:#28a745;">${data.present || 0}</div><div class="stat-label">✅ الحضور اليوم</div></div>
+                <div class="stat-card"><div class="stat-number" style="color:#fd7e14;">${data.late || 0}</div><div class="stat-label">⏰ التأخير اليوم</div></div>
+                <div class="stat-card"><div class="stat-number" style="color:#dc3545;">${data.absent || 0}</div><div class="stat-label">❌ الغياب اليوم</div></div>
+                <div class="stat-card"><div class="stat-number">${data.percentage || 0}%</div><div class="stat-label">📈 نسبة الحضور</div></div>
             `;
-            document.getElementById('todayDate').innerHTML = data.date;
+            document.getElementById('todayDate').innerHTML = data.date || '';
         }
     } catch(e) { console.error(e); }
 }
 
 // ========== عرض جدول الحضور ==========
-function renderAttendanceTable(containerId, data) {
-    const container = document.getElementById(containerId);
-    
-    if (!data.success) {
-        container.innerHTML = `<div class="error-state">❌ خطأ في تحميل البيانات: ${data.error || 'خطأ غير معروف'}</div>`;
-        return;
-    }
-    
-    if (!data.data || data.data.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:40px;">📭 لا توجد بيانات لهذا التاريخ</div>';
-        return;
-    }
-    
-    let html = `<div class="table-container"><table><thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>`;
-    
-    data.data.forEach((s, i) => {
-        let statusClass = s.status === 'حاضر في الوقت' ? 'present' : (s.status === 'متأخر' ? 'late' : 'absent');
-        let icon = s.status === 'حاضر في الوقت' ? '✅' : (s.status === 'متأخر' ? '⏰' : '❌');
-        let studentName = formatText(s.student_name);
-        let grade = formatText(s.grade);
-        let className = formatText(s.class);
-        
-        html += `<tr>
-            <td>${i+1}侧的
-            <td>${s.student_id || '-'}侧的
-            <td>${studentName}侧的
-            <td>${grade}侧的
-            <td>${className}侧的
-            <td>${s.time || '-'}侧的
-            <td class="${statusClass}">${icon} ${s.status || 'غائب'}侧的
-        </tr>`;
-    });
-    
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-}
-
-// ========== تحميل حضور اليوم ==========
 async function loadTodayAttendance() {
     try {
         const today = new Date().toISOString().split('T')[0];
         const res = await fetch(`/api/attendance_details/${today}`);
         const data = await res.json();
-        renderAttendanceTable('todayTable', data);
+        const container = document.getElementById('todayTable');
+        
+        if (!data.success) {
+            container.innerHTML = `<div class="error-state">❌ خطأ: ${data.error || 'خطأ غير معروف'}</div>`;
+            return;
+        }
+        
+        if (!data.data || data.data.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:40px;">📭 لا توجد بيانات حضور لهذا اليوم</div>';
+            return;
+        }
+        
+        let html = '<div class="table-container"><table dir="rtl"><thead><tr>';
+        html += '<th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th>';
+        html += '</tr></thead><tbody>';
+        
+        data.data.forEach((s, i) => {
+            let statusClass = (s.status === 'حاضر في الوقت') ? 'present' : ((s.status === 'متأخر') ? 'late' : 'absent');
+            let icon = (s.status === 'حاضر في الوقت') ? '✅' : ((s.status === 'متأخر') ? '⏰' : '❌');
+            html += `<tr>
+                <td>${i+1}</td>
+                <td>${s.student_id || '-'}</td>
+                <td>${s.student_name || '-'}</td>
+                <td>${s.grade || '-'}</td>
+                <td>${s.class || '-'}</td>
+                <td>${s.time || '-'}</td>
+                <td class="${statusClass}">${icon} ${s.status || 'غائب'}</td>
+            </tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
     } catch(e) { 
-        console.error("خطأ في تحميل حضور اليوم:", e);
-        document.getElementById('todayTable').innerHTML = `<div class="error-state">❌ خطأ في تحميل البيانات: ${e.message}</div>`;
+        console.error(e);
+        document.getElementById('todayTable').innerHTML = `<div class="error-state">❌ خطأ: ${e.message}</div>`;
     }
 }
 
@@ -326,10 +306,41 @@ async function loadDateReport() {
     try {
         const res = await fetch(`/api/attendance_details/${date}`);
         const data = await res.json();
-        renderAttendanceTable('dateReport', data);
+        const container = document.getElementById('dateReport');
+        
+        if (!data.success) {
+            container.innerHTML = `<div class="error-state">❌ خطأ: ${data.error || 'خطأ غير معروف'}</div>`;
+            return;
+        }
+        
+        if (!data.data || data.data.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:40px;">📭 لا توجد بيانات لهذا التاريخ</div>';
+            return;
+        }
+        
+        let html = '<div class="table-container"><table dir="rtl"><thead><tr>';
+        html += '<th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th>';
+        html += '</tr></thead><tbody>';
+        
+        data.data.forEach((s, i) => {
+            let statusClass = (s.status === 'حاضر في الوقت') ? 'present' : ((s.status === 'متأخر') ? 'late' : 'absent');
+            let icon = (s.status === 'حاضر في الوقت') ? '✅' : ((s.status === 'متأخر') ? '⏰' : '❌');
+            html += `<tr>
+                <td>${i+1}</td>
+                <td>${s.student_id || '-'}</td>
+                <td>${s.student_name || '-'}</td>
+                <td>${s.grade || '-'}</td>
+                <td>${s.class || '-'}</td>
+                <td>${s.time || '-'}</td>
+                <td class="${statusClass}">${icon} ${s.status || 'غائب'}</td>
+            </tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
     } catch(e) { 
-        console.error("خطأ في تحميل التقرير:", e);
-        document.getElementById('dateReport').innerHTML = `<div class="error-state">❌ خطأ في تحميل البيانات: ${e.message}</div>`;
+        console.error(e);
+        document.getElementById('dateReport').innerHTML = `<div class="error-state">❌ خطأ: ${e.message}</div>`;
     }
 }
 
@@ -343,33 +354,40 @@ async function loadMonthlyReport() {
         const container = document.getElementById('monthlyReport');
         
         if (!data.success) {
-            container.innerHTML = `<div class="error-state">❌ خطأ في تحميل البيانات: ${data.error || 'خطأ غير معروف'}</div>`;
+            container.innerHTML = `<div class="error-state">❌ خطأ: ${data.error || 'خطأ غير معروف'}</div>`;
             return;
         }
         
-        let html = `<div class="stats-grid">
-            <div class="stat-card"><div class="stat-number">${data.total_present || 0}</div><div class="stat-label">✅ إجمالي الحضور</div></div>
-            <div class="stat-card"><div class="stat-number">${data.total_late || 0}</div><div class="stat-label">⏰ إجمالي التأخير</div></div>
-        </div><div class="table-container"><tr><thead><tr><th>اليوم</th><th>✅ الحاضرون</th><th>⏰ المتأخرون</th><th>❌ الغائبون</th></tr></thead><tbody>`;
-        
-        if (data.daily_stats && data.daily_stats.length > 0) {
-            data.daily_stats.forEach(d => {
-                html += `<tr>
-                    <td>اليوم ${d.day}侧的
-                    <td class="present">${d.present || 0}侧的
-                    <td class="late">${d.late || 0}侧的
-                    <td class="absent">${d.absent || 0}侧的
-                </tr>`;
-            });
-        } else {
-            html += `<tr><td colspan="4" style="text-align:center;">لا توجد بيانات</td></tr>`;
+        if (!data.daily_stats || data.daily_stats.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:40px;">📭 لا توجد بيانات لهذا الشهر</div>';
+            return;
         }
+        
+        let html = `
+            <div class="stats-grid" style="margin-bottom:20px;">
+                <div class="stat-card"><div class="stat-number">${data.total_present || 0}</div><div class="stat-label">✅ إجمالي الحضور</div></div>
+                <div class="stat-card"><div class="stat-number">${data.total_late || 0}</div><div class="stat-label">⏰ إجمالي التأخير</div></div>
+            </div>
+            <div class="table-container">
+                <table dir="rtl">
+                    <thead><tr><th>اليوم</th><th>✅ الحاضرون</th><th>⏰ المتأخرون</th><th>❌ الغائبون</th></tr></thead>
+                    <tbody>
+        `;
+        
+        data.daily_stats.forEach(d => {
+            html += `<tr>
+                <td>اليوم ${d.day}</td>
+                <td class="present">${d.present || 0}</td>
+                <td class="late">${d.late || 0}</td>
+                <td class="absent">${d.absent || 0}</td>
+            </tr>`;
+        });
         
         html += '</tbody></table></div>';
         container.innerHTML = html;
     } catch(e) { 
-        console.error("خطأ في تحميل التقرير الشهري:", e);
-        document.getElementById('monthlyReport').innerHTML = `<div class="error-state">❌ خطأ في تحميل البيانات: ${e.message}</div>`;
+        console.error(e);
+        document.getElementById('monthlyReport').innerHTML = `<div class="error-state">❌ خطأ: ${e.message}</div>`;
     }
 }
 
@@ -381,60 +399,40 @@ async function loadAbsentStudents() {
         const container = document.getElementById('absentTable');
         
         if (!data.success) {
-            container.innerHTML = `<div class="error-state">❌ خطأ في تحميل البيانات: ${data.error || 'خطأ غير معروف'}</div>`;
+            container.innerHTML = `<div class="error-state">❌ خطأ: ${data.error || 'خطأ غير معروف'}</div>`;
             return;
         }
         
-        document.getElementById('absentDate').innerHTML = data.date || new Date().toISOString().split('T')[0];
+        document.getElementById('absentDate').innerHTML = data.date || '';
         
         if (!data.data || data.data.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding:40px;">🎉 لا يوجد طلاب غائبون اليوم! جميع الطلاب حاضرون.</div>';
+            container.innerHTML = '<div style="text-align:center; padding:40px;">🎉 لا يوجد طلاب غائبون اليوم</div>';
             return;
         }
         
         let html = `
-            <div style="margin-bottom: 15px;">
-                <strong>📅 التاريخ:</strong> ${data.date} | 
-                <strong>👥 عدد الغائبين:</strong> ${data.count || data.data.length}
-            </div>
+            <div style="margin-bottom:15px;"><strong>📅 التاريخ:</strong> ${data.date} | <strong>👥 عدد الغائبين:</strong> ${data.count || data.data.length}</div>
             <div class="table-container">
                 <table dir="rtl">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>رقم الطالب</th>
-                            <th>الاسم</th>
-                            <th>الصف</th>
-                            <th>الشعبة</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th></tr></thead>
                     <tbody>
         `;
         
         data.data.forEach((s, i) => {
-            let name = formatText(s.name);
-            let grade = formatText(s.grade);
-            let className = formatText(s.class);
-            
             html += `<tr>
-                <td style="text-align:center;">${i+1}侧的
-                <td style="text-align:center;">${s.student_id || '-'}侧的
-                <td style="text-align:center;">${name}侧的
-                <td style="text-align:center;">${grade}侧的
-                <td style="text-align:center;">${className}侧的
+                <td>${i+1}</td>
+                <td>${s.student_id || '-'}</td>
+                <td>${s.name || '-'}</td>
+                <td>${s.grade || '-'}</td>
+                <td>${s.class || '-'}</td>
             </tr>`;
         });
         
-        html += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-        
+        html += '</tbody></table></div>';
         container.innerHTML = html;
     } catch(e) { 
-        console.error("خطأ في تحميل الغائبين:", e);
-        document.getElementById('absentTable').innerHTML = `<div class="error-state">❌ خطأ في الاتصال: ${e.message}</div>`;
+        console.error(e);
+        document.getElementById('absentTable').innerHTML = `<div class="error-state">❌ خطأ: ${e.message}</div>`;
     }
 }
 
@@ -455,15 +453,11 @@ async function searchStudent() {
             return;
         }
         
-        let studentName = formatText(data.student_name);
-        let grade = formatText(data.grade);
-        let className = formatText(data.class);
-        
         let recordsHtml = '';
         if (data.records && data.records.length > 0) {
             recordsHtml = data.records.map(r => {
-                let statusText = r.status === 'حاضر في الوقت' ? '✅' : (r.status === 'متأخر' ? '⏰' : '❌');
-                return `<tr><td style="text-align:center;">${r.date || '-'}</td><td style="text-align:center;">${r.time || '-'}</td><td style="text-align:center;">${statusText} ${r.status || '-'}</td></tr>`;
+                let icon = (r.status === 'حاضر في الوقت') ? '✅' : ((r.status === 'متأخر') ? '⏰' : '❌');
+                return `<tr><td>${r.date || '-'}</td><td>${r.time || '-'}</td><td>${icon} ${r.status || '-'}</td></tr>`;
             }).join('');
         } else {
             recordsHtml = '<tr><td colspan="3" style="text-align:center;">لا توجد سجلات حضور</td></tr>';
@@ -477,14 +471,17 @@ async function searchStudent() {
                 <div class="stat-card"><div class="stat-number" style="color:#dc3545;">${data.absent || 0}</div><div class="stat-label">❌ غائب</div></div>
                 <div class="stat-card"><div class="stat-number">${data.attendance_rate || 0}%</div><div class="stat-label">نسبة الحضور</div></div>
             </div>
-            <h4>🧑‍🎓 ${studentName} - الصف ${grade} - الشعبة ${className}</h4>
-            <div class="table-container"><table><thead><tr><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>
-            ${recordsHtml}
-            </tbody></table></div>
+            <h4>🧑‍🎓 ${data.student_name || '-'} - الصف ${data.grade || '-'} - الشعبة ${data.class || '-'}</h4>
+            <div class="table-container">
+                <table dir="rtl">
+                    <thead><tr><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr></thead>
+                    <tbody>${recordsHtml}</tbody>
+                </table>
+            </div>
         `;
     } catch(e) { 
-        console.error("خطأ في البحث:", e);
-        document.getElementById('studentResult').innerHTML = `<div class="error-state">❌ خطأ في البحث: ${e.message}</div>`;
+        console.error(e);
+        document.getElementById('studentResult').innerHTML = `<div class="error-state">❌ خطأ: ${e.message}</div>`;
     }
 }
 
@@ -511,10 +508,7 @@ function exportTodayExcel() {
 
 function exportDateExcel() {
     const date = document.getElementById('selectedDate').value;
-    if (!date) { 
-        alert('الرجاء اختيار تاريخ'); 
-        return; 
-    }
+    if (!date) { alert('الرجاء اختيار تاريخ'); return; }
     window.location.href = `/api/export_attendance/${date}`;
 }
 
@@ -526,10 +520,7 @@ function exportMonthlyExcel() {
 
 function exportStudentExcel() {
     const studentId = document.getElementById('studentSearch').value.trim();
-    if (!studentId) { 
-        alert('الرجاء إدخال رقم الطالب'); 
-        return; 
-    }
+    if (!studentId) { alert('الرجاء إدخال رقم الطالب'); return; }
     window.location.href = `/api/export_student_excel/${studentId}`;
 }
 
@@ -562,12 +553,7 @@ function printTodayReport() {
     const content = document.getElementById('todayTable').innerHTML;
     const date = document.getElementById('todayDate').innerText;
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html dir="rtl"><head><title>تقرير حضور اليوم</title>
-        <meta charset="UTF-8">
-        <style>body { font-family: Arial; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #667eea; color: white; }</style>
-        </head><body><h2>تقرير حضور اليوم - ${date}</h2>${content}</body></html>
-    `);
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقرير حضور اليوم</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:center}th{background:#667eea;color:white}</style></head><body><h2>تقرير حضور اليوم - ${date}</h2>${content}</body></html>`);
     printWindow.document.close();
     printWindow.print();
 }
@@ -576,12 +562,7 @@ function printDateReport() {
     const content = document.getElementById('dateReport').innerHTML;
     const date = document.getElementById('selectedDate').value;
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html dir="rtl"><head><title>تقرير الحضور</title>
-        <meta charset="UTF-8">
-        <style>body { font-family: Arial; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #667eea; color: white; }</style>
-        </head><body><h2>تقرير الحضور - ${date}</h2>${content}</body></html>
-    `);
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقرير الحضور</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:center}th{background:#667eea;color:white}</style></head><body><h2>تقرير الحضور - ${date}</h2>${content}</body></html>`);
     printWindow.document.close();
     printWindow.print();
 }
@@ -590,12 +571,7 @@ function printMonthlyReport() {
     const content = document.getElementById('monthlyReport').innerHTML;
     const month = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html dir="rtl"><head><title>تقرير شهري</title>
-        <meta charset="UTF-8">
-        <style>body { font-family: Arial; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #667eea; color: white; }</style>
-        </head><body><h2>تقرير شهري - ${month}</h2>${content}</body></html>
-    `);
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقرير شهري</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:center}th{background:#667eea;color:white}</style></head><body><h2>تقرير شهري - ${month}</h2>${content}</body></html>`);
     printWindow.document.close();
     printWindow.print();
 }
@@ -603,12 +579,7 @@ function printMonthlyReport() {
 function printStudentReport() {
     const content = document.getElementById('studentResult').innerHTML;
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html dir="rtl"><head><title>تقرير طالب</title>
-        <meta charset="UTF-8">
-        <style>body { font-family: Arial; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #667eea; color: white; }</style>
-        </head><body>${content}</body></html>
-    `);
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقرير طالب</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:center}th{background:#667eea;color:white}</style></head><body>${content}</body></html>`);
     printWindow.document.close();
     printWindow.print();
 }
@@ -616,12 +587,7 @@ function printStudentReport() {
 function printAbsentReport() {
     const content = document.getElementById('absentTable').innerHTML;
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html dir="rtl"><head><title>الطلاب الغائبون</title>
-        <meta charset="UTF-8">
-        <style>body { font-family: Arial; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: center; } th { background: #667eea; color: white; }</style>
-        </head><body><h2>الطلاب الغائبون اليوم</h2>${content}</body></html>
-    `);
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>الطلاب الغائبون</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:center}th{background:#667eea;color:white}</style></head><body><h2>الطلاب الغائبون اليوم</h2>${content}</body></html>`);
     printWindow.document.close();
     printWindow.print();
 }
