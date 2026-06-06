@@ -63,7 +63,7 @@ def get_or_create_sheet():
     return students_ws, attendance_ws
 
 def load_students():
-    """تحميل الطلاب من Google Sheets مع إصلاح الترميز"""
+    """تحميل الطلاب من Google Sheets"""
     try:
         students_ws, _ = get_or_create_sheet()
         if not students_ws:
@@ -79,13 +79,10 @@ def load_students():
                 elif isinstance(value, (int, float)):
                     fixed_record[key] = str(int(value)) if value == int(value) else str(value)
                 else:
-                    # إصلاح الترميز للنصوص العربية
                     try:
-                        text = str(value)
-                        # محاولة فك الترميز
-                        fixed_record[key] = text.encode('latin1').decode('utf-8', errors='ignore')
-                    except:
                         fixed_record[key] = str(value)
+                    except:
+                        fixed_record[key] = ''
             fixed_records.append(fixed_record)
         
         return fixed_records
@@ -810,6 +807,12 @@ def upload_local_students():
         if not students_ws:
             return jsonify({"success": False, "message": "فشل الاتصال بـ Google Sheets"})
         
+        # مسح البيانات القديمة
+        all_rows = students_ws.get_all_values()
+        if len(all_rows) > 1:
+            for row_num in range(len(all_rows), 1, -1):
+                students_ws.delete_rows(row_num)
+        
         count = 0
         for record in records:
             try:
@@ -832,6 +835,45 @@ def upload_local_students():
         return jsonify({"success": True, "message": f"✅ تم إضافة {count} طالب!", "total_students": len(students)})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/init_database")
+@login_required
+def init_database():
+    """تهيئة قاعدة البيانات بطلاب تجريبيين"""
+    try:
+        students_ws, _ = get_or_create_sheet()
+        if not students_ws:
+            return jsonify({"error": "لا يمكن الاتصال بـ Google Sheets"})
+        
+        # مسح جميع البيانات القديمة
+        all_rows = students_ws.get_all_values()
+        if len(all_rows) > 1:
+            for row_num in range(len(all_rows), 1, -1):
+                students_ws.delete_rows(row_num)
+        
+        # إضافة الطلاب التجريبيين
+        sample_students = [
+            ['1150436838', 'أحمد محمد', 'الأول الثانوي', 'أ'],
+            ['1152217368', 'خالد عبدالله', 'الأول الثانوي', 'أ'],
+            ['1152327969', 'سارة أحمد', 'الأول الثانوي', 'ب'],
+            ['1152502371', 'محمد إبراهيم', 'الأول الثانوي', 'ب'],
+            ['1153472889', 'نورة سعيد', 'الأول الثانوي', 'ج'],
+        ]
+        
+        for student in sample_students:
+            students_ws.append_row(student)
+        
+        # تحديث البيانات في الذاكرة
+        global students
+        students = load_students()
+        
+        return jsonify({
+            "success": True,
+            "message": f"✅ تم إضافة {len(sample_students)} طالب تجريبي",
+            "count": len(students)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 @app.route("/api/refresh_students")
 @login_required
@@ -924,50 +966,6 @@ def find_student(student_id):
         else:
             available_ids = [str(s.get('student_id', '')) for s in students[:5]]
             return jsonify({"success": False, "found": False, "searched_for": search_id, "sample_ids": available_ids})
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-@app.route("/api/fix_encoding")
-@login_required
-def fix_encoding():
-    """إصلاح ترميز البيانات في Google Sheets"""
-    try:
-        students_ws, _ = get_or_create_sheet()
-        if not students_ws:
-            return jsonify({"error": "لا يمكن الاتصال"})
-        
-        # جلب جميع البيانات
-        all_data = students_ws.get_all_values()
-        
-        # إصلاح الترميز للصفوف من 2 إلى النهاية
-        fixed_count = 0
-        for i in range(1, len(all_data)):
-            row = all_data[i]
-            fixed_row = []
-            for cell in row:
-                try:
-                    if isinstance(cell, str):
-                        fixed_cell = cell.encode('latin1').decode('utf-8', errors='ignore')
-                    else:
-                        fixed_cell = str(cell)
-                    fixed_row.append(fixed_cell)
-                except:
-                    fixed_row.append(str(cell))
-            
-            # تحديث الصف
-            if fixed_row != row:
-                students_ws.update(f'A{i+1}:G{i+1}', [fixed_row])
-                fixed_count += 1
-        
-        # تحديث البيانات في الذاكرة
-        global students
-        students = load_students()
-        
-        return jsonify({
-            "success": True, 
-            "message": f"تم إصلاح ترميز {fixed_count} صف",
-            "sample": students[:3] if students else []
-        })
     except Exception as e:
         return jsonify({"error": str(e)})
 
