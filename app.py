@@ -63,7 +63,7 @@ def get_or_create_sheet():
     return students_ws, attendance_ws
 
 def load_students():
-    """تحميل الطلاب من Google Sheets"""
+    """تحميل الطلاب من Google Sheets مع إصلاح الترميز"""
     try:
         students_ws, _ = get_or_create_sheet()
         if not students_ws:
@@ -79,7 +79,13 @@ def load_students():
                 elif isinstance(value, (int, float)):
                     fixed_record[key] = str(int(value)) if value == int(value) else str(value)
                 else:
-                    fixed_record[key] = str(value)
+                    # إصلاح الترميز للنصوص العربية
+                    try:
+                        text = str(value)
+                        # محاولة فك الترميز
+                        fixed_record[key] = text.encode('latin1').decode('utf-8', errors='ignore')
+                    except:
+                        fixed_record[key] = str(value)
             fixed_records.append(fixed_record)
         
         return fixed_records
@@ -449,7 +455,7 @@ def register_attendance():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-# ============== API التقارير (المحدثة للقراءة من Google Sheets مباشرة) ==============
+# ============== API التقارير ==============
 @app.route("/api/students_list")
 @login_required
 def students_list():
@@ -478,12 +484,8 @@ def attendance_summary():
 @app.route("/api/attendance_details/<date>")
 @login_required
 def attendance_details(date):
-    """جلب تفاصيل الحضور لتاريخ محدد من Google Sheets"""
+    """جلب تفاصيل الحضور لتاريخ محدد"""
     try:
-        # تحميل أحدث البيانات من Google Sheets
-        global attendance_records
-        attendance_records = load_attendance()
-        
         result = []
         for student in students:
             record = None
@@ -541,12 +543,8 @@ def top_students():
 @app.route("/api/student_report/<student_id>")
 @login_required
 def student_report(student_id):
-    """جلب تقرير لطالب محدد من Google Sheets"""
+    """جلب تقرير لطالب محدد"""
     try:
-        # تحميل أحدث البيانات من Google Sheets
-        global attendance_records
-        attendance_records = load_attendance()
-        
         student = next((s for s in students if s.get('student_id') == student_id), None)
         if not student:
             return jsonify({"success": False, "error": "الطالب غير موجود"})
@@ -592,12 +590,8 @@ def student_report(student_id):
 @app.route("/api/monthly_report")
 @login_required
 def monthly_report():
-    """تقرير شهري من Google Sheets"""
+    """تقرير شهري"""
     try:
-        # تحميل أحدث البيانات من Google Sheets
-        global attendance_records
-        attendance_records = load_attendance()
-        
         year = int(request.args.get('year', get_saudi_time().year))
         month = int(request.args.get('month', get_saudi_time().month))
         
@@ -930,6 +924,50 @@ def find_student(student_id):
         else:
             available_ids = [str(s.get('student_id', '')) for s in students[:5]]
             return jsonify({"success": False, "found": False, "searched_for": search_id, "sample_ids": available_ids})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route("/api/fix_encoding")
+@login_required
+def fix_encoding():
+    """إصلاح ترميز البيانات في Google Sheets"""
+    try:
+        students_ws, _ = get_or_create_sheet()
+        if not students_ws:
+            return jsonify({"error": "لا يمكن الاتصال"})
+        
+        # جلب جميع البيانات
+        all_data = students_ws.get_all_values()
+        
+        # إصلاح الترميز للصفوف من 2 إلى النهاية
+        fixed_count = 0
+        for i in range(1, len(all_data)):
+            row = all_data[i]
+            fixed_row = []
+            for cell in row:
+                try:
+                    if isinstance(cell, str):
+                        fixed_cell = cell.encode('latin1').decode('utf-8', errors='ignore')
+                    else:
+                        fixed_cell = str(cell)
+                    fixed_row.append(fixed_cell)
+                except:
+                    fixed_row.append(str(cell))
+            
+            # تحديث الصف
+            if fixed_row != row:
+                students_ws.update(f'A{i+1}:G{i+1}', [fixed_row])
+                fixed_count += 1
+        
+        # تحديث البيانات في الذاكرة
+        global students
+        students = load_students()
+        
+        return jsonify({
+            "success": True, 
+            "message": f"تم إصلاح ترميز {fixed_count} صف",
+            "sample": students[:3] if students else []
+        })
     except Exception as e:
         return jsonify({"error": str(e)})
 
