@@ -92,19 +92,30 @@ def load_attendance():
     try:
         _, attendance_ws = get_or_create_sheet()
         if not attendance_ws:
+            print("⚠️ لا يمكن الوصول إلى ورقة الحضور")
             return []
-        records = attendance_ws.get_all_records()
-        for record in records:
-            record['student_id'] = str(record.get('student_id', ''))
-            record['student_name'] = str(record.get('student_name', ''))
-            record['grade'] = str(record.get('grade', ''))
-            record['class'] = str(record.get('class', ''))
-            record['date'] = str(record.get('date', ''))
-            record['time'] = str(record.get('time', ''))
-            record['status'] = str(record.get('status', ''))
+        
+        all_records = attendance_ws.get_all_records()
+        print(f"📋 تم تحميل {len(all_records)} سجل من Google Sheets")
+        
+        records = []
+        for record in all_records:
+            if record.get('student_id'):
+                clean_record = {
+                    'student_id': str(record.get('student_id', '')),
+                    'student_name': str(record.get('student_name', '')),
+                    'grade': str(record.get('grade', '')),
+                    'class': str(record.get('class', '')),
+                    'date': str(record.get('date', '')),
+                    'time': str(record.get('time', '')),
+                    'status': str(record.get('status', '')),
+                    'timestamp': str(record.get('timestamp', ''))
+                }
+                records.append(clean_record)
+        
         return records
     except Exception as e:
-        print(f"خطأ في تحميل الحضور: {e}")
+        print(f"❌ خطأ في تحميل الحضور: {e}")
         return []
 
 def save_attendance(record):
@@ -137,13 +148,12 @@ def get_saudi_time():
 def is_weekend(date):
     """التحقق مما إذا كان اليوم عطلة نهاية الأسبوع (الجمعة أو السبت)"""
     weekday = date.weekday()
-    # في Python: 0=الإثنين, 1=الثلاثاء, 2=الأربعاء, 3=الخميس, 4=الجمعة, 5=السبت, 6=الأحد
     return weekday == 4 or weekday == 5  # الجمعة أو السبت
 
 def is_within_daily_hours(current_time):
     """التحقق مما إذا كان الوقت ضمن ساعات الدوام (6 صباحاً - 12 ظهراً)"""
-    start_time = time(6, 0, 0)   # 6 صباحاً
-    end_time = time(12, 0, 0)    # 12 ظهراً
+    start_time = time(6, 0, 0)
+    end_time = time(12, 0, 0)
     return start_time <= current_time <= end_time
 
 def can_register_attendance():
@@ -468,6 +478,7 @@ def attendance_summary():
 @app.route("/api/attendance_details/<date>")
 @login_required
 def attendance_details(date):
+    """جلب تفاصيل الحضور لتاريخ محدد"""
     result = []
     for student in students:
         record = None
@@ -483,19 +494,7 @@ def attendance_details(date):
             'status': record.get('status') if record else 'غائب',
             'time': record.get('time') if record else '-'
         })
-    
-    present_count = len([s for s in result if s['status'] == 'حاضر في الوقت'])
-    late_count = len([s for s in result if s['status'] == 'متأخر'])
-    absent_count = len([s for s in result if s['status'] == 'غائب'])
-    
-    return jsonify({
-        "success": True, 
-        "data": result,
-        "present": present_count,
-        "late": late_count,
-        "absent": absent_count,
-        "total": len(result)
-    })
+    return jsonify({"success": True, "data": result})
 
 @app.route("/api/absent_students_today")
 @login_required
@@ -535,11 +534,8 @@ def top_students():
 @app.route("/api/student_report/<student_id>")
 @login_required
 def student_report(student_id):
-    student = None
-    for s in students:
-        if s.get('student_id') == student_id:
-            student = s
-            break
+    """جلب تقرير لطالب محدد"""
+    student = next((s for s in students if s.get('student_id') == student_id), None)
     if not student:
         return jsonify({"success": False, "error": "الطالب غير موجود"})
     
@@ -566,14 +562,14 @@ def student_report(student_id):
     attendance_rate = round((present + late) / school_days * 100, 1) if school_days > 0 else 0
     
     return jsonify({
-        "success": True, 
-        "student_name": student.get('name'), 
+        "success": True,
+        "student_name": student.get('name'),
         "student_id": student_id,
-        "grade": student.get('grade'), 
+        "grade": student.get('grade'),
         "class": student.get('class'),
         "total_days": school_days,
-        "present": present, 
-        "late": late, 
+        "present": present,
+        "late": late,
         "absent": absent if absent > 0 else 0,
         "attendance_rate": attendance_rate,
         "records": records
@@ -868,6 +864,27 @@ def check_storage():
 @login_required
 def debug_students():
     return jsonify({"success": True, "count": len(students), "students": students[:10]})
+
+@app.route("/api/debug_attendance")
+@login_required
+def debug_attendance():
+    """عرض سجلات الحضور من Google Sheets مباشرة"""
+    try:
+        _, attendance_ws = get_or_create_sheet()
+        if not attendance_ws:
+            return jsonify({"error": "لا يمكن الاتصال بورقة الحضور"})
+        
+        all_records = attendance_ws.get_all_records()
+        all_dates = sorted(list(set(record.get('date', '') for record in all_records)))
+        
+        return jsonify({
+            "success": True,
+            "total_records_in_sheet": len(all_records),
+            "available_dates": all_dates,
+            "sample_records": all_records[:10]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 @app.route("/api/find_student/<student_id>")
 @login_required
