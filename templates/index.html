@@ -2,7 +2,7 @@
 <html dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>نظام حضور الطلاب</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -10,38 +10,30 @@
             font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+            padding: 15px;
         }
         .container {
-            background: white;
-            border-radius: 30px;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             max-width: 500px;
-            width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 25px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        /* قسم الشعار - حجم صغير */
+        /* قسم الشعار */
         .school-logo {
+            text-align: center;
             margin-bottom: 15px;
         }
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 5px;
-        }
         .logo-img {
-            width: 90px;
-            height: 70px;
+            width: 100px;
+            height: 80px;
             border-radius: 12px;
             object-fit: contain;
         }
         .fallback-logo {
-            width: 60px;
-            height: 60px;
+            width: 55px;
+            height: 55px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 50%;
             display: flex;
@@ -49,137 +41,139 @@
             justify-content: center;
             margin: 0 auto;
         }
-        .fallback-logo span {
-            font-size: 30px;
-        }
-        .school-name { 
-            margin-top: 5px; 
-            font-size: 16px; 
-            font-weight: bold; 
-            color: #667eea;
-        }
-        .school-subtitle {
-            font-size: 11px;
-            color: #888;
-            margin-top: 2px;
-        }
-        h1 { color: #333; margin-bottom: 10px; font-size: 20px; }
-        .subtitle { color: #666; margin-bottom: 20px; font-size: 12px; }
+        .fallback-logo span { font-size: 28px; }
+        .school-name { font-size: 16px; font-weight: bold; color: #667eea; margin-top: 5px; }
+        .school-subtitle { font-size: 11px; color: #888; }
+        
+        /* معلومات المستخدم */
         .user-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin: 15px 0;
+            padding-bottom: 10px;
             border-bottom: 1px solid #eee;
-            flex-wrap: wrap;
-            gap: 10px;
         }
-        .welcome { color: #667eea; font-weight: bold; font-size: 14px; }
-        .admin-link { color: #667eea; text-decoration: none; font-size: 12px; background: #f0f0f0; padding: 4px 10px; border-radius: 15px; }
+        .welcome { color: #667eea; font-weight: bold; font-size: 13px; }
+        .admin-link { color: #667eea; text-decoration: none; font-size: 11px; background: #f0f0f0; padding: 3px 8px; border-radius: 12px; }
         .logout-link { color: #dc3545; text-decoration: none; font-size: 12px; }
-        .btn {
-            display: block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 20px;
-            font-size: 16px;
-            text-decoration: none;
-            border-radius: 60px;
-            margin: 10px 0;
-            font-weight: bold;
+        
+        /* الأزرار في صف واحد */
+        .buttons-row {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
         }
-        .btn-reports { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .btn-dashboard { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
+        .btn {
+            flex: 1;
+            text-align: center;
+            padding: 12px 8px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .btn-scan { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-reports { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+        .btn-dashboard { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: white; }
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+        
+        /* معلومات الوقت */
         .time-info {
             background: #e7f3ff;
-            border-radius: 15px;
-            padding: 12px;
-            margin-top: 15px;
-            font-size: 12px;
+            border-radius: 12px;
+            padding: 10px;
+            margin: 15px 0;
+            font-size: 11px;
+            text-align: center;
         }
+        
+        /* معلومات النظام */
         .info-box {
             background: #f8f9fa;
-            border-radius: 15px;
-            padding: 15px;
-            margin-top: 20px;
-            text-align: right;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 15px;
         }
-        .info-box h3 { color: #667eea; margin-bottom: 8px; font-size: 14px; }
-        .info-box p { font-size: 12px; margin: 5px 0; }
+        .info-box h3 { color: #667eea; font-size: 13px; margin-bottom: 8px; }
+        .info-box p { font-size: 11px; margin: 5px 0; color: #555; line-height: 1.4; }
+        
         .login-alert {
             background: #fff3cd;
             padding: 8px;
             border-radius: 10px;
             margin-bottom: 15px;
             font-size: 12px;
+            text-align: center;
         }
-        @media (max-width: 600px) {
-            .container { padding: 20px 15px; }
-            h1 { font-size: 18px; }
-            .btn { padding: 10px 15px; font-size: 14px; }
-            .logo-img { width: 50px; height: 50px; }
-            .fallback-logo { width: 50px; height: 50px; }
-            .fallback-logo span { font-size: 25px; }
-            .school-name { font-size: 14px; }
+        hr { margin: 10px 0; border: none; border-top: 1px solid #eee; }
+        
+        @media (max-width: 450px) {
+            .container { padding: 15px; }
+            .btn { padding: 10px 5px; font-size: 11px; }
+            .school-name { font-size: 16px; }
+            .logo-img { width: 45px; height: 45px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- قسم الشعار - مدارس منارات المدينة المنورة بحجم صغير -->
-        <div class="school-logo">
-            <div class="logo-container">
-                <!-- استخدم إما الصورة أو الرمز -->
-                <img id="schoolLogo" src="/static/img1.png" 
-                     alt="مدارس منارات المدينة المنورة" 
-                     class="logo-img"
-                     onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';">
-                <div id="fallbackLogo" class="fallback-logo" style="display: none;">
-                    <span>🏛️</span>
-                </div>
-            </div>
-            <div class="school-name">مدارس منارات المدينة المنورة</div>
-        </div>
-        
-        <div class="user-info">
-            <span class="welcome">👋 مرحباً {{ session.get('username', 'مدير النظام') }}</span>
-            <div>
-                {% if session.get('role') == 'admin' %}
-                    <a href="/users_list" class="admin-link">👥 إدارة المستخدمين</a>
-                {% endif %}
-                <a href="/logout" class="logout-link">🚪 خروج</a>
+<div class="container">
+    <!-- الشعار -->
+    <div class="school-logo">
+        <div class="logo-container">
+            <img id="schoolLogo" src="/static/img1.png" 
+                 alt="مدارس منارات المدينة " 
+                 class="logo-img"
+                 onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';">
+            <div id="fallbackLogo" class="fallback-logo" style="display: none;">
+                <span>🏛️</span>
             </div>
         </div>
-        
-        {% if session.get('role') != 'admin' and session.get('remaining_logins') is not none %}
-        <div class="login-alert">
-            🔑 عدد مرات الدخول المتبقية: <strong>{{ session.get('remaining_logins') }}</strong> من أصل 5
-        </div>
-        {% endif %}
-        
-        <h1>نظام  الحضور الذكي </h1>
-        <p class="subtitle">نظام ذكي لمتابعة حضور الطلاب باستخدام رموز QR</p>
-        
-        <div class="time-info">
-            ⏰ وقت الحضور الصباحي: <span>6:00 صباحاً</span> - <span>7:30 صباحاً</span><br>
-            ✅ الحضور قبل 7:30 | ⏰ الحضور بعد 7:30 يعتبر تأخير<br>
-            📅 أيام العطلات: الجمعة والسبت (لا يمكن تسجيل الحضور)
-        </div>
-        
-        <a href="/scan" class="btn">📷 مسح QR Code</a>
-        <a href="/reports" class="btn btn-reports">📊 التقارير والإحصائيات</a>
-        <a href="/dashboard" class="btn btn-dashboard">📈 لوحة التحكم</a>
-        
-        <div class="info-box">
-            <h3>ℹ️ معلومات عن النظام</h3>
-            <p>✅ مسح رمز QR الخاص بالطالب لتسجيل الحضور تلقائياً</p>
-            <p>✅ الحضور من 6:00 - 7:30 (حاضر في الوقت) / بعد 7:30 (متأخر)</p>
-            <p>✅ منع تسجيل الطالب أكثر من مرة في نفس اليوم</p>
-            <p>✅ رسوم بيانية وإحصائيات متقدمة</p>
-            <p>✅ تقارير يومية، شهرية، وأفضل الطلاب حضوراً</p>
+        <div class="school-name">مدارس منارات المدينة </div>
+        <div class="school-subtitle">نظام حضور الطلاب</div>
+    </div>
+    
+    <!-- معلومات المستخدم -->
+    <div class="user-info">
+        <span class="welcome">👋 {{ session.get('username', 'مدير النظام') }}</span>
+        <div>
+            {% if session.get('role') == 'admin' %}
+                <a href="/users_list" class="admin-link">👥 إدارة</a>
+            {% endif %}
+            <a href="/logout" class="logout-link">🚪 خروج</a>
         </div>
     </div>
+    
+    <!-- تنبيه عدد المحاولات للمعلم -->
+    {% if session.get('role') != 'admin' and session.get('remaining_logins') is not none %}
+    <div class="login-alert">
+        🔑 متبقي: <strong>{{ session.get('remaining_logins') }}</strong> من 5 محاولات
+    </div>
+    {% endif %}
+    
+    <!-- الأزرار في صف واحد -->
+    <div class="buttons-row">
+        <a href="/scan" class="btn btn-scan">📷 مسح QR</a>
+        <a href="/reports" class="btn btn-reports">📊 تقارير</a>
+        <a href="/dashboard" class="btn btn-dashboard">📈 لوحة</a>
+    </div>
+    
+    <!-- معلومات الوقت -->
+    <div class="time-info">
+        ⏰ الدوام: <strong>6ص - 12ظ</strong> | ✅ الحضور قبل 7:30 | 📅 عطلة الجمعة والسبت
+    </div>
+    
+    <!-- معلومات النظام -->
+    <div class="info-box">
+        <h3>ℹ️ معلومات النظام</h3>
+        <p>✅ مسح QR لتسجيل الحضور تلقائياً</p>
+        <p>✅ الحضور 6-7:30 (حاضر) / بعد 7:30 (متأخر)</p>
+        <p>✅ منع التسجيل أكثر من مرة في اليوم</p>
+        <p>✅ تقارير يومية، شهرية، وأفضل الطلاب</p>
+    </div>
+</div>
 <div class="footer">
 
 نظام الحضور الذكي | جميع الحقوق محفوظة<br>
@@ -188,16 +182,14 @@ Taha_Mohamad © 2026 E-mail:taaanet@gmail.com phone:0554289816
 
     </div>
 
-
-    <script>
-        // محاولة عرض الصورة، إذا فشلت يظهر الرمز البديل
-        const img = document.getElementById('schoolLogo');
-        if (img) {
-            img.onerror = function() {
-                this.style.display = 'none';
-                document.getElementById('fallbackLogo').style.display = 'flex';
-            };
-        }
-    </script>
+<script>
+    const img = document.getElementById('schoolLogo');
+    if (img) {
+        img.onerror = function() {
+            this.style.display = 'none';
+            document.getElementById('fallbackLogo').style.display = 'flex';
+        };
+    }
+</script>
 </body>
 </html>
