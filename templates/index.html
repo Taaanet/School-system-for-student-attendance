@@ -72,7 +72,10 @@
             border-radius: 15px;
             padding: 15px;
             margin-top: 20px;
+            text-align: center;
         }
+        .time-info strong { color: #667eea; }
+        .warning-text { color: #dc3545; font-weight: bold; }
         .info-box {
             background: #f8f9fa;
             border-radius: 15px;
@@ -88,10 +91,19 @@
             margin-bottom: 15px;
             font-size: 13px;
         }
+        .footer {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+        }
         @media (max-width: 600px) {
             .container { padding: 25px 20px; }
             h1 { font-size: 20px; }
             .btn { padding: 12px 20px; font-size: 16px; }
+            .footer { font-size: 9px; }
         }
     </style>
 </head>
@@ -122,9 +134,11 @@
         <p class="subtitle">نظام ذكي لمتابعة حضور الطلاب باستخدام رموز QR</p>
         
         <div class="time-info">
-            ⏰ وقت الحضور الصباحي: <span>6:00 صباحاً</span> - <span>7:30 صباحاً</span><br>
-            ✅ الحضور قبل 7:30 | ⏰ الحضور بعد 7:30 يعتبر تأخير<br>
-            📅 أيام العطلات: الجمعة والسبت (لا يمكن تسجيل الحضور)
+            <strong>⏰ توقيت المملكة العربية السعودية</strong><br>
+            🕐 وقت تسجيل الحضور: <strong>6:00 صباحاً - 12:00 ظهراً</strong><br>
+            ✅ الحضور قبل <strong>7:30 صباحاً</strong> يعتبر <strong>حاضر في الوقت</strong><br>
+            ⏰ الحضور بعد <strong>7:30 صباحاً</strong> يعتبر <strong>متأخر</strong><br>
+            📅 <span class="warning-text">❌ أيام العطلات: الجمعة والسبت (لا يمكن تسجيل الحضور)</span>
         </div>
         
         <a href="/scan" class="btn">📷 مسح QR Code</a>
@@ -134,18 +148,19 @@
         <div class="info-box">
             <h3>ℹ️ معلومات عن النظام</h3>
             <p>✅ مسح رمز QR الخاص بالطالب لتسجيل الحضور تلقائياً</p>
+            <p>✅ التسجيل فقط من <strong>6:00 صباحاً حتى 12:00 ظهراً</strong> (بعد ذلك يعتبر غياب)</p>
             <p>✅ الحضور من 6:00 - 7:30 (حاضر في الوقت) / بعد 7:30 (متأخر)</p>
             <p>✅ منع تسجيل الطالب أكثر من مرة في نفس اليوم</p>
+            <p>✅ <strong class="warning-text">لا يمكن تسجيل الحضور أيام الجمعة والسبت (عطلات رسمية)</strong></p>
+            <p>✅ جميع التواريخ والأوقات حسب <strong>توقيت المملكة العربية السعودية</strong></p>
             <p>✅ رسوم بيانية وإحصائيات متقدمة</p>
             <p>✅ تقارير يومية، شهرية، وأفضل الطلاب حضوراً</p>
         </div>
-	
-	<div class="footer">
-                    نظام الحضور الذكي | جميع الحقوق محفوظة<br>
-                   Taha_Mohamad © 2026 E-mail:taaanet@gmail.com phone:0554289816
-	</div>
-    </div>
-	
+        
+        <div class="footer">
+            نظام الحضور الذكي | جميع الحقوق محفوظة<br>
+            Taha_Mohamad © 2026 | E-mail: taaanet@gmail.com | Phone: 0554289816
+        </div>
     </div>
 </body>
 </html>
