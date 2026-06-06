@@ -148,7 +148,7 @@ def get_saudi_time():
 def is_weekend(date):
     """التحقق مما إذا كان اليوم عطلة نهاية الأسبوع (الجمعة أو السبت)"""
     weekday = date.weekday()
-    return weekday == 4 or weekday == 5  # الجمعة أو السبت
+    return weekday == 4 or weekday == 5
 
 def is_within_daily_hours(current_time):
     """التحقق مما إذا كان الوقت ضمن ساعات الدوام (6 صباحاً - 12 ظهراً)"""
@@ -449,7 +449,7 @@ def register_attendance():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-# ============== API التقارير ==============
+# ============== API التقارير (المحدثة للقراءة من Google Sheets مباشرة) ==============
 @app.route("/api/students_list")
 @login_required
 def students_list():
@@ -478,23 +478,30 @@ def attendance_summary():
 @app.route("/api/attendance_details/<date>")
 @login_required
 def attendance_details(date):
-    """جلب تفاصيل الحضور لتاريخ محدد"""
-    result = []
-    for student in students:
-        record = None
-        for r in attendance_records:
-            if r.get('student_id') == student.get('student_id') and r.get('date') == date:
-                record = r
-                break
-        result.append({
-            'student_id': student.get('student_id'),
-            'student_name': student.get('name'),
-            'grade': student.get('grade'),
-            'class': student.get('class'),
-            'status': record.get('status') if record else 'غائب',
-            'time': record.get('time') if record else '-'
-        })
-    return jsonify({"success": True, "data": result})
+    """جلب تفاصيل الحضور لتاريخ محدد من Google Sheets"""
+    try:
+        # تحميل أحدث البيانات من Google Sheets
+        global attendance_records
+        attendance_records = load_attendance()
+        
+        result = []
+        for student in students:
+            record = None
+            for r in attendance_records:
+                if r.get('student_id') == student.get('student_id') and r.get('date') == date:
+                    record = r
+                    break
+            result.append({
+                'student_id': student.get('student_id'),
+                'student_name': student.get('name'),
+                'grade': student.get('grade'),
+                'class': student.get('class'),
+                'status': record.get('status') if record else 'غائب',
+                'time': record.get('time') if record else '-'
+            })
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/absent_students_today")
 @login_required
@@ -534,79 +541,94 @@ def top_students():
 @app.route("/api/student_report/<student_id>")
 @login_required
 def student_report(student_id):
-    """جلب تقرير لطالب محدد"""
-    student = next((s for s in students if s.get('student_id') == student_id), None)
-    if not student:
-        return jsonify({"success": False, "error": "الطالب غير موجود"})
-    
-    records = [r for r in attendance_records if r.get('student_id') == student_id]
-    records.sort(key=lambda x: x.get('date', ''), reverse=True)
-    
-    present = len([r for r in records if r.get('status') == 'حاضر في الوقت'])
-    late = len([r for r in records if r.get('status') == 'متأخر'])
-    total = len(records)
-    
-    if records:
-        first_date = datetime.strptime(records[-1].get('date'), "%Y-%m-%d")
-        today = get_saudi_time().date()
-        school_days = 0
-        current = first_date
-        while current.date() <= today:
-            if current.weekday() not in [4, 5]:
-                school_days += 1
-            current += timedelta(days=1)
-    else:
-        school_days = 0
-    
-    absent = school_days - (present + late) if school_days > 0 else 0
-    attendance_rate = round((present + late) / school_days * 100, 1) if school_days > 0 else 0
-    
-    return jsonify({
-        "success": True,
-        "student_name": student.get('name'),
-        "student_id": student_id,
-        "grade": student.get('grade'),
-        "class": student.get('class'),
-        "total_days": school_days,
-        "present": present,
-        "late": late,
-        "absent": absent if absent > 0 else 0,
-        "attendance_rate": attendance_rate,
-        "records": records
-    })
+    """جلب تقرير لطالب محدد من Google Sheets"""
+    try:
+        # تحميل أحدث البيانات من Google Sheets
+        global attendance_records
+        attendance_records = load_attendance()
+        
+        student = next((s for s in students if s.get('student_id') == student_id), None)
+        if not student:
+            return jsonify({"success": False, "error": "الطالب غير موجود"})
+        
+        records = [r for r in attendance_records if r.get('student_id') == student_id]
+        records.sort(key=lambda x: x.get('date', ''), reverse=True)
+        
+        present = len([r for r in records if r.get('status') == 'حاضر في الوقت'])
+        late = len([r for r in records if r.get('status') == 'متأخر'])
+        total = len(records)
+        
+        if records:
+            first_date = datetime.strptime(records[-1].get('date'), "%Y-%m-%d")
+            today = get_saudi_time().date()
+            school_days = 0
+            current = first_date
+            while current.date() <= today:
+                if current.weekday() not in [4, 5]:
+                    school_days += 1
+                current += timedelta(days=1)
+        else:
+            school_days = 0
+        
+        absent = school_days - (present + late) if school_days > 0 else 0
+        attendance_rate = round((present + late) / school_days * 100, 1) if school_days > 0 else 0
+        
+        return jsonify({
+            "success": True,
+            "student_name": student.get('name'),
+            "student_id": student_id,
+            "grade": student.get('grade'),
+            "class": student.get('class'),
+            "total_days": school_days,
+            "present": present,
+            "late": late,
+            "absent": absent if absent > 0 else 0,
+            "attendance_rate": attendance_rate,
+            "records": records
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/monthly_report")
 @login_required
 def monthly_report():
-    year = int(request.args.get('year', get_saudi_time().year))
-    month = int(request.args.get('month', get_saudi_time().month))
-    
-    if month == 12:
-        next_month = datetime(year + 1, 1, 1)
-    else:
-        next_month = datetime(year, month + 1, 1)
-    days_in_month = (next_month - datetime(year, month, 1)).days
-    
-    daily_stats = []
-    for day in range(1, days_in_month + 1):
-        date_str = f"{year}-{month:02d}-{day:02d}"
-        day_records = [r for r in attendance_records if r.get('date') == date_str]
-        daily_stats.append({
-            'day': day, 
-            'present': len([r for r in day_records if r.get('status') == 'حاضر في الوقت']),
-            'late': len([r for r in day_records if r.get('status') == 'متأخر']),
-            'absent': len(students) - len(day_records)
+    """تقرير شهري من Google Sheets"""
+    try:
+        # تحميل أحدث البيانات من Google Sheets
+        global attendance_records
+        attendance_records = load_attendance()
+        
+        year = int(request.args.get('year', get_saudi_time().year))
+        month = int(request.args.get('month', get_saudi_time().month))
+        
+        if month == 12:
+            next_month = datetime(year + 1, 1, 1)
+        else:
+            next_month = datetime(year, month + 1, 1)
+        days_in_month = (next_month - datetime(year, month, 1)).days
+        
+        daily_stats = []
+        for day in range(1, days_in_month + 1):
+            date_str = f"{year}-{month:02d}-{day:02d}"
+            day_records = [r for r in attendance_records if r.get('date') == date_str]
+            daily_stats.append({
+                'day': day, 
+                'present': len([r for r in day_records if r.get('status') == 'حاضر في الوقت']),
+                'late': len([r for r in day_records if r.get('status') == 'متأخر']),
+                'absent': len(students) - len(day_records)
+            })
+        
+        return jsonify({
+            "success": True, 
+            "daily_stats": daily_stats, 
+            "total_present": sum(d['present'] for d in daily_stats),
+            "total_late": sum(d['late'] for d in daily_stats), 
+            "days_in_month": days_in_month, 
+            "month": month, 
+            "year": year
         })
-    
-    return jsonify({
-        "success": True, 
-        "daily_stats": daily_stats, 
-        "total_present": sum(d['present'] for d in daily_stats),
-        "total_late": sum(d['late'] for d in daily_stats), 
-        "days_in_month": days_in_month, 
-        "month": month, 
-        "year": year
-    })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/attendance_chart")
 @login_required
@@ -718,34 +740,17 @@ def export_monthly_excel():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-@app.route("/api/export_all_data")
+@app.route("/api/export_attendance/<date>")
 @login_required
-def export_all_data():
+def export_attendance(date):
     try:
-        if not attendance_records:
-            return jsonify({"success": False, "message": "لا توجد بيانات"})
-        filename = f"all_attendance_data_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
-        df = pd.DataFrame(attendance_records)
-        df.to_excel(filename, index=False, engine='openpyxl')
-        return send_file(filename, as_attachment=True)
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-# ============== API إرسال البريد ==============
-@app.route("/api/send_today_report_email")
-@login_required
-def send_today_report_email():
-    try:
-        today = get_saudi_time().strftime("%Y-%m-%d")
-        filename = f"attendance_report_{today}.xlsx"
-        if not app.config['MAIL_PASSWORD']:
-            return jsonify({"success": False, "message": "خدمة البريد الإلكتروني غير مضبوطة"})
+        filename = f"attendance_{date}.xlsx"
         
         result = []
         for student in students:
             record = None
             for r in attendance_records:
-                if r.get('student_id') == student.get('student_id') and r.get('date') == today:
+                if r.get('student_id') == student.get('student_id') and r.get('date') == date:
                     record = r
                     break
             result.append({
@@ -756,20 +761,43 @@ def send_today_report_email():
                 'وقت التسجيل': record.get('time') if record else '-',
                 'الحالة': record.get('status') if record else 'غائب'
             })
+        
         df = pd.DataFrame(result)
         df.to_excel(filename, index=False, engine='openpyxl')
+        return send_file(filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/export_student_excel/<student_id>")
+@login_required
+def export_student_excel(student_id):
+    try:
+        student = next((s for s in students if s.get('student_id') == student_id), None)
+        if not student:
+            return jsonify({"success": False, "error": "الطالب غير موجود"})
         
-        present_count = len([r for r in result if r['الحالة'] == 'حاضر في الوقت'])
-        late_count = len([r for r in result if r['الحالة'] == 'متأخر'])
-        absent_count = len([r for r in result if r['الحالة'] == 'غائب'])
+        filename = f"student_{student_id}_report.xlsx"
         
-        html_body = f"""<html dir="rtl"><body><h2>📊 تقرير حضور الطلاب</h2><h3>التاريخ: {today}</h3><hr>
-        <h3>📈 ملخص الحضور:</h3><ul><li>✅ الحاضرون في الوقت: <strong>{present_count}</strong></li>
-        <li>⏰ المتأخرون: <strong>{late_count}</strong></li><li>❌ الغائبون: <strong>{absent_count}</strong></li>
-        <li>📚 إجمالي الطلاب: <strong>{len(result)}</strong></li></ul><hr><p>📎 المرفق: ملف Excel</p></body></html>"""
+        records = [r for r in attendance_records if r.get('student_id') == student_id]
+        records.sort(key=lambda x: x.get('date', ''), reverse=True)
         
-        success, msg = send_report_email('taaanet@gmail.com', f'تقرير حضور - {today}', html_body, filename)
-        return jsonify({"success": success, "message": msg if not success else "✅ تم الإرسال"})
+        df = pd.DataFrame(records)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        
+        return send_file(filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/export_all_data")
+@login_required
+def export_all_data():
+    try:
+        if not attendance_records:
+            return jsonify({"success": False, "message": "لا توجد بيانات"})
+        filename = f"all_attendance_data_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
+        df = pd.DataFrame(attendance_records)
+        df.to_excel(filename, index=False, engine='openpyxl')
+        return send_file(filename, as_attachment=True)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -928,24 +956,6 @@ def saudi_time():
         "can_register": can_register_attendance()[0]
     })
 
-@app.route("/api/test_absent")
-@login_required
-def test_absent():
-    try:
-        today = get_saudi_time().strftime("%Y-%m-%d")
-        present_records = [r for r in attendance_records if r.get('date') == today]
-        present_ids = [str(r.get('student_id', '')) for r in present_records]
-        
-        return jsonify({
-            "today": today,
-            "total_students": len(students),
-            "present_count": len(present_records),
-            "present_ids": present_ids[:10],
-            "attendance_records_count": len(attendance_records)
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":
     print("🔄 جاري تحميل البيانات من Google Sheets...")
@@ -959,5 +969,5 @@ if __name__ == "__main__":
     print("📅 أيام العطلات: الجمعة والسبت")
     print("=" * 50)
     
-    port = int(os.environ.get("PORT", 10000))  # تغيير 5000 إلى 10000
-       app.run(host='0.0.0.0', port=port, debug=False)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
