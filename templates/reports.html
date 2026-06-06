@@ -173,7 +173,7 @@
             <button class="btn-excel" onclick="exportTodayExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printTodayReport()">🖨️ طباعة</button>
             <button class="btn-email" onclick="sendTodayReportEmail()">📧 إرسال إلى البريد</button>
-            <button class="btn-refresh" onclick="refreshToday()">🔄 تحديث</button>
+            <button class="btn-refresh" onclick="refreshData()">🔄 تحديث البيانات</button>
         </div>
         <h3>📋 تفاصيل حضور اليوم - <span id="todayDate"></span></h3>
         <div id="todayTable" class="table-container"></div>
@@ -260,6 +260,29 @@ async function loadStats() {
     } catch(e) { console.error(e); }
 }
 
+// ========== تحديث البيانات ==========
+async function refreshData() {
+    try {
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = "⏳ جاري التحديث...";
+        btn.disabled = true;
+        
+        await fetch('/api/refresh_attendance');
+        await fetch('/api/refresh_students');
+        
+        await loadStats();
+        await loadTodayAttendance();
+        
+        alert('✅ تم تحديث البيانات من Google Sheets بنجاح');
+        btn.textContent = originalText;
+        btn.disabled = false;
+    } catch (error) {
+        console.error("خطأ في التحديث:", error);
+        alert('❌ حدث خطأ أثناء التحديث');
+    }
+}
+
 // ========== تحميل حضور اليوم ==========
 async function loadTodayAttendance() {
     const today = new Date().toISOString().split('T')[0];
@@ -314,9 +337,9 @@ async function loadMonthlyReport() {
         let html = `<div class="stats-grid">
             <div class="stat-card"><div class="stat-number">${data.total_present}</div><div class="stat-label">✅ إجمالي الحضور</div></div>
             <div class="stat-card"><div class="stat-number">${data.total_late}</div><div class="stat-label">⏰ إجمالي التأخير</div></div>
-        </div><div class="table-container"></table><thead><tr><th>اليوم</th><th>✅ الحاضرون</th><th>⏰ المتأخرون</th><th>❌ الغائبون</th></tr></thead><tbody>`;
+        </div><div class="table-container"><table><thead><tr><th>اليوم</th><th>✅ الحاضرون</th><th>⏰ المتأخرون</th><th>❌ الغائبون</th></tr></thead><tbody>`;
         data.daily_stats.forEach(d => {
-            html += `<tr>
+            html += `<td>
                 <td>اليوم ${d.day}</td>
                 <td class="present">${d.present}</td>
                 <td class="late">${d.late}</td>
@@ -410,7 +433,7 @@ async function searchStudent() {
                 <div class="stat-card"><div class="stat-number">${data.attendance_rate}%</div><div class="stat-label">نسبة الحضور</div></div>
             </div>
             <h4>🧑‍🎓 ${data.student_name} - الصف ${data.grade} - الشعبة ${data.class}</h4>
-            <div class="table-container"></table><thead><tr><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>
+            <div class="table-container"><table><thead><tr><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>
             ${data.records.map(r => `<tr><td>${r.date}</td><td>${r.time}</td><td>${r.status === 'حاضر في الوقت' ? '✅' : (r.status === 'متأخر' ? '⏰' : '❌')} ${r.status}</td></tr>`).join('')}
             </tbody></table></div>
         `;
@@ -426,12 +449,6 @@ function showTab(tabName) {
     if (tabName === 'today') loadTodayAttendance();
     else if (tabName === 'absent') loadAbsentStudents();
     else if (tabName === 'monthly') loadMonthlyReport();
-}
-
-// ========== دوال التحديث ==========
-function refreshToday() {
-    loadTodayAttendance();
-    loadStats();
 }
 
 // ========== دوال التصدير ==========
