@@ -132,35 +132,29 @@ def save_attendance(record):
 # ============== إعدادات التوقيت السعودي ==============
 def get_saudi_time():
     """الحصول على الوقت الحالي بتوقيت المملكة العربية السعودية"""
-    # استخدام التوقيت العالمي +3 للسعودية
     return datetime.utcnow() + timedelta(hours=3)
 
 def is_weekend(date):
     """التحقق مما إذا كان اليوم عطلة نهاية الأسبوع (الجمعة أو السبت)"""
-    # الأحد=0, الإثنين=1, الثلاثاء=2, الأربعاء=3, الخميس=4, الجمعة=5, السبت=6
     weekday = date.weekday()
-    # في Python، الإثنين=0، الجمعة=4، السبت=5
-    # تحويل: الجمعة=4، السبت=5
+    # في Python: 0=الإثنين, 1=الثلاثاء, 2=الأربعاء, 3=الخميس, 4=الجمعة, 5=السبت, 6=الأحد
     return weekday == 4 or weekday == 5  # الجمعة أو السبت
 
 def is_within_daily_hours(current_time):
     """التحقق مما إذا كان الوقت ضمن ساعات الدوام (6 صباحاً - 12 ظهراً)"""
-    # وقت الدوام: من 06:00 إلى 12:00
-    start_time = time(6, 0, 0)  # 6 صباحاً
-    end_time = time(12, 0, 0)   # 12 ظهراً
+    start_time = time(6, 0, 0)   # 6 صباحاً
+    end_time = time(12, 0, 0)    # 12 ظهراً
     return start_time <= current_time <= end_time
 
 def can_register_attendance():
-    """التحقق من إمكانية تسجيل الحضور (ليس عطلة وضمن ساعات الدوام)"""
+    """التحقق من إمكانية تسجيل الحضور"""
     now = get_saudi_time()
     current_time = now.time()
     current_date = now.date()
     
-    # التحقق من العطلة
     if is_weekend(current_date):
         return False, "لا يمكن تسجيل الحضور في أيام العطلات (الجمعة والسبت)"
     
-    # التحقق من ساعات الدوام
     if not is_within_daily_hours(current_time):
         return False, "يمكن تسجيل الحضور فقط من الساعة 6 صباحاً حتى 12 ظهراً"
     
@@ -170,7 +164,6 @@ def get_attendance_status():
     """تحديد حالة الحضور حسب الوقت"""
     now = get_saudi_time()
     current_time = now.strftime("%H:%M:%S")
-    # وقت الحضور المحدد: 7:30 صباحاً
     deadline = "07:30:00"
     if current_time <= deadline:
         return "حاضر في الوقت", current_time
@@ -372,14 +365,13 @@ def reports():
 def dashboard():
     return render_template("dashboard.html")
 
-# ============== API التسجيل (مع قيود التوقيت) ==============
+# ============== API التسجيل ==============
 @app.route("/api/register", methods=["POST"])
 @login_required
 def register_attendance():
     global attendance_records
     
     try:
-        # التحقق من إمكانية التسجيل (عطلة/ساعات الدوام)
         can_register, error_message = can_register_attendance()
         if not can_register:
             return jsonify({"success": False, "message": error_message})
@@ -390,7 +382,6 @@ def register_attendance():
         if not student_id:
             return jsonify({"success": False, "message": "الرجاء إدخال رقم الطالب"})
         
-        # البحث عن الطالب
         student = None
         for s in students:
             db_student_id = str(s.get('student_id', ''))
@@ -409,7 +400,6 @@ def register_attendance():
         now = get_saudi_time()
         current_date = now.strftime("%Y-%m-%d")
         
-        # التحقق من عدم التكرار
         for record in attendance_records:
             if str(record.get('student_id', '')) == student_id and record.get('date') == current_date:
                 return jsonify({
@@ -478,7 +468,6 @@ def attendance_summary():
 @app.route("/api/attendance_details/<date>")
 @login_required
 def attendance_details(date):
-    """تفاصيل الحضور لتاريخ محدد (بما في ذلك تواريخ سابقة)"""
     result = []
     for student in students:
         record = None
@@ -511,10 +500,25 @@ def attendance_details(date):
 @app.route("/api/absent_students_today")
 @login_required
 def absent_students_today():
-    today = get_saudi_time().strftime("%Y-%m-%d")
-    present_ids = set(r.get('student_id') for r in attendance_records if r.get('date') == today)
-    absent = [s for s in students if s.get('student_id') not in present_ids]
-    return jsonify({"success": True, "data": absent})
+    try:
+        today = get_saudi_time().strftime("%Y-%m-%d")
+        present_records = [r for r in attendance_records if r.get('date') == today]
+        present_ids = set(str(r.get('student_id', '')) for r in present_records if r.get('student_id'))
+        
+        absent_students = []
+        for student in students:
+            student_id = str(student.get('student_id', ''))
+            if student_id and student_id not in present_ids:
+                absent_students.append({
+                    'student_id': student_id,
+                    'name': student.get('name', ''),
+                    'grade': student.get('grade', ''),
+                    'class': student.get('class', '')
+                })
+        
+        return jsonify({"success": True, "data": absent_students, "count": len(absent_students), "date": today})
+    except Exception as e:
+        return jsonify({"success": False, "data": [], "error": str(e)})
 
 @app.route("/api/top_students")
 @login_required
@@ -531,7 +535,6 @@ def top_students():
 @app.route("/api/student_report/<student_id>")
 @login_required
 def student_report(student_id):
-    """تقرير حضور طالب محدد (جميع الأيام السابقة)"""
     student = None
     for s in students:
         if s.get('student_id') == student_id:
@@ -540,7 +543,6 @@ def student_report(student_id):
     if not student:
         return jsonify({"success": False, "error": "الطالب غير موجود"})
     
-    # جلب جميع سجلات الطالب وترتيبها تنازلياً حسب التاريخ
     records = [r for r in attendance_records if r.get('student_id') == student_id]
     records.sort(key=lambda x: x.get('date', ''), reverse=True)
     
@@ -548,14 +550,13 @@ def student_report(student_id):
     late = len([r for r in records if r.get('status') == 'متأخر'])
     total = len(records)
     
-    # حساب عدد أيام الدراسة (من أول يوم تسجيل حتى اليوم)
     if records:
         first_date = datetime.strptime(records[-1].get('date'), "%Y-%m-%d")
         today = get_saudi_time().date()
         school_days = 0
         current = first_date
         while current.date() <= today:
-            if current.weekday() not in [4, 5]:  # ليس جمعة أو سبت
+            if current.weekday() not in [4, 5]:
                 school_days += 1
             current += timedelta(days=1)
     else:
@@ -629,7 +630,6 @@ def attendance_chart():
 @app.route("/api/dashboard_stats")
 @login_required
 def dashboard_stats():
-    """إحصائيات لوحة التحكم (داشبورد)"""
     today = get_saudi_time().strftime("%Y-%m-%d")
     total = len(students)
     
@@ -639,7 +639,6 @@ def dashboard_stats():
     absent = total - (present + late)
     percentage = round((present + late) / total * 100, 1) if total > 0 else 0
     
-    # أفضل طالب
     present_counts = {}
     for r in attendance_records:
         if r.get('status') in ['حاضر في الوقت', 'متأخر']:
@@ -647,7 +646,6 @@ def dashboard_stats():
             present_counts[name] = present_counts.get(name, 0) + 1
     best_student = max(present_counts.items(), key=lambda x: x[1])[0] if present_counts else "لا يوجد"
     
-    # أكثر طالب تأخراً
     late_counts = {}
     for r in attendance_records:
         if r.get('status') == 'متأخر':
@@ -737,7 +735,7 @@ def export_all_data():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-# ============== APIs إرسال البريد ==============
+# ============== API إرسال البريد ==============
 @app.route("/api/send_today_report_email")
 @login_required
 def send_today_report_email():
@@ -808,7 +806,7 @@ def upload_local_students():
                 ])
                 count += 1
             except Exception as e:
-                print(f"خطأ في إضافة الطالب {record.get('student_id')}: {e}")
+                print(f"خطأ: {e}")
         
         global students
         students = load_students()
@@ -903,7 +901,6 @@ def stats():
 @app.route("/api/saudi_time")
 @login_required
 def saudi_time():
-    """عرض الوقت الحالي بتوقيت المملكة"""
     now = get_saudi_time()
     return jsonify({
         "success": True,
@@ -913,6 +910,24 @@ def saudi_time():
         "is_weekend": is_weekend(now.date()),
         "can_register": can_register_attendance()[0]
     })
+
+@app.route("/api/test_absent")
+@login_required
+def test_absent():
+    try:
+        today = get_saudi_time().strftime("%Y-%m-%d")
+        present_records = [r for r in attendance_records if r.get('date') == today]
+        present_ids = [str(r.get('student_id', '')) for r in present_records]
+        
+        return jsonify({
+            "today": today,
+            "total_students": len(students),
+            "present_count": len(present_records),
+            "present_ids": present_ids[:10],
+            "attendance_records_count": len(attendance_records)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":

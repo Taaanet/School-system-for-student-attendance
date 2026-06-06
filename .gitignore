@@ -1,8 +1,13 @@
+google-credentials.json
+# ملفات Google API السرية
+credentials.json
+token.pickle
+
 # ملفات البيانات
 attendance.json
 users.json
 
-# ملفات Python
+# ملفات مؤقتة
 __pycache__/
 *.pyc
 .env
