@@ -58,9 +58,7 @@
         }
         .btn-excel { background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
         .btn-print { background: #17a2b8; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
-        .btn-email { background: #ea4335; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
-        .btn-refresh { background: #ffc107; color: #333; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
-        .btn-excel:hover, .btn-print:hover, .btn-email:hover, .btn-refresh:hover { opacity: 0.8; transform: translateY(-2px); }
+        .btn-excel:hover, .btn-print:hover { opacity: 0.8; transform: translateY(-2px); }
         .tabs {
             display: flex;
             gap: 10px;
@@ -172,8 +170,6 @@
         <div class="action-buttons no-print">
             <button class="btn-excel" onclick="exportTodayExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printTodayReport()">🖨️ طباعة</button>
-            <button class="btn-email" onclick="sendTodayReportEmail()">📧 إرسال إلى البريد</button>
-            <button class="btn-refresh" onclick="refreshData()">🔄 تحديث البيانات</button>
         </div>
         <h3>📋 تفاصيل حضور اليوم - <span id="todayDate"></span></h3>
         <div id="todayTable" class="table-container"></div>
@@ -205,7 +201,6 @@
             <button onclick="loadMonthlyReport()">عرض التقرير</button>
             <button class="btn-excel" onclick="exportMonthlyExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printMonthlyReport()">🖨️ طباعة</button>
-            <button class="btn-email" onclick="sendMonthlyReportEmail()">📧 إرسال إلى البريد</button>
         </div>
         <div id="monthlyReport"></div>
     </div>
@@ -215,7 +210,6 @@
         <div class="action-buttons no-print">
             <button class="btn-excel" onclick="exportAbsentExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printAbsentReport()">🖨️ طباعة</button>
-            <button class="btn-refresh" onclick="loadAbsentStudents()">🔄 تحديث</button>
         </div>
         <h3>❌ الطلاب الغائبون اليوم - <span id="absentDate"></span></h3>
         <div id="absentTable" class="table-container"></div>
@@ -260,29 +254,6 @@ async function loadStats() {
     } catch(e) { console.error(e); }
 }
 
-// ========== تحديث البيانات ==========
-async function refreshData() {
-    try {
-        const btn = event.target;
-        const originalText = btn.textContent;
-        btn.textContent = "⏳ جاري التحديث...";
-        btn.disabled = true;
-        
-        await fetch('/api/refresh_attendance');
-        await fetch('/api/refresh_students');
-        
-        await loadStats();
-        await loadTodayAttendance();
-        
-        alert('✅ تم تحديث البيانات من Google Sheets بنجاح');
-        btn.textContent = originalText;
-        btn.disabled = false;
-    } catch (error) {
-        console.error("خطأ في التحديث:", error);
-        alert('❌ حدث خطأ أثناء التحديث');
-    }
-}
-
 // ========== تحميل حضور اليوم ==========
 async function loadTodayAttendance() {
     const today = new Date().toISOString().split('T')[0];
@@ -306,7 +277,7 @@ async function loadAttendanceTable(date, elementId) {
             container.innerHTML = '<div style="text-align:center; padding:40px;">لا توجد بيانات</div>';
             return;
         }
-        let html = `<div class="table-container"><table><thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>`;
+        let html = `<div class="table-container"><td><thead><tr><th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>`;
         data.data.forEach((s, i) => {
             let statusClass = s.status === 'حاضر في الوقت' ? 'present' : (s.status === 'متأخر' ? 'late' : 'absent');
             let icon = s.status === 'حاضر في الوقت' ? '✅' : (s.status === 'متأخر' ? '⏰' : '❌');
@@ -339,7 +310,7 @@ async function loadMonthlyReport() {
             <div class="stat-card"><div class="stat-number">${data.total_late}</div><div class="stat-label">⏰ إجمالي التأخير</div></div>
         </div><div class="table-container"><table><thead><tr><th>اليوم</th><th>✅ الحاضرون</th><th>⏰ المتأخرون</th><th>❌ الغائبون</th></tr></thead><tbody>`;
         data.daily_stats.forEach(d => {
-            html += `<td>
+            html += `<tr>
                 <td>اليوم ${d.day}</td>
                 <td class="present">${d.present}</td>
                 <td class="late">${d.late}</td>
@@ -434,8 +405,8 @@ async function searchStudent() {
             </div>
             <h4>🧑‍🎓 ${data.student_name} - الصف ${data.grade} - الشعبة ${data.class}</h4>
             <div class="table-container"><table><thead><tr><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr></thead><tbody>
-            ${data.records.map(r => `<tr><td>${r.date}</td><td>${r.time}</td><td>${r.status === 'حاضر في الوقت' ? '✅' : (r.status === 'متأخر' ? '⏰' : '❌')} ${r.status}</td></tr>`).join('')}
-            </tbody></table></div>
+            ${data.records.map(r => `<tr><td style="text-align:center;">${r.date}</td><td style="text-align:center;">${r.time}</td><td style="text-align:center;">${r.status === 'حاضر في الوقت' ? '✅' : (r.status === 'متأخر' ? '⏰' : '❌')} ${r.status}</td></tr>`).join('')}
+            </tbody></tr></div>
         `;
     } catch(e) { console.error(e); }
 }
@@ -560,53 +531,6 @@ function printAbsentReport() {
     `);
     printWindow.document.close();
     printWindow.print();
-}
-
-// ========== دوال إرسال البريد ==========
-async function sendTodayReportEmail() {
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.textContent = "⏳ جاري الإرسال...";
-    btn.disabled = true;
-    
-    try {
-        const response = await fetch('/api/send_today_report_email');
-        const data = await response.json();
-        if (data.success) {
-            alert('✅ تم إرسال التقرير إلى البريد الإلكتروني بنجاح!');
-        } else {
-            alert('❌ فشل الإرسال: ' + (data.message || 'خطأ غير معروف'));
-        }
-    } catch (error) {
-        alert('❌ خطأ في الاتصال: ' + error.message);
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function sendMonthlyReportEmail() {
-    const month = document.getElementById('monthSelect').value;
-    const year = document.getElementById('yearSelect').value;
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.textContent = "⏳ جاري الإرسال...";
-    btn.disabled = true;
-    
-    try {
-        const response = await fetch(`/api/send_monthly_report_email?month=${month}&year=${year}`);
-        const data = await response.json();
-        if (data.success) {
-            alert('✅ تم إرسال التقرير الشهري إلى البريد الإلكتروني بنجاح!');
-        } else {
-            alert('❌ فشل الإرسال: ' + (data.message || 'خطأ غير معروف'));
-        }
-    } catch (error) {
-        alert('❌ خطأ في الاتصال: ' + error.message);
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-    }
 }
 
 // ========== تحميل البيانات عند فتح الصفحة ==========
