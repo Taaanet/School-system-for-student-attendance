@@ -24,21 +24,47 @@
             max-width: 500px;
             width: 100%;
         }
-        .school-logo { margin-bottom: 20px; }
-        .logo-circle {
-            width: 100px;
-            height: 100px;
+        /* قسم الشعار - حجم صغير */
+        .school-logo {
+            margin-bottom: 15px;
+        }
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+        .logo-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+        .fallback-logo {
+            width: 60px;
+            height: 60px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 50%;
-            margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin: 0 auto;
         }
-        .logo-circle span { font-size: 50px; }
-        .school-name { margin-top: 10px; font-size: 18px; font-weight: bold; color: #667eea; }
-        h1 { color: #333; margin-bottom: 10px; font-size: 24px; }
-        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
+        .fallback-logo span {
+            font-size: 30px;
+        }
+        .school-name { 
+            margin-top: 5px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            color: #667eea;
+        }
+        .school-subtitle {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
+        h1 { color: #333; margin-bottom: 10px; font-size: 20px; }
+        .subtitle { color: #666; margin-bottom: 20px; font-size: 12px; }
         .user-info {
             display: flex;
             justify-content: space-between;
@@ -46,17 +72,21 @@
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 1px solid #eee;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-        .welcome { color: #667eea; font-weight: bold; }
+        .welcome { color: #667eea; font-weight: bold; font-size: 14px; }
+        .admin-link { color: #667eea; text-decoration: none; font-size: 12px; background: #f0f0f0; padding: 4px 10px; border-radius: 15px; }
+        .logout-link { color: #dc3545; text-decoration: none; font-size: 12px; }
         .btn {
             display: block;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px 25px;
-            font-size: 18px;
+            padding: 12px 20px;
+            font-size: 16px;
             text-decoration: none;
             border-radius: 60px;
-            margin: 12px 0;
+            margin: 10px 0;
             font-weight: bold;
         }
         .btn-reports { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
@@ -64,45 +94,63 @@
         .time-info {
             background: #e7f3ff;
             border-radius: 15px;
-            padding: 15px;
-            margin-top: 20px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 12px;
         }
         .info-box {
             background: #f8f9fa;
             border-radius: 15px;
-            padding: 20px;
-            margin-top: 30px;
+            padding: 15px;
+            margin-top: 20px;
             text-align: right;
         }
-        .info-box h3 { color: #667eea; margin-bottom: 10px; }
+        .info-box h3 { color: #667eea; margin-bottom: 8px; font-size: 14px; }
+        .info-box p { font-size: 12px; margin: 5px 0; }
         .login-alert {
             background: #fff3cd;
-            padding: 10px;
+            padding: 8px;
             border-radius: 10px;
             margin-bottom: 15px;
-            font-size: 13px;
+            font-size: 12px;
         }
         @media (max-width: 600px) {
-            .container { padding: 25px 20px; }
-            h1 { font-size: 20px; }
-            .btn { padding: 12px 20px; font-size: 16px; }
+            .container { padding: 20px 15px; }
+            h1 { font-size: 18px; }
+            .btn { padding: 10px 15px; font-size: 14px; }
+            .logo-img { width: 50px; height: 50px; }
+            .fallback-logo { width: 50px; height: 50px; }
+            .fallback-logo span { font-size: 25px; }
+            .school-name { font-size: 14px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- قسم الشعار - المركز الوطني بحجم صغير -->
         <div class="school-logo">
-            <div class="logo-circle"><span>🏫</span></div>
-             <img src="/static/img1.png" alt="مدرسة منارات المدينة الثانوية " class="logo-img">
-            <div class="school-name">مدرسة منارات المدينة الثانوية</div>
+            <div class="logo-container">
+                <!-- استخدم إما الصورة أو الرمز -->
+                <img id="schoolLogo" src="/static/img1.png" 
+                     alt="المركز الوطني" 
+                     class="logo-img"
+                     onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';">
+                <div id="fallbackLogo" class="fallback-logo" style="display: none;">
+                    <span>🏛️</span>
+                </div>
+            </div>
+            <div class="school-name">المركز الوطني</div>
+            <div class="school-subtitle">نظام حضور الطلاب</div>
         </div>
         
         <div class="user-info">
             <span class="welcome">👋 مرحباً {{ session.get('username', 'مدير النظام') }}</span>
-            {% if session.get('role') == 'admin' %}
-                <a href="/users_list" style="color: #667eea; text-decoration: none;">👥 إدارة المستخدمين</a>
-            {% endif %}
-            <a href="/logout" style="color: #dc3545; text-decoration: none;">🚪 خروج</a>
+            <div>
+                {% if session.get('role') == 'admin' %}
+                    <a href="/users_list" class="admin-link">👥 إدارة المستخدمين</a>
+                {% endif %}
+                <a href="/logout" class="logout-link">🚪 خروج</a>
+            </div>
         </div>
         
         {% if session.get('role') != 'admin' and session.get('remaining_logins') is not none %}
@@ -111,12 +159,13 @@
         </div>
         {% endif %}
         
-        <h1>نظام الحضور الذكي</h1>
+        <h1>نظام رصد حضور وتأخر الطلاب</h1>
         <p class="subtitle">نظام ذكي لمتابعة حضور الطلاب باستخدام رموز QR</p>
         
         <div class="time-info">
-            ⏰ وقت الحضور الصباحي: <span>7:00 صباحاً</span> - <span>7:30 صباحاً</span><br>
-            ✅ الحضور قبل 7:00 | ⏰ الحضور بعد 7:30 يعتبر تأخير
+            ⏰ وقت الحضور الصباحي: <span>6:00 صباحاً</span> - <span>7:30 صباحاً</span><br>
+            ✅ الحضور قبل 7:30 | ⏰ الحضور بعد 7:30 يعتبر تأخير<br>
+            📅 أيام العطلات: الجمعة والسبت (لا يمكن تسجيل الحضور)
         </div>
         
         <a href="/scan" class="btn">📷 مسح QR Code</a>
@@ -126,11 +175,12 @@
         <div class="info-box">
             <h3>ℹ️ معلومات عن النظام</h3>
             <p>✅ مسح رمز QR الخاص بالطالب لتسجيل الحضور تلقائياً</p>
-            <p>✅ الحضور من 7:00 - 7:30 (حاضر) / بعد 7:30 (متأخر)</p>
-            <p>✅  تسجيل الطالب مرة واحدة في نفس اليوم</p>
+            <p>✅ الحضور من 6:00 - 7:30 (حاضر في الوقت) / بعد 7:30 (متأخر)</p>
+            <p>✅ منع تسجيل الطالب أكثر من مرة في نفس اليوم</p>
             <p>✅ رسوم بيانية وإحصائيات متقدمة</p>
             <p>✅ تقارير يومية، شهرية، وأفضل الطلاب حضوراً</p>
         </div>
+    </div>
 <div class="footer">
 
 نظام الحضور الذكي | جميع الحقوق محفوظة<br>
@@ -138,5 +188,17 @@ Taha_Mohamad © 2026 E-mail:taaanet@gmail.com phone:0554289816
 </div>
 
     </div>
+
+
+    <script>
+        // محاولة عرض الصورة، إذا فشلت يظهر الرمز البديل
+        const img = document.getElementById('schoolLogo');
+        if (img) {
+            img.onerror = function() {
+                this.style.display = 'none';
+                document.getElementById('fallbackLogo').style.display = 'flex';
+            };
+        }
+    </script>
 </body>
 </html>
