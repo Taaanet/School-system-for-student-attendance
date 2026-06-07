@@ -992,6 +992,42 @@ def saudi_time():
         "can_register": can_register_attendance()[0]
     })
 
+# ============== تحديث تلقائي للبيانات ==============
+@app.route("/api/auto_refresh")
+def auto_refresh():
+    """تحديث تلقائي للبيانات - يستخدم بواسطة JavaScript"""
+    try:
+        global students, attendance_records
+        students = load_students()
+        attendance_records = load_attendance()
+        return jsonify({
+            "success": True,
+            "students_count": len(students),
+            "attendance_count": len(attendance_records),
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/force_sync")
+@login_required
+def force_sync():
+    """مزامنة قسرية بين التطبيق و Google Sheets"""
+    try:
+        global students, attendance_records
+        students = load_students()
+        attendance_records = load_attendance()
+        
+        return jsonify({
+            "success": True,
+            "message": "تمت المزامنة بنجاح",
+            "students_count": len(students),
+            "attendance_count": len(attendance_records),
+            "students_sample": students[:3] if students else []
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":
     print("🔄 جاري تحميل البيانات من Google Sheets...")
