@@ -240,6 +240,21 @@
 </div>
 
 <script>
+// دالة لتنظيف النص من الأحرف الغريبة
+function cleanText(text) {
+    if (!text || text === 'null' || text === 'undefined') return '-';
+    try {
+        // إزالة الأحرف الغريبة
+        let cleaned = String(text);
+        cleaned = cleaned.replace(/侧的/g, '');
+        cleaned = cleaned.replace(/\\u[\dA-F]{4}/gi, '');
+        cleaned = cleaned.trim();
+        return cleaned || '-';
+    } catch(e) {
+        return '-';
+    }
+}
+
 // ========== تحميل الإحصائيات ==========
 async function loadStats() {
     try {
@@ -258,7 +273,7 @@ async function loadStats() {
     } catch(e) { console.error(e); }
 }
 
-// ========== عرض جدول الحضور ==========
+// ========== عرض جدول الحضور (مع تنظيف النصوص) ==========
 async function loadTodayAttendance() {
     try {
         const today = new Date().toISOString().split('T')[0];
@@ -276,7 +291,7 @@ async function loadTodayAttendance() {
             return;
         }
         
-        let html = '<div class="table-container"><table dir="rtl"><thead><table>';
+        let html = '<div class="table-container"><table dir="rtl"><thead><tr>';
         html += '<th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th>';
         html += '</thead><tbody>';
         
@@ -284,13 +299,13 @@ async function loadTodayAttendance() {
             let statusClass = (s.status === 'حاضر في الوقت') ? 'present' : ((s.status === 'متأخر') ? 'late' : 'absent');
             let icon = (s.status === 'حاضر في الوقت') ? '✅' : ((s.status === 'متأخر') ? '⏰' : '❌');
             html += `<tr>
-                <td>${i+1}侧的
-                <td>${s.student_id || '-'}侧的
-                <td>${s.student_name || '-'}侧的
-                <td>${s.grade || '-'}侧的
-                <td>${s.class || '-'}侧的
-                <td>${s.time || '-'}侧的
-                <td class="${statusClass}">${icon} ${s.status || 'غائب'}侧的
+                <td style="text-align:center;">${i+1}</td>
+                <td style="text-align:center;">${cleanText(s.student_id)}</td>
+                <td style="text-align:center;">${cleanText(s.student_name)}</td>
+                <td style="text-align:center;">${cleanText(s.grade)}</td>
+                <td style="text-align:center;">${cleanText(s.class)}</td>
+                <td style="text-align:center;">${cleanText(s.time)}</td>
+                <td class="${statusClass}" style="text-align:center;">${icon} ${cleanText(s.status)}</td>
             </tr>`;
         });
         
@@ -332,13 +347,13 @@ async function loadDateReport() {
             let statusClass = (s.status === 'حاضر في الوقت') ? 'present' : ((s.status === 'متأخر') ? 'late' : 'absent');
             let icon = (s.status === 'حاضر في الوقت') ? '✅' : ((s.status === 'متأخر') ? '⏰' : '❌');
             html += `<tr>
-                <td>${i+1}侧的
-                <td>${s.student_id || '-'}侧的
-                <td>${s.student_name || '-'}侧的
-                <td>${s.grade || '-'}侧的
-                <td>${s.class || '-'}侧的
-                <td>${s.time || '-'}侧的
-                <td class="${statusClass}">${icon} ${s.status || 'غائب'}侧的
+                <td style="text-align:center;">${i+1}</td>
+                <td style="text-align:center;">${cleanText(s.student_id)}</td>
+                <td style="text-align:center;">${cleanText(s.student_name)}</td>
+                <td style="text-align:center;">${cleanText(s.grade)}</td>
+                <td style="text-align:center;">${cleanText(s.class)}</td>
+                <td style="text-align:center;">${cleanText(s.time)}</td>
+                <td class="${statusClass}" style="text-align:center;">${icon} ${cleanText(s.status)}</td>
             </tr>`;
         });
         
@@ -382,10 +397,10 @@ async function loadMonthlyReport() {
         
         data.daily_stats.forEach(d => {
             html += `<tr>
-                <td>اليوم ${d.day}侧的
-                <td class="present">${d.present || 0}侧的
-                <td class="late">${d.late || 0}侧的
-                <td class="absent">${d.absent || 0}侧的
+                <td style="text-align:center;">اليوم ${d.day}</td>
+                <td class="present" style="text-align:center;">${d.present || 0}</td>
+                <td class="late" style="text-align:center;">${d.late || 0}</td>
+                <td class="absent" style="text-align:center;">${d.absent || 0}</td>
             </tr>`;
         });
         
@@ -426,11 +441,11 @@ async function loadAbsentStudents() {
         
         data.data.forEach((s, i) => {
             html += `<tr>
-                <td>${i+1}侧的
-                <td>${s.student_id || '-'}侧的
-                <td>${s.name || '-'}侧的
-                <td>${s.grade || '-'}侧的
-                <td>${s.class || '-'}侧的
+                <td style="text-align:center;">${i+1}</td>
+                <td style="text-align:center;">${cleanText(s.student_id)}</td>
+                <td style="text-align:center;">${cleanText(s.name)}</td>
+                <td style="text-align:center;">${cleanText(s.grade)}</td>
+                <td style="text-align:center;">${cleanText(s.class)}</td>
             </tr>`;
         });
         
@@ -463,10 +478,10 @@ async function searchStudent() {
         if (data.records && data.records.length > 0) {
             recordsHtml = data.records.map(r => {
                 let icon = (r.status === 'حاضر في الوقت') ? '✅' : ((r.status === 'متأخر') ? '⏰' : '❌');
-                return `<tr><td style="text-align:center;">${r.date || '-'}侧的<td style="text-align:center;">${r.time || '-'}侧的<td style="text-align:center;">${icon} ${r.status || '-'}侧的</tr>`;
+                return `<tr><td style="text-align:center;">${cleanText(r.date)}</td><td style="text-align:center;">${cleanText(r.time)}</td><td style="text-align:center;">${icon} ${cleanText(r.status)}</td></tr>`;
             }).join('');
         } else {
-            recordsHtml = '<tr><td colspan="3" style="text-align:center;">لا توجد سجلات حضور侧的</tr>';
+            recordsHtml = '<tr><td colspan="3" style="text-align:center;">لا توجد سجلات حضور</td></tr>';
         }
         
         container.innerHTML = `
@@ -477,7 +492,7 @@ async function searchStudent() {
                 <div class="stat-card"><div class="stat-number" style="color:#dc3545;">${data.absent || 0}</div><div class="stat-label">❌ غائب</div></div>
                 <div class="stat-card"><div class="stat-number">${data.attendance_rate || 0}%</div><div class="stat-label">نسبة الحضور</div></div>
             </div>
-            <h4>🧑‍🎓 ${data.student_name || '-'} - الصف ${data.grade || '-'} - الشعبة ${data.class || '-'}</h4>
+            <h4>🧑‍🎓 ${cleanText(data.student_name)} - الصف ${cleanText(data.grade)} - الشعبة ${cleanText(data.class)}</h4>
             <div class="table-container">
                 <table dir="rtl">
                     <thead><tr><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr></thead>
@@ -633,7 +648,6 @@ function startAutoRefresh() {
             const data = await response.json();
             if (data.success) {
                 console.log('🔄 تم تحديث البيانات:', data.students_count, 'طالب,', data.attendance_count, 'سجل');
-                // إعادة تحميل البيانات الحالية
                 if (document.getElementById('tab-today').classList.contains('active')) {
                     loadTodayAttendance();
                 } else if (document.getElementById('tab-absent').classList.contains('active')) {
@@ -646,7 +660,7 @@ function startAutoRefresh() {
         } catch(e) {
             console.error('خطأ في التحديث التلقائي:', e);
         }
-    }, 30000); // كل 30 ثانية
+    }, 30000);
 }
 
 // ========== تحميل البيانات عند فتح الصفحة ==========
