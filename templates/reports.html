@@ -55,10 +55,12 @@
             gap: 10px;
             margin-bottom: 15px;
             flex-wrap: wrap;
+            align-items: center;
         }
         .btn-excel { background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
         .btn-print { background: #17a2b8; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
-        .btn-excel:hover, .btn-print:hover { opacity: 0.8; transform: translateY(-2px); }
+        .btn-refresh { background: #ffc107; color: #333; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
+        .btn-excel:hover, .btn-print:hover, .btn-refresh:hover { opacity: 0.8; transform: translateY(-2px); }
         .tabs {
             display: flex;
             gap: 10px;
@@ -137,6 +139,8 @@
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .stat-number { font-size: 24px; }
             th, td { padding: 8px; font-size: 12px; }
+            .action-buttons { gap: 5px; }
+            .btn-excel, .btn-print, .btn-refresh { padding: 6px 12px; font-size: 12px; }
         }
     </style>
 </head>
@@ -170,6 +174,7 @@
         <div class="action-buttons no-print">
             <button class="btn-excel" onclick="exportTodayExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printTodayReport()">🖨️ طباعة</button>
+            <button class="btn-refresh" onclick="manualRefresh()">🔄 تحديث يدوي</button>
         </div>
         <h3>📋 تفاصيل حضور اليوم - <span id="todayDate"></span></h3>
         <div id="todayTable" class="table-container">جاري التحميل...</div>
@@ -210,6 +215,7 @@
         <div class="action-buttons no-print">
             <button class="btn-excel" onclick="exportAbsentExcel()">📥 تصدير Excel</button>
             <button class="btn-print" onclick="printAbsentReport()">🖨️ طباعة</button>
+            <button class="btn-refresh" onclick="loadAbsentStudents()">🔄 تحديث</button>
         </div>
         <h3>❌ الطلاب الغائبون اليوم - <span id="absentDate"></span></h3>
         <div id="absentTable" class="table-container"></div>
@@ -270,21 +276,21 @@ async function loadTodayAttendance() {
             return;
         }
         
-        let html = '<div class="table-container"><table dir="rtl"><thead><tr>';
+        let html = '<div class="table-container"><table dir="rtl"><thead><table>';
         html += '<th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th>';
-        html += '</tr></thead><tbody>';
+        html += '</thead><tbody>';
         
         data.data.forEach((s, i) => {
             let statusClass = (s.status === 'حاضر في الوقت') ? 'present' : ((s.status === 'متأخر') ? 'late' : 'absent');
             let icon = (s.status === 'حاضر في الوقت') ? '✅' : ((s.status === 'متأخر') ? '⏰' : '❌');
             html += `<tr>
-                <td>${i+1}</td>
-                <td>${s.student_id || '-'}</td>
-                <td>${s.student_name || '-'}</td>
-                <td>${s.grade || '-'}</td>
-                <td>${s.class || '-'}</td>
-                <td>${s.time || '-'}</td>
-                <td class="${statusClass}">${icon} ${s.status || 'غائب'}</td>
+                <td>${i+1}侧的
+                <td>${s.student_id || '-'}侧的
+                <td>${s.student_name || '-'}侧的
+                <td>${s.grade || '-'}侧的
+                <td>${s.class || '-'}侧的
+                <td>${s.time || '-'}侧的
+                <td class="${statusClass}">${icon} ${s.status || 'غائب'}侧的
             </tr>`;
         });
         
@@ -320,19 +326,19 @@ async function loadDateReport() {
         
         let html = '<div class="table-container"><table dir="rtl"><thead><tr>';
         html += '<th>#</th><th>رقم الطالب</th><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الوقت</th><th>الحالة</th>';
-        html += '</tr></thead><tbody>';
+        html += '</thead><tbody>';
         
         data.data.forEach((s, i) => {
             let statusClass = (s.status === 'حاضر في الوقت') ? 'present' : ((s.status === 'متأخر') ? 'late' : 'absent');
             let icon = (s.status === 'حاضر في الوقت') ? '✅' : ((s.status === 'متأخر') ? '⏰' : '❌');
             html += `<tr>
-                <td>${i+1}</td>
-                <td>${s.student_id || '-'}</td>
-                <td>${s.student_name || '-'}</td>
-                <td>${s.grade || '-'}</td>
-                <td>${s.class || '-'}</td>
-                <td>${s.time || '-'}</td>
-                <td class="${statusClass}">${icon} ${s.status || 'غائب'}</td>
+                <td>${i+1}侧的
+                <td>${s.student_id || '-'}侧的
+                <td>${s.student_name || '-'}侧的
+                <td>${s.grade || '-'}侧的
+                <td>${s.class || '-'}侧的
+                <td>${s.time || '-'}侧的
+                <td class="${statusClass}">${icon} ${s.status || 'غائب'}侧的
             </tr>`;
         });
         
@@ -376,10 +382,10 @@ async function loadMonthlyReport() {
         
         data.daily_stats.forEach(d => {
             html += `<tr>
-                <td>اليوم ${d.day}</td>
-                <td class="present">${d.present || 0}</td>
-                <td class="late">${d.late || 0}</td>
-                <td class="absent">${d.absent || 0}</td>
+                <td>اليوم ${d.day}侧的
+                <td class="present">${d.present || 0}侧的
+                <td class="late">${d.late || 0}侧的
+                <td class="absent">${d.absent || 0}侧的
             </tr>`;
         });
         
@@ -420,11 +426,11 @@ async function loadAbsentStudents() {
         
         data.data.forEach((s, i) => {
             html += `<tr>
-                <td>${i+1}</td>
-                <td>${s.student_id || '-'}</td>
-                <td>${s.name || '-'}</td>
-                <td>${s.grade || '-'}</td>
-                <td>${s.class || '-'}</td>
+                <td>${i+1}侧的
+                <td>${s.student_id || '-'}侧的
+                <td>${s.name || '-'}侧的
+                <td>${s.grade || '-'}侧的
+                <td>${s.class || '-'}侧的
             </tr>`;
         });
         
@@ -457,10 +463,10 @@ async function searchStudent() {
         if (data.records && data.records.length > 0) {
             recordsHtml = data.records.map(r => {
                 let icon = (r.status === 'حاضر في الوقت') ? '✅' : ((r.status === 'متأخر') ? '⏰' : '❌');
-                return `<tr><td>${r.date || '-'}</td><td>${r.time || '-'}</td><td>${icon} ${r.status || '-'}</td></tr>`;
+                return `<tr><td style="text-align:center;">${r.date || '-'}侧的<td style="text-align:center;">${r.time || '-'}侧的<td style="text-align:center;">${icon} ${r.status || '-'}侧的</tr>`;
             }).join('');
         } else {
-            recordsHtml = '<tr><td colspan="3" style="text-align:center;">لا توجد سجلات حضور</td></tr>';
+            recordsHtml = '<tr><td colspan="3" style="text-align:center;">لا توجد سجلات حضور侧的</tr>';
         }
         
         container.innerHTML = `
@@ -592,9 +598,61 @@ function printAbsentReport() {
     printWindow.print();
 }
 
+// ========== التحديث اليدوي ==========
+async function manualRefresh() {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ جاري التحديث...";
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/force_sync');
+        const data = await response.json();
+        if (data.success) {
+            alert(`✅ تم تحديث البيانات بنجاح!\nالطلاب: ${data.students_count}\nسجلات الحضور: ${data.attendance_count}`);
+            location.reload();
+        } else {
+            alert('❌ فشل تحديث البيانات: ' + (data.error || 'خطأ غير معروف'));
+        }
+    } catch (error) {
+        alert('❌ خطأ في الاتصال: ' + error.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+// ========== تحديث تلقائي للبيانات ==========
+let autoRefreshInterval = null;
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    autoRefreshInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/auto_refresh');
+            const data = await response.json();
+            if (data.success) {
+                console.log('🔄 تم تحديث البيانات:', data.students_count, 'طالب,', data.attendance_count, 'سجل');
+                // إعادة تحميل البيانات الحالية
+                if (document.getElementById('tab-today').classList.contains('active')) {
+                    loadTodayAttendance();
+                } else if (document.getElementById('tab-absent').classList.contains('active')) {
+                    loadAbsentStudents();
+                } else if (document.getElementById('tab-monthly').classList.contains('active')) {
+                    loadMonthlyReport();
+                }
+                loadStats();
+            }
+        } catch(e) {
+            console.error('خطأ في التحديث التلقائي:', e);
+        }
+    }, 30000); // كل 30 ثانية
+}
+
 // ========== تحميل البيانات عند فتح الصفحة ==========
 loadStats();
 loadTodayAttendance();
+startAutoRefresh();
 </script>
 </body>
 </html>
