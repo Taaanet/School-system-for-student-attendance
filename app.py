@@ -8,6 +8,7 @@ import pandas as pd
 from supabase import create_client
 from dotenv import load_dotenv
 from functools import wraps
+from calendar import monthrange
 
 load_dotenv()
 
@@ -66,19 +67,19 @@ def get_saudi_time():
     return datetime.utcnow() + timedelta(hours=3)
 
 def is_weekend(date):
-    """التحقق من أيام العطلات (الجمعة والسبت) - لم يتم تعديلها"""
+    """التحقق من أيام العطلات (الجمعة والسبت)"""
     return date.weekday() == 4 or date.weekday() == 5
 
 def is_within_daily_hours(current_time):
     """تم تعديلها: تسمح بالتسجيل 24 ساعة"""
-    return True  # يمكن التسجيل في أي وقت 24 ساعة
+    return True
 
 def can_register_attendance():
     """التحقق من إمكانية التسجيل (أيام العطلات فقط محظورة)"""
     now = get_saudi_time()
     if is_weekend(now.date()):
         return False, "لا يمكن تسجيل الحضور في أيام العطلات (الجمعة والسبت)"
-    return True, None  # باقي الأيام متاح التسجيل 24 ساعة
+    return True, None
 
 def get_attendance_status():
     """تحديد حالة الحضور حسب الوقت"""
@@ -247,6 +248,238 @@ def reports():
 def dashboard():
     return render_template("dashboard.html")
 
+# ============== صفحة التقارير الشهرية المؤقتة ==============
+@app.route("/monthly_reports")
+@login_required
+def monthly_reports():
+    return '''
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <title>التقارير الشهرية - نظام حضور الطلاب</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .container { max-width: 1200px; margin: 0 auto; }
+            .header {
+                background: white;
+                border-radius: 20px;
+                padding: 25px 30px;
+                margin-bottom: 25px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            .header h1 { color: #2d3748; font-size: 28px; }
+            .back-btn {
+                background: #667eea;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 10px;
+                text-decoration: none;
+                transition: 0.3s;
+            }
+            .back-btn:hover { background: #5a67d8; transform: translateY(-2px); }
+            .controls {
+                background: white;
+                border-radius: 20px;
+                padding: 20px 25px;
+                margin-bottom: 25px;
+                display: flex;
+                gap: 15px;
+                flex-wrap: wrap;
+                align-items: flex-end;
+            }
+            .control-group { display: flex; flex-direction: column; gap: 5px; }
+            .control-group label { font-size: 12px; color: #718096; font-weight: bold; }
+            .control-group select, .control-group input {
+                padding: 10px 15px;
+                border: 2px solid #e2e8f0;
+                border-radius: 10px;
+                font-size: 14px;
+            }
+            .btn {
+                padding: 10px 25px;
+                border: none;
+                border-radius: 10px;
+                font-size: 14px;
+                font-weight: bold;
+                cursor: pointer;
+                color: white;
+            }
+            .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); }
+            .btn-success { background: linear-gradient(135deg, #48bb78, #38a169); }
+            .summary-cards {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
+            }
+            .card {
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                padding: 20px;
+                border-radius: 15px;
+                text-align: center;
+            }
+            .card h3 { color: #4a5568; font-size: 14px; margin-bottom: 10px; }
+            .card .value { font-size: 32px; font-weight: bold; color: #667eea; }
+            .card .small { font-size: 12px; color: #718096; margin-top: 8px; }
+            .table-wrapper { overflow-x: auto; }
+            table { width: 100%; border-collapse: collapse; background: white; border-radius: 15px; overflow: hidden; }
+            th, td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+            th { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+            .present { color: #48bb78; font-weight: bold; }
+            .late { color: #ed8936; font-weight: bold; }
+            .absent { color: #fc8181; font-weight: bold; }
+            .loading { text-align: center; padding: 50px; color: #718096; }
+            @media (max-width: 768px) {
+                .header { flex-direction: column; text-align: center; }
+                .controls { flex-direction: column; }
+                .control-group { width: 100%; }
+                .btn { width: 100%; }
+            }
+        </style>
+    </head>
+    <body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 التقارير الشهرية المتقدمة</h1>
+            <a href="/dashboard" class="back-btn">← العودة إلى لوحة التحكم</a>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>📅 السنة</label>
+                <select id="yearSelect">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026" selected>2026</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>📆 الشهر</label>
+                <select id="monthSelect">
+                    <option value="1">يناير</option>
+                    <option value="2">فبراير</option>
+                    <option value="3">مارس</option>
+                    <option value="4">أبريل</option>
+                    <option value="5">مايو</option>
+                    <option value="6" selected>يونيو</option>
+                    <option value="7">يوليو</option>
+                    <option value="8">أغسطس</option>
+                    <option value="9">سبتمبر</option>
+                    <option value="10">أكتوبر</option>
+                    <option value="11">نوفمبر</option>
+                    <option value="12">ديسمبر</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="loadReport">📈 عرض التقرير</button>
+            <button class="btn btn-success" id="exportExcel">📎 تصدير Excel</button>
+        </div>
+
+        <div id="summaryCards">
+            <div class="loading">جاري تحميل البيانات...</div>
+        </div>
+
+        <div class="table-wrapper">
+            <div id="dailyTable">
+                <div class="loading">جاري تحميل البيانات...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadReport() {
+            const year = document.getElementById('yearSelect').value;
+            const month = document.getElementById('monthSelect').value;
+            
+            document.getElementById('summaryCards').innerHTML = '<div class="loading">جاري تحميل البيانات...</div>';
+            document.getElementById('dailyTable').innerHTML = '<div class="loading">جاري تحميل البيانات...</div>';
+            
+            try {
+                const response = await fetch(`/api/monthly_report?year=${year}&month=${month}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySummary(data);
+                    displayTable(data);
+                }
+            } catch (error) {
+                document.getElementById('summaryCards').innerHTML = '<div class="loading">❌ حدث خطأ</div>';
+            }
+        }
+
+        function displaySummary(data) {
+            const summary = data.summary;
+            const totalAttendance = summary.total_present + summary.total_late;
+            const html = `
+                <div class="summary-cards">
+                    <div class="card">
+                        <h3>📊 إجمالي الحضور</h3>
+                        <div class="value">${totalAttendance}</div>
+                        <div class="small">حاضر: ${summary.total_present} | متأخر: ${summary.total_late}</div>
+                    </div>
+                    <div class="card">
+                        <h3>📈 نسبة الحضور</h3>
+                        <div class="value">${summary.avg_attendance_rate}%</div>
+                        <div class="small">من أصل ${data.total_students} طالب</div>
+                    </div>
+                    <div class="card">
+                        <h3>❌ إجمالي الغياب</h3>
+                        <div class="value">${summary.total_absent}</div>
+                        <div class="small">على مدار ${data.days_in_month} يوم</div>
+                    </div>
+                    <div class="card">
+                        <h3>📅 أيام التسجيل</h3>
+                        <div class="value">${summary.days_with_attendance}</div>
+                        <div class="small">من أصل ${data.days_in_month} يوم</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('summaryCards').innerHTML = html;
+        }
+
+        function displayTable(data) {
+            let html = `<table><thead><tr><th>#</th><th>التاريخ</th><th>✅ حاضر</th><th>⏰ متأخر</th><th>❌ غائب</th><th>📊 النسبة</th></tr></thead><tbody>`;
+            
+            for (const day of data.daily_stats) {
+                html += `<tr>
+                    <td>${day.day}</td>
+                    <td>${day.date}</td>
+                    <td class="present">${day.present}</td>
+                    <td class="late">${day.late}</td>
+                    <td class="absent">${day.absent}</td>
+                    <td>${day.percentage}%</td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
+            document.getElementById('dailyTable').innerHTML = html;
+        }
+
+        function exportExcel() {
+            const year = document.getElementById('yearSelect').value;
+            const month = document.getElementById('monthSelect').value;
+            window.open(`/api/monthly_report?year=${year}&month=${month}&export=excel`, '_blank');
+        }
+
+        document.getElementById('loadReport').addEventListener('click', loadReport);
+        document.getElementById('exportExcel').addEventListener('click', exportExcel);
+        
+        loadReport();
+    </script>
+    </body>
+    </html>
+    '''
+
 # ============== API تسجيل الحضور ==============
 @app.route("/api/register", methods=["POST"])
 @login_required
@@ -276,7 +509,7 @@ def register_attendance():
         now = get_saudi_time()
         current_date = now.strftime("%Y-%m-%d")
         
-        # التحقق من عدم التكرار مباشرة من قاعدة البيانات
+        # التحقق من عدم التكرار
         existing = supabase.table("attendance").select("*").eq("student_id", student_id).eq("date", current_date).execute()
         
         if existing.data:
@@ -312,7 +545,7 @@ def register_attendance():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-# ============== API التقارير ==============
+# ============== API التقارير الأساسية ==============
 @app.route("/api/students_list")
 @login_required
 def students_list():
@@ -422,34 +655,196 @@ def student_report(student_id):
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
     return response
 
+# ============== التقارير الشهرية المتقدمة ==============
 @app.route("/api/monthly_report")
 @login_required
 def monthly_report():
+    """تقرير شهري مفصل مع إحصائيات"""
     year = int(request.args.get('year', get_saudi_time().year))
     month = int(request.args.get('month', get_saudi_time().month))
     students = get_live_students()
     attendance = get_live_attendance()
     
-    if month == 12:
-        next_month = datetime(year + 1, 1, 1)
-    else:
-        next_month = datetime(year, month + 1, 1)
-    days = (next_month - datetime(year, month, 1)).days
+    # عدد أيام الشهر
+    days_in_month = monthrange(year, month)[1]
     
-    stats = []
-    for day in range(1, days + 1):
+    daily_stats = []
+    total_present = 0
+    total_late = 0
+    total_absent = 0
+    total_days_with_attendance = 0
+    
+    for day in range(1, days_in_month + 1):
         date_str = f"{year}-{month:02d}-{day:02d}"
         day_records = [r for r in attendance if r.get('date') == date_str]
-        stats.append({
+        present = len([r for r in day_records if r.get('status') == 'حاضر في الوقت'])
+        late = len([r for r in day_records if r.get('status') == 'متأخر'])
+        absent = len(students) - (present + late)
+        
+        total_present += present
+        total_late += late
+        total_absent += absent
+        
+        if present + late > 0:
+            total_days_with_attendance += 1
+        
+        daily_stats.append({
             'day': day,
-            'present': len([r for r in day_records if r.get('status') == 'حاضر في الوقت']),
-            'late': len([r for r in day_records if r.get('status') == 'متأخر']),
-            'absent': len(students) - len(day_records)
+            'date': date_str,
+            'present': present,
+            'late': late,
+            'absent': absent if absent > 0 else 0,
+            'percentage': round((present + late) / len(students) * 100, 2) if len(students) > 0 else 0
         })
-    response = make_response(jsonify({"success": True, "daily_stats": stats}))
+    
+    # حساب متوسط الحضور
+    avg_attendance = round((total_present + total_late) / (days_in_month * len(students)) * 100, 2) if len(students) > 0 else 0
+    
+    # تصدير إلى Excel
+    if request.args.get('export') == 'excel':
+        df = pd.DataFrame(daily_stats)
+        filename = f"monthly_report_{year}_{month}.xlsx"
+        df.to_excel(filename, index=False, engine='openpyxl')
+        return send_file(filename, as_attachment=True)
+    
+    response = make_response(jsonify({
+        "success": True,
+        "year": year,
+        "month": month,
+        "month_name": get_month_name(month),
+        "days_in_month": days_in_month,
+        "total_students": len(students),
+        "summary": {
+            "total_present": total_present,
+            "total_late": total_late,
+            "total_absent": total_absent,
+            "avg_attendance_rate": avg_attendance,
+            "days_with_attendance": total_days_with_attendance,
+            "best_day": max(daily_stats, key=lambda x: x['present'] + x['late']) if daily_stats else None,
+            "worst_day": min(daily_stats, key=lambda x: x['present'] + x['late']) if daily_stats else None
+        },
+        "daily_stats": daily_stats
+    }))
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
     return response
 
+@app.route("/api/student_monthly_report/<student_id>")
+@login_required
+def student_monthly_report(student_id):
+    """تقرير شهري لطالب محدد"""
+    year = int(request.args.get('year', get_saudi_time().year))
+    month = int(request.args.get('month', get_saudi_time().month))
+    
+    students = get_live_students()
+    student = next((s for s in students if s.get('student_id') == student_id), None)
+    if not student:
+        return jsonify({"success": False, "error": "الطالب غير موجود"})
+    
+    days_in_month = monthrange(year, month)[1]
+    attendance = get_live_attendance()
+    student_records = [r for r in attendance if r.get('student_id') == student_id]
+    
+    daily_status = []
+    present_count = 0
+    late_count = 0
+    
+    for day in range(1, days_in_month + 1):
+        date_str = f"{year}-{month:02d}-{day:02d}"
+        record = next((r for r in student_records if r.get('date') == date_str), None)
+        
+        if record:
+            if record.get('status') == 'حاضر في الوقت':
+                present_count += 1
+            elif record.get('status') == 'متأخر':
+                late_count += 1
+        
+        daily_status.append({
+            'day': day,
+            'date': date_str,
+            'status': record.get('status') if record else 'غائب',
+            'time': record.get('time') if record else '-'
+        })
+    
+    absent_count = days_in_month - (present_count + late_count)
+    attendance_rate = round((present_count + late_count) / days_in_month * 100, 2)
+    
+    # تصدير إلى Excel
+    if request.args.get('export') == 'excel':
+        df = pd.DataFrame(daily_status)
+        filename = f"student_{student_id}_{year}_{month}.xlsx"
+        df.to_excel(filename, index=False, engine='openpyxl')
+        return send_file(filename, as_attachment=True)
+    
+    response = make_response(jsonify({
+        "success": True,
+        "student_id": student_id,
+        "student_name": student.get('name'),
+        "grade": student.get('grade'),
+        "class": student.get('class'),
+        "year": year,
+        "month": month,
+        "month_name": get_month_name(month),
+        "days_in_month": days_in_month,
+        "summary": {
+            "present": present_count,
+            "late": late_count,
+            "absent": absent_count,
+            "attendance_rate": attendance_rate
+        },
+        "daily_status": daily_status
+    }))
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    return response
+
+@app.route("/api/comparative_monthly_report")
+@login_required
+def comparative_monthly_report():
+    """تقرير مقارن بين عدة أشهر"""
+    year = int(request.args.get('year', get_saudi_time().year))
+    months = request.args.get('months', '1,2,3,4,5,6,7,8,9,10,11,12')
+    months = [int(m) for m in months.split(',')]
+    
+    students = get_live_students()
+    attendance = get_live_attendance()
+    
+    monthly_summary = []
+    for month in months:
+        days_in_month = monthrange(year, month)[1]
+        month_records = [r for r in attendance if r.get('date', '').startswith(f"{year}-{month:02d}")]
+        
+        present = len([r for r in month_records if r.get('status') == 'حاضر في الوقت'])
+        late = len([r for r in month_records if r.get('status') == 'متأخر'])
+        expected = days_in_month * len(students)
+        
+        monthly_summary.append({
+            'month': month,
+            'month_name': get_month_name(month),
+            'present': present,
+            'late': late,
+            'total_attendance': present + late,
+            'expected': expected,
+            'attendance_rate': round((present + late) / expected * 100, 2) if expected > 0 else 0
+        })
+    
+    response = make_response(jsonify({
+        "success": True,
+        "year": year,
+        "total_students": len(students),
+        "monthly_summary": monthly_summary
+    }))
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    return response
+
+def get_month_name(month):
+    """تحويل رقم الشهر إلى اسم عربي"""
+    months = {
+        1: 'يناير', 2: 'فبراير', 3: 'مارس', 4: 'أبريل',
+        5: 'مايو', 6: 'يونيو', 7: 'يوليو', 8: 'أغسطس',
+        9: 'سبتمبر', 10: 'أكتوبر', 11: 'نوفمبر', 12: 'ديسمبر'
+    }
+    return months.get(month, str(month))
+
+# ============== API التقارير الأخرى ==============
 @app.route("/api/attendance_chart")
 @login_required
 def attendance_chart():
@@ -573,7 +968,6 @@ def export_student_excel(student_id):
 @login_required
 def upload_local_students():
     try:
-        # محاولة قراءة CSV أولاً (أفضل للغة العربية)
         if os.path.exists("students.csv"):
             print("📖 جاري قراءة ملف students.csv...")
             df = pd.read_csv("students.csv", encoding='utf-8-sig')
@@ -587,32 +981,18 @@ def upload_local_students():
             })
 
         print(f"📊 عدد الطلاب في الملف: {len(df)}")
-        print(f"📋 الأعمدة الموجودة: {df.columns.tolist()}")
 
-        # تنظيف البيانات
         df = df.fillna("")
-        
-        # تحويل جميع الأعمدة إلى نص
         for col in df.columns:
             df[col] = df[col].astype(str)
         
-        # تنظيف أرقام الطلاب (إزالة .0)
         df['student_id'] = df['student_id'].str.replace('.0', '', regex=False).str.strip()
         
-        # تنظيف أرقام الهواتف
-        if 'phone' in df.columns:
-            df['phone'] = df['phone'].str.replace('.0', '', regex=False).str.strip()
-        if 'parent_phone' in df.columns:
-            df['parent_phone'] = df['parent_phone'].str.replace('.0', '', regex=False).str.strip()
-        
         records = df.to_dict("records")
-        print(f"📊 تم تجهيز {len(records)} طالب للرفع")
 
-        # حذف البيانات القديمة
         print("🗑️ جاري حذف البيانات القديمة...")
         supabase.table("students").delete().neq("student_id", "").execute()
 
-        # إدخال البيانات الجديدة على دفعات (50 طالب لكل دفعة)
         print("📤 جاري رفع الطلاب إلى Supabase...")
         batch_size = 50
         for i in range(0, len(records), batch_size):
@@ -726,5 +1106,6 @@ if __name__ == "__main__":
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط (لا يمكن التسجيل)")
+    print("📊 التقارير الشهرية: متاحة على /monthly_reports")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
