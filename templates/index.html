@@ -1,164 +1,499 @@
 <!DOCTYPE html>
-<html dir="rtl">
+<html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام حضور الطلاب</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>نظام حضور الطلاب - الرئيسية</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
-        }
-        .container {
-            background: white;
-            border-radius: 30px;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 500px;
-            width: 100%;
-        }
-        .school-logo {
-            margin-bottom: 20px;
-        }
-        .logo-circle {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
-            margin: 0 auto;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            flex-direction: column;
         }
-        .logo-circle span { font-size: 50px; }
-        .school-name { margin-top: 10px; font-size: 18px; font-weight: bold; color: #667eea; }
-        h1 { color: #333; margin-bottom: 10px; font-size: 24px; }
-        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
-        .user-info {
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            flex: 1;
+        }
+
+        /* الهيدر */
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
             flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
             gap: 10px;
         }
-        .welcome { color: #667eea; font-weight: bold; }
-        .admin-link { color: #667eea; text-decoration: none; font-size: 14px; background: #f0f0f0; padding: 5px 10px; border-radius: 15px; }
-        .logout-link { color: #dc3545; text-decoration: none; font-size: 14px; }
-        .btn {
-            display: block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 25px;
-            font-size: 18px;
-            text-decoration: none;
-            border-radius: 60px;
-            margin: 12px 0;
+
+        .user-info {
+            background: #f7fafc;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .user-name {
+            color: #4a5568;
             font-weight: bold;
         }
-        .btn-reports { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .btn-dashboard { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
-        .time-info {
-            background: #e7f3ff;
-            border-radius: 15px;
-            padding: 15px;
-            margin-top: 20px;
+
+        .logout-btn {
+            background: #e53e3e;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c53030;
+            transform: translateY(-2px);
+        }
+
+        /* بطاقات التنقل */
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .nav-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
             text-align: center;
+            text-decoration: none;
+            color: #2d3748;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
         }
-        .time-info strong { color: #667eea; }
-        .warning-text { color: #dc3545; font-weight: bold; }
-        .info-box {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 30px;
-            text-align: right;
+
+        .nav-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
         }
-        .info-box h3 { color: #667eea; margin-bottom: 10px; }
-        .login-alert {
-            background: #fff3cd;
-            padding: 10px;
-            border-radius: 10px;
+
+        .nav-icon {
+            font-size: 48px;
             margin-bottom: 15px;
-            font-size: 13px;
         }
-        .footer {
-            margin-top: 25px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-            font-size: 11px;
-            color: #888;
+
+        .nav-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .nav-card p {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        /* ألوان مختلفة للبطاقات */
+        .nav-card.scan { border-bottom: 4px solid #4299e1; }
+        .nav-card.reports { border-bottom: 4px solid #48bb78; }
+        .nav-card.dashboard { border-bottom: 4px solid #ed8936; }
+        .nav-card.monthly { border-bottom: 4px solid #9f7aea; }
+        .nav-card.users { border-bottom: 4px solid #e53e3e; }
+
+        /* إحصائيات سريعة */
+        .stats-section {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .stats-title {
+            font-size: 18px;
+            color: #2d3748;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 15px;
             text-align: center;
+            transition: 0.3s;
         }
-        @media (max-width: 600px) {
-            .container { padding: 25px 20px; }
-            h1 { font-size: 20px; }
-            .btn { padding: 12px 20px; font-size: 16px; }
-            .footer { font-size: 9px; }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .stat-card.present .stat-value { color: #48bb78; }
+        .stat-card.late .stat-value { color: #ed8936; }
+        .stat-card.absent .stat-value { color: #fc8181; }
+        .stat-card.total .stat-value { color: #4299e1; }
+
+        /* آخر النشاطات */
+        .activity-section {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .activity-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            transition: 0.3s;
+        }
+
+        .activity-item:hover {
+            background: #f7fafc;
+            transform: translateX(-5px);
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            background: #ebf4ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .activity-details {
+            flex: 1;
+        }
+
+        .activity-name {
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .activity-status {
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+
+        .activity-status.present {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .activity-status.late {
+            background: #feebc8;
+            color: #7b341e;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #718096;
+        }
+
+        /* تاريخ اليوم */
+        .current-date {
+            background: #edf2f7;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        /* التذييل (Footer) */
+        .footer {
+            background: linear-gradient(135deg, #2d3748, #1a202c);
+            color: #cbd5e0;
+            text-align: center;
+            padding: 25px 20px;
+            border-radius: 20px;
+            margin-top: 30px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .footer a {
+            color: #9f7aea;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .footer a:hover {
+            color: #b794f4;
+            text-decoration: underline;
+        }
+
+        .footer .heart {
+            color: #fc8181;
+            display: inline-block;
+            animation: heartbeat 1.5s ease infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .footer .developer {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        /* توافق الجوال */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .nav-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .user-info {
+                justify-content: center;
+            }
+            .footer {
+                font-size: 12px;
+                padding: 15px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="school-logo">
-            <div class="logo-circle"><span>🏫</span></div>
-            <div class="school-name">المدرسة النموذجية</div>
-        </div>
-        
+<div class="container">
+    <div class="header">
+        <h1>
+            📚 نظام حضور الطلاب الذكي
+        </h1>
         <div class="user-info">
-            <span class="welcome">👋 مرحباً {{ session.get('username', 'مدير النظام') }}</span>
-            <div>
-                {% if session.get('role') == 'admin' %}
-                    <a href="/users_list" class="admin-link">👥 إدارة المستخدمين</a>
-                {% endif %}
-                <a href="/logout" class="logout-link">🚪 خروج</a>
-            </div>
-        </div>
-        
-        {% if session.get('role') != 'admin' and session.get('remaining_logins') is not none %}
-        <div class="login-alert">
-            🔑 نسخة تجريبية :عدد مرات الدخول المتبقية: <strong>{{ session.get('remaining_logins') }}</strong> من أصل 5
-        </div>
-        {% endif %}
-        
-        <h1>نظام الحضور الذكي</h1>
-        <p class="subtitle">نظام ذكي لمتابعة حضور الطلاب باستخدام رموز QR</p>
-        
-        <div class="time-info">
-            <p>⏰ توقيت المملكة العربية السعودية</p>
-            <p>🕐 وقت تسجيل الحضور: 6:00 صباحاً - 12:00 ظهراً</p>
-            <p>✅ الحضور قبل <strong>7:30 صباحاً يعتبر حاضر في الوقت</p>
-            <p>⏰ الحضور بعد 7:30 صباحاً يعتبر متأخر</p>
-            <p>📅 <span class="warning-text">❌ أيام العطلات: الجمعة والسبت (لا يمكن تسجيل الحضور)</span></p>
-        </div>
-        
-        <a href="/scan" class="btn">📷 مسح QR Code</a>
-        <a href="/reports" class="btn btn-reports">📊 التقارير والإحصائيات</a>
-        <a href="/dashboard" class="btn btn-dashboard">📈 لوحة التحكم</a>
-        
-        <div class="info-box">
-            <h3>ℹ️ معلومات عن النظام</h3>
-            <p>✅ مسح رمز QR الخاص بالطالب لتسجيل الحضور تلقائياً</p>
-            <p>✅ التسجيل فقط من 6:00 صباحاً حتى 12:00 ظهراً </p>
-            <p>✅ الحضور من 6:00 - 7:30 (حاضر في الوقت) / بعد 7:30 (متأخر)</p>
-            <p>✅ لا يسجل الطالب أكثر من مرة في نفس اليوم</p>
-            <p>✅ رسوم بيانية وإحصائيات متقدمة</p>
-            <p>✅ تقارير يومية، شهرية، وأفضل الطلاب حضوراً</p>
-        </div>
-        
-        <div class="footer">
-            نظام الحضور الذكي | جميع الحقوق محفوظة<br>
-            Taha_Mohamad © 2026 | E-mail: taaanet@gmail.com | Phone: 0554289816
+            <span class="user-name">👤 {{ session.get('username', 'Admin') }}</span>
+            <span class="current-date" id="currentDate"></span>
+            <a href="/logout" class="logout-btn">🚪 خروج</a>
         </div>
     </div>
+
+    <div class="nav-grid">
+        <a href="/scan" class="nav-card scan">
+            <div class="nav-icon">📱</div>
+            <h3>تسجيل الحضور</h3>
+            <p>مسح الباركود أو إدخال رقم الطالب يدوياً</p>
+        </a>
+        <a href="/reports" class="nav-card reports">
+            <div class="nav-icon">📋</div>
+            <h3>التقارير</h3>
+            <p>عرض تقارير الحضور والغياب اليومية</p>
+        </a>
+        <a href="/dashboard" class="nav-card dashboard">
+            <div class="nav-icon">📊</div>
+            <h3>لوحة التحكم</h3>
+            <p>إحصائيات سريعة ورسوم بيانية تفاعلية</p>
+        </a>
+        <a href="/monthly_reports" class="nav-card monthly">
+            <div class="nav-icon">📅</div>
+            <h3>التقارير الشهرية</h3>
+            <p>تحليل متقدم للحضور شهرياً وسنوياً</p>
+        </a>
+        {% if session.get('role') == 'admin' %}
+        <a href="/users_list" class="nav-card users">
+            <div class="nav-icon">👥</div>
+            <h3>المستخدمين</h3>
+            <p>إدارة المستخدمين والصلاحيات</p>
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="stats-section">
+        <div class="stats-title">📊 إحصائيات اليوم</div>
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card present">
+                <div class="stat-value" id="presentCount">0</div>
+                <div class="stat-label">✅ حاضر في الوقت</div>
+            </div>
+            <div class="stat-card late">
+                <div class="stat-value" id="lateCount">0</div>
+                <div class="stat-label">⏰ متأخر</div>
+            </div>
+            <div class="stat-card absent">
+                <div class="stat-value" id="absentCount">0</div>
+                <div class="stat-label">❌ غائب</div>
+            </div>
+            <div class="stat-card total">
+                <div class="stat-value" id="totalCount">0</div>
+                <div class="stat-label">👨‍🎓 إجمالي الطلاب</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="activity-section">
+        <div class="stats-title">🕒 آخر تسجيلات الحضور</div>
+        <div class="activity-list" id="activityList">
+            <div class="no-data">جاري تحميل البيانات...</div>
+        </div>
+    </div>
+</div>
+
+<!-- التذييل (Footer) -->
+<div class="footer">
+    <div>🏫 نظام الحضور الذكي | جميع الحقوق محفوظة ©</div>
+    <div class="developer">
+        تم التطوير بواسطة <strong>Taha Mohamed</strong> 
+        <span class="heart">❤️</span> 
+        | 📧 <a href="mailto:taaanet@gmail.com">taaanet@gmail.com</a> 
+        | 📞 <a href="tel:0554289816">0554289816</a>
+    </div>
+    <div style="font-size: 11px; margin-top: 8px; color: #718096;">
+        الإصدار 2.0 | آخر تحديث: 2026
+    </div>
+</div>
+
+<script>
+    // عرض التاريخ الحالي
+    function displayCurrentDate() {
+        const now = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+        document.getElementById('currentDate').innerHTML = now.toLocaleDateString('ar-SA', options);
+    }
+
+    // جلب إحصائيات اليوم
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/dashboard_stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                document.getElementById('presentCount').innerHTML = data.present || 0;
+                document.getElementById('lateCount').innerHTML = data.late || 0;
+                document.getElementById('absentCount').innerHTML = data.absent || 0;
+                document.getElementById('totalCount').innerHTML = data.total_students || 0;
+            }
+        } catch (error) {
+            console.error('خطأ في جلب الإحصائيات:', error);
+        }
+    }
+
+    // جلب آخر النشاطات
+    async function loadRecentActivity() {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const response = await fetch(`/api/attendance_details/${today}`);
+            const data = await response.json();
+            
+            const activityList = document.getElementById('activityList');
+            
+            if (data.success && data.data && data.data.length > 0) {
+                // تصفية الحضور فقط
+                const presentStudents = data.data.filter(s => s.status !== 'غائب');
+                
+                if (presentStudents.length === 0) {
+                    activityList.innerHTML = '<div class="no-data">⚠️ لا توجد تسجيلات حضور اليوم</div>';
+                    return;
+                }
+                
+                // عرض آخر 10 تسجيلات
+                const recent = presentStudents.slice(0, 10);
+                
+                activityList.innerHTML = recent.map(student => `
+                    <div class="activity-item">
+                        <div class="activity-icon">👨‍🎓</div>
+                        <div class="activity-details">
+                            <div class="activity-name">${student.student_name}</div>
+                            <div class="activity-time">${student.class} - ${student.grade}</div>
+                        </div>
+                        <div class="activity-status ${student.status === 'حاضر في الوقت' ? 'present' : 'late'}">
+                            ${student.status === 'حاضر في الوقت' ? '✅ حاضر' : '⏰ متأخر'} ${student.time}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                activityList.innerHTML = '<div class="no-data">⚠️ لا توجد تسجيلات حضور اليوم</div>';
+            }
+        } catch (error) {
+            console.error('خطأ في جلب النشاطات:', error);
+            document.getElementById('activityList').innerHTML = '<div class="no-data">❌ حدث خطأ في تحميل البيانات</div>';
+        }
+    }
+
+    // تحديث البيانات كل 30 ثانية
+    function autoRefresh() {
+        loadStats();
+        loadRecentActivity();
+    }
+
+    // تشغيل عند تحميل الصفحة
+    displayCurrentDate();
+    loadStats();
+    loadRecentActivity();
+    
+    // تحديث تلقائي كل 30 ثانية
+    setInterval(autoRefresh, 30000);
+</script>
 </body>
 </html>
