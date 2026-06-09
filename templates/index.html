@@ -78,6 +78,25 @@
             transform: translateY(-2px);
         }
 
+        .lang-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .lang-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 5px 10px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            transition: 0.3s;
+        }
+
+        .lang-btn:hover {
+            background: #cbd5e0;
+        }
+
         /* بطاقات التنقل */
         .nav-grid {
             display: grid;
@@ -123,7 +142,10 @@
         .nav-card.reports { border-bottom: 4px solid #48bb78; }
         .nav-card.dashboard { border-bottom: 4px solid #ed8936; }
         .nav-card.monthly { border-bottom: 4px solid #9f7aea; }
-        .nav-card.users { border-bottom: 4px solid #e53e3e; }
+        .nav-card.qr { border-bottom: 4px solid #e53e3e; }
+        .nav-card.charts { border-bottom: 4px solid #38a169; }
+        .nav-card.backup { border-bottom: 4px solid #d69e2e; }
+        .nav-card.users { border-bottom: 4px solid #667eea; }
 
         /* إحصائيات سريعة */
         .stats-section {
@@ -336,6 +358,10 @@
         <div class="user-info">
             <span class="user-name">👤 {{ session.get('username', 'Admin') }}</span>
             <span class="current-date" id="currentDate"></span>
+            <div class="lang-buttons">
+                <a href="/api/set_language/ar" class="lang-btn">🇸🇦 عربي</a>
+                <a href="/api/set_language/en" class="lang-btn">🇬🇧 English</a>
+            </div>
             <a href="/logout" class="logout-btn">🚪 خروج</a>
         </div>
     </div>
@@ -361,7 +387,22 @@
             <h3>التقارير الشهرية</h3>
             <p>تحليل متقدم للحضور شهرياً وسنوياً</p>
         </a>
+        <a href="/qr_codes" class="nav-card qr">
+            <div class="nav-icon">📱</div>
+            <h3>أكواد QR</h3>
+            <p>إنشاء وطباعة أكواد QR للطلاب</p>
+        </a>
+        <a href="/charts" class="nav-card charts">
+            <div class="nav-icon">📈</div>
+            <h3>الرسوم البيانية</h3>
+            <p>عرض إحصائيات متقدمة ورسوم بيانية تفاعلية</p>
+        </a>
         {% if session.get('role') == 'admin' %}
+        <a href="/backup" class="nav-card backup">
+            <div class="nav-icon">💾</div>
+            <h3>النسخ الاحتياطي</h3>
+            <p>إدارة النسخ الاحتياطية للبيانات</p>
+        </a>
         <a href="/users_list" class="nav-card users">
             <div class="nav-icon">👥</div>
             <h3>المستخدمين</h3>
@@ -410,7 +451,7 @@
         | 📞 <a href="tel:0554289816">0554289816</a>
     </div>
     <div style="font-size: 11px; margin-top: 8px; color: #718096;">
-        الإصدار 2.0 | آخر تحديث: 2026
+        الإصدار 3.0 | آخر تحديث: 2026 | نظام متكامل للحضور والغياب
     </div>
 </div>
 
@@ -449,7 +490,6 @@
             const activityList = document.getElementById('activityList');
             
             if (data.success && data.data && data.data.length > 0) {
-                // تصفية الحضور فقط
                 const presentStudents = data.data.filter(s => s.status !== 'غائب');
                 
                 if (presentStudents.length === 0) {
@@ -457,7 +497,6 @@
                     return;
                 }
                 
-                // عرض آخر 10 تسجيلات
                 const recent = presentStudents.slice(0, 10);
                 
                 activityList.innerHTML = recent.map(student => `
