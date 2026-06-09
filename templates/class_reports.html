@@ -44,10 +44,7 @@
         const classVal = document.getElementById('classSelect').value;
         const date = document.getElementById('dateSelect').value;
         
-        if (!date) {
-            alert('الرجاء اختيار التاريخ');
-            return;
-        }
+        if (!date) { alert('الرجاء اختيار التاريخ'); return; }
         
         const response = await fetch(`/api/attendance_details/${date}`);
         const data = await response.json();
@@ -73,7 +70,7 @@
             let statusText = s.status === 'حاضر في الوقت' ? '✅ حاضر في الوقت' : (s.status === 'متأخر' ? '⏰ متأخر' : '❌ غائب');
             html += `<tr><td>${i+1}</td><td>${s.student_id}</td><td>${s.student_name}</td><td>${s.grade}</td><td>${s.class}</td><td class="${statusClass}">${statusText}</td><td>${s.time}</td></tr>`;
         });
-        html += '</tbody></td>';
+        html += '</tbody></table>';
         document.getElementById('reportTable').innerHTML = html;
     }
     

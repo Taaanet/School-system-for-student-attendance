@@ -14,7 +14,6 @@
         }
         .container { max-width: 1400px; margin: 0 auto; }
         
-        /* الهيدر */
         .header {
             background: white;
             border-radius: 20px;
@@ -27,7 +26,7 @@
             flex-wrap: wrap;
             gap: 15px;
         }
-        .header h1 { color: #2d3748; font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .header h1 { color: #2d3748; font-size: 24px; }
         .user-info {
             background: #f7fafc;
             padding: 10px 20px;
@@ -52,9 +51,7 @@
             border-radius: 20px;
             text-decoration: none;
             font-size: 14px;
-            transition: 0.3s;
         }
-        .logout-btn:hover { background: #c53030; transform: translateY(-2px); }
         .lang-btn {
             background: #e2e8f0;
             color: #4a5568;
@@ -64,7 +61,6 @@
             font-size: 12px;
         }
         
-        /* أزرار التنقل الرئيسية */
         .nav-buttons {
             background: white;
             border-radius: 15px;
@@ -86,17 +82,11 @@
             gap: 8px;
         }
         .nav-btn-primary { background: #667eea; color: white; }
-        .nav-btn-primary:hover { background: #5a67d8; transform: translateY(-2px); }
         .nav-btn-success { background: #48bb78; color: white; }
-        .nav-btn-success:hover { background: #38a169; transform: translateY(-2px); }
         .nav-btn-warning { background: #ed8936; color: white; }
-        .nav-btn-warning:hover { background: #dd6b20; transform: translateY(-2px); }
         .nav-btn-danger { background: #e53e3e; color: white; }
-        .nav-btn-danger:hover { background: #c53030; transform: translateY(-2px); }
         .nav-btn-info { background: #4299e1; color: white; }
-        .nav-btn-info:hover { background: #3182ce; transform: translateY(-2px); }
         
-        /* أزرار الطباعة والتصدير */
         .action-buttons {
             background: white;
             border-radius: 15px;
@@ -114,27 +104,22 @@
             border-radius: 10px;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.3s;
             display: inline-flex;
             align-items: center;
             gap: 8px;
         }
         .action-btn-pdf { background: #e53e3e; color: white; }
-        .action-btn-pdf:hover { background: #c53030; transform: translateY(-2px); }
         .action-btn-excel { background: #48bb78; color: white; }
-        .action-btn-excel:hover { background: #38a169; transform: translateY(-2px); }
         
-        /* الجداول */
-        .table-wrapper { overflow-x: auto; background: white; border-radius: 20px; padding: 20px; }
+        .table-wrapper { overflow-x: auto; background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #e2e8f0; }
-        th { background: #667eea; color: white; font-weight: bold; }
+        th { background: #667eea; color: white; }
         tr:hover { background: #f7fafc; }
         .present { color: #48bb78; font-weight: bold; }
         .late { color: #ed8936; font-weight: bold; }
         .absent { color: #fc8181; font-weight: bold; }
         
-        /* الفوتر */
         .footer {
             background: linear-gradient(135deg, #2d3748, #1a202c);
             color: #cbd5e0;
@@ -170,7 +155,6 @@
         </div>
     </div>
 
-    <!-- أزرار التنقل الرئيسية -->
     <div class="nav-buttons">
         <a href="/" class="nav-btn nav-btn-primary">🏠 الرئيسية</a>
         <a href="/scan" class="nav-btn nav-btn-success">📱 تسجيل الحضور</a>
