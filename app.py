@@ -307,37 +307,22 @@ def home():
 def scan():
     return render_template("scan.html")
 
-@app.route("/reports")
+@app.route("/reports_dashboard")
 @login_required
-def reports():
-    return render_template("reports.html")
+def reports_dashboard():
+    """لوحة التحكم والرسوم البيانية المدمجة"""
+    return render_template("reports_dashboard.html")
 
-@app.route("/dashboard")
+@app.route("/class_reports")
 @login_required
-def dashboard():
-    return render_template("dashboard.html")
-
-@app.route("/monthly_reports")
-@login_required
-def monthly_reports():
-    return render_template("monthly_reports.html")
+def class_reports():
+    """تقارير الصف والشعبة"""
+    return render_template("class_reports.html")
 
 @app.route("/qr_codes")
 @login_required
 def qr_codes_page():
     return render_template("qr_codes.html")
-
-@app.route("/charts")
-@login_required
-def charts_page():
-    return render_template("charts.html")
-
-@app.route("/backup")
-@login_required
-def backup_page():
-    if session.get('role') != 'admin':
-        return redirect(url_for('home'))
-    return render_template("backup.html")
 
 # ============== تبديل اللغة ==============
 @app.route("/api/set_language/<lang>")
@@ -669,7 +654,7 @@ def student_report(student_id):
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
     return response
 
-# ============== التقارير الشهرية المتقدمة ==============
+# ============== التقارير الشهرية ==============
 @app.route("/api/monthly_report")
 @login_required
 def monthly_report():
@@ -761,11 +746,6 @@ def student_monthly_report(student_id):
     daily_status = []
     present_count = 0
     late_count = 0
-    
-    def get_month_name(month):
-        months = {1: 'يناير', 2: 'فبراير', 3: 'مارس', 4: 'أبريل', 5: 'مايو', 6: 'يونيو',
-                  7: 'يوليو', 8: 'أغسطس', 9: 'سبتمبر', 10: 'أكتوبر', 11: 'نوفمبر', 12: 'ديسمبر'}
-        return months.get(month, str(month))
     
     for day in range(1, days_in_month + 1):
         date_str = f"{year}-{month:02d}-{day:02d}"
@@ -1078,6 +1058,14 @@ def test_attendance():
 def health():
     return {"status": "ok", "database": "supabase"}
 
+# ============== صفحة النسخ الاحتياطي ==============
+@app.route("/backup")
+@login_required
+def backup_page():
+    if session.get('role') != 'admin':
+        return redirect(url_for('home'))
+    return render_template("backup.html")
+
 # تشغيل النسخ الاحتياطي التلقائي في الخلفية
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
 backup_thread.start()
@@ -1090,9 +1078,9 @@ if __name__ == "__main__":
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
-    print("📊 التقارير الشهرية: متاحة")
+    print("📊 التقارير: لوحة تحكم مدمجة مع رسوم بيانية")
+    print("📋 تقارير الصف والشعبة: متاحة")
     print("📱 أكواد QR: متاحة")
     print("💾 النسخ الاحتياطي: يعمل تلقائياً")
-    print("📈 الرسوم البيانية: متاحة")
     print("=" * 50)
     app.run(host='0.0.0.0', port=port, debug=False)
