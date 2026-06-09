@@ -321,21 +321,34 @@ def home():
 def scan():
     return render_template("scan.html")
 
-@app.route("/reports_dashboard")
+@app.route("/general_reports")
 @login_required
-def reports_dashboard():
-    """لوحة التحكم والرسوم البيانية المدمجة"""
-    return render_template("reports_dashboard.html")
+def general_reports():
+    """التقارير العامة (يومي - بتاريخ - طالب)"""
+    return render_template("general_reports.html")
+
+@app.route("/monthly_reports")
+@login_required
+def monthly_reports_page():
+    """التقارير الشهرية المتقدمة"""
+    return render_template("monthly_reports.html")
+
+@app.route("/charts")
+@login_required
+def charts_page():
+    """الرسوم البيانية المتقدمة"""
+    return render_template("charts.html")
 
 @app.route("/class_reports")
 @login_required
 def class_reports():
-    """تقارير الصف والشعبة"""
+    """تقارير الصف والفصل"""
     return render_template("class_reports.html")
 
 @app.route("/qr_codes")
 @login_required
 def qr_codes_page():
+    """أكواد QR للطلاب"""
     return render_template("qr_codes.html")
 
 @app.route("/backup")
@@ -345,30 +358,21 @@ def backup_page():
         return redirect(url_for('home'))
     return render_template("backup.html")
 
-# ============== إعادة توجيه الصفحات القديمة إلى الجديدة ==============
+# ============== إعادة توجيه الصفحات القديمة ==============
 @app.route("/reports")
 @login_required
 def reports_redirect():
-    """إعادة توجيه صفحة التقارير القديمة إلى الجديدة"""
-    return redirect(url_for('reports_dashboard'))
+    return redirect(url_for('general_reports'))
 
 @app.route("/dashboard")
 @login_required
 def dashboard_redirect():
-    """إعادة توجيه صفحة لوحة التحكم القديمة إلى الجديدة"""
-    return redirect(url_for('reports_dashboard'))
+    return redirect(url_for('charts'))
 
-@app.route("/monthly_reports")
+@app.route("/reports_dashboard")
 @login_required
-def monthly_reports_redirect():
-    """إعادة توجيه صفحة التقارير الشهرية القديمة إلى تقارير الصف"""
-    return redirect(url_for('class_reports'))
-
-@app.route("/charts")
-@login_required
-def charts_redirect():
-    """إعادة توجيه صفحة الرسوم البيانية القديمة إلى لوحة التحكم"""
-    return redirect(url_for('reports_dashboard'))
+def reports_dashboard_redirect():
+    return redirect(url_for('general_reports'))
 
 # ============== تبديل اللغة ==============
 @app.route("/api/set_language/<lang>")
@@ -1111,15 +1115,21 @@ backup_thread.start()
 # ============== تشغيل التطبيق ==============
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    print("=" * 50)
+    print("=" * 60)
     print("🚀 نظام الحضور يعمل الآن!")
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
-    print("📊 لوحة التحكم والرسوم البيانية: /reports_dashboard")
-    print("📋 تقارير الصف والشعبة: /class_reports")
-    print("📱 أكواد QR: /qr_codes")
-    print("💾 النسخ الاحتياطي: /backup")
-    print("🔄 إعادة توجيه الصفحات القديمة: /reports, /dashboard, /monthly_reports, /charts")
-    print("=" * 50)
+    print("")
+    print("📱 الصفحات المتاحة:")
+    print("   🏠 الرئيسية: /")
+    print("   📱 تسجيل الحضور: /scan")
+    print("   📊 التقارير العامة: /general_reports")
+    print("   📅 التقارير الشهرية: /monthly_reports")
+    print("   📈 الرسوم البيانية: /charts")
+    print("   📋 تقارير الصف والفصل: /class_reports")
+    print("   📱 أكواد QR: /qr_codes")
+    print("   💾 النسخ الاحتياطي: /backup")
+    print("   👥 المستخدمين: /users_list")
+    print("=" * 60)
     app.run(host='0.0.0.0', port=port, debug=False)
