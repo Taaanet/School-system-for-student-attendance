@@ -174,9 +174,11 @@
     <div class="nav-buttons">
         <a href="/" class="nav-btn nav-btn-primary">🏠 الرئيسية</a>
         <a href="/scan" class="nav-btn nav-btn-success">📱 تسجيل الحضور</a>
-        <a href="/reports_dashboard" class="nav-btn nav-btn-warning">📊 التقارير</a>
+        <a href="/reports_dashboard" class="nav-btn nav-btn-warning">📊 لوحة التحكم</a>
+        <a href="/class_reports" class="nav-btn nav-btn-info">📋 تقارير الصف</a>
         <a href="/qr_codes" class="nav-btn nav-btn-info">📱 أكواد QR</a>
         {% if session.get('role') == 'admin' %}
+        <a href="/backup" class="nav-btn nav-btn-danger">💾 نسخ احتياطي</a>
         <a href="/users_list" class="nav-btn nav-btn-danger">👥 المستخدمين</a>
         {% endif %}
     </div>

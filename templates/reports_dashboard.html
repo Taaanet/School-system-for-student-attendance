@@ -50,13 +50,11 @@
 {% endblock %}
 
 {% block content %}
-<!-- أزرار الإجراءات -->
 <div class="action-buttons">
     <button class="action-btn action-btn-pdf" onclick="window.print()">🖨️ طباعة PDF</button>
     <button class="action-btn action-btn-excel" id="exportExcelBtn">📎 تصدير Excel</button>
 </div>
 
-<!-- إحصائيات اليوم -->
 <div class="stats-grid">
     <div class="stat-card present"><h3>✅ حاضر في الوقت</h3><div class="stat-value" id="presentCount">0</div></div>
     <div class="stat-card late"><h3>⏰ متأخر</h3><div class="stat-value" id="lateCount">0</div></div>
@@ -64,15 +62,12 @@
     <div class="stat-card total"><h3>👨‍🎓 إجمالي الطلاب</h3><div class="stat-value" id="totalCount">0</div></div>
 </div>
 
-<!-- إحصائيات إضافية -->
 <div class="stats-grid">
     <div class="stat-card"><h3>📊 نسبة الحضور اليوم</h3><div class="stat-value" id="percentageToday">0%</div></div>
     <div class="stat-card"><h3>📈 إجمالي الحضور</h3><div class="stat-value" id="totalAttendance">0</div></div>
-    <div class="stat-card"><h3>📅 أيام التسجيل</h3><div class="stat-value" id="daysWithAttendance">-</div></div>
-    <div class="stat-card"><h3>🏆 أعلى نسبة حضور</h3><div class="stat-value" id="bestDay">-</div></div>
+    <div class="stat-card"><h3>🏆 أفضل يوم</h3><div class="stat-value" id="bestDay">-</div></div>
 </div>
 
-<!-- الرسوم البيانية -->
 <div class="controls">
     <select id="yearSelect"><option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option></select>
     <button class="btn-update" onclick="loadAllCharts()">📈 تحديث البيانات</button>
@@ -85,7 +80,6 @@
     <div class="chart-card"><h3>📅 أيام الأسبوع (معدل الحضور)</h3><canvas id="weeklyChart"></canvas></div>
 </div>
 
-<!-- آخر النشاطات -->
 <div class="chart-card" style="margin-top: 20px;">
     <h3>🕒 آخر تسجيلات الحضور</h3>
     <div id="activityList" style="max-height: 300px; overflow-y: auto;"></div>
@@ -115,9 +109,8 @@
         try {
             const res = await fetch(`/api/monthly_report?year=${document.getElementById('yearSelect').value}&month=${new Date().getMonth()+1}`);
             const data = await res.json();
-            if (data.success) {
-                document.getElementById('daysWithAttendance').innerHTML = data.summary.days_with_attendance || 0;
-                if (data.summary.best_day) document.getElementById('bestDay').innerHTML = `يوم ${data.summary.best_day.day} (${data.summary.best_day.percentage}%)`;
+            if (data.success && data.summary.best_day) {
+                document.getElementById('bestDay').innerHTML = `يوم ${data.summary.best_day.day} (${data.summary.best_day.percentage}%)`;
             }
         } catch(e) { console.error(e); }
     }
@@ -184,9 +177,15 @@
             const container = document.getElementById('activityList');
             if (data.success && data.data) {
                 const present = data.data.filter(s => s.status !== 'غائب').slice(0, 15);
-                if (present.length === 0) { container.innerHTML = '<div style="text-align:center;padding:30px;">⚠️ لا توجد تسجيلات حضور اليوم</div>'; return; }
-                container.innerHTML = present.map(s => `<div style="display:flex;align-items:center;gap:15px;padding:10px;border-bottom:1px solid #eee;"><div>👨‍🎓</div><div style="flex:1"><strong>${s.student_name}</strong><div style="font-size:12px;color:#718096;">${s.class} - ${s.grade}</div></div><div style="background:${s.status === 'حاضر في الوقت' ? '#c6f6d5' : '#feebc8'};padding:5px 10px;border-radius:20px;">${s.status === 'حاضر في الوقت' ? '✅ حاضر' : '⏰ متأخر'} ${s.time}</div></div>`).join('');
-            } else { container.innerHTML = '<div style="text-align:center;padding:30px;">⚠️ لا توجد بيانات</div>'; }
+                if (present.length === 0) { container.innerHTML = '<div style="text-align:center;padding:20px;">⚠️ لا توجد تسجيلات</div>'; return; }
+                container.innerHTML = present.map(s => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee;">
+                        <div>👨‍🎓</div>
+                        <div style="flex:1"><strong>${s.student_name}</strong><div style="font-size:12px;">${s.class} - ${s.grade}</div></div>
+                        <div style="background:${s.status === 'حاضر في الوقت' ? '#c6f6d5' : '#feebc8'};padding:5px 10px;border-radius:20px;">${s.status === 'حاضر في الوقت' ? '✅ حاضر' : '⏰ متأخر'} ${s.time}</div>
+                    </div>
+                `).join('');
+            }
         } catch(e) { console.error(e); }
     }
 
@@ -196,6 +195,7 @@
         await loadDailyChart();
         await loadTopStudentsChart();
         await loadWeeklyChart();
+        await loadMonthlySummary();
     }
 
     function exportToExcel() {
@@ -206,7 +206,6 @@
     document.getElementById('yearSelect').addEventListener('change', () => loadAllCharts());
     
     loadStats();
-    loadMonthlySummary();
     loadAllCharts();
     loadRecentActivity();
     setInterval(() => { loadStats(); loadRecentActivity(); }, 30000);

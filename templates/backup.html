@@ -1,100 +1,35 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>النسخ الاحتياطية - نظام حضور الطلاب</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Cairo', 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header {
-            background: white;
-            border-radius: 20px;
-            padding: 20px 30px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .header h1 { color: #2d3748; }
-        .back-btn {
-            background: #667eea;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            text-decoration: none;
-        }
-        .controls {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 25px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .btn-primary { background: #48bb78; color: white; }
-        .btn-primary:hover { background: #38a169; }
-        table {
-            width: 100%;
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-        }
-        th, td { padding: 15px; text-align: center; border-bottom: 1px solid #e2e8f0; }
-        th { background: #667eea; color: white; }
-        tr:hover { background: #f7fafc; }
-        .download-btn { background: #4299e1; color: white; padding: 5px 15px; border-radius: 5px; text-decoration: none; }
-        .loading { text-align: center; padding: 50px; color: white; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="header">
-        <h1>💾 النسخ الاحتياطية</h1>
-        <a href="/dashboard" class="back-btn">← العودة</a>
-    </div>
-    <div class="controls">
-        <button class="btn btn-primary" onclick="createBackup()">🔄 إنشاء نسخة احتياطية الآن</button>
-    </div>
+{% extends "base.html" %}
+{% block title %}النسخ الاحتياطية{% endblock %}
+{% block page_title %}💾 النسخ الاحتياطية{% endblock %}
+
+{% block content %}
+<div class="action-buttons">
+    <button class="action-btn action-btn-excel" id="createBackupBtn">🔄 إنشاء نسخة احتياطية</button>
+</div>
+
+<div class="table-wrapper">
     <div id="backupTable">
-        <div class="loading">⏳ جاري تحميل النسخ الاحتياطية...</div>
+        <div style="text-align:center;padding:50px;">⏳ جاري تحميل النسخ الاحتياطية...</div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
     async function loadBackups() {
         try {
             const response = await fetch('/api/list_backups');
             const data = await response.json();
             if (data.success && data.backups.length > 0) {
-                const html = `<table><thead>\n<th>اسم الملف</th><th>الحجم</th><th>تاريخ الإنشاء</th><th>تحميل</th></tr></thead><tbody>
-                    ${data.backups.map(b => `<tr>
-                        <td>${b.name}</td>
-                        <td>${b.size_kb} KB</td>
-                        <td>${b.date}</td>
-                        <td><a href="/api/download_backup/${b.name}" class="download-btn">📥 تحميل</a></td>
-                    </tr>`).join('')}
+                const html = `<table><thead><tr><th>اسم الملف</th><th>الحجم</th><th>تاريخ الإنشاء</th><th>تحميل</th></tr></thead><tbody>
+                    ${data.backups.map(b => `<tr><td>${b.name}</td><td>${b.size_kb} KB</td><td>${b.date}</td><td><a href="/api/download_backup/${b.name}" style="background:#4299e1;color:white;padding:5px 15px;border-radius:5px;text-decoration:none;">📥 تحميل</a></td></tr>`).join('')}
                 </tbody></table>`;
                 document.getElementById('backupTable').innerHTML = html;
             } else {
-                document.getElementById('backupTable').innerHTML = '<div class="loading">📭 لا توجد نسخ احتياطية حتى الآن</div>';
+                document.getElementById('backupTable').innerHTML = '<div style="text-align:center;padding:50px;">📭 لا توجد نسخ احتياطية حتى الآن</div>';
             }
-        } catch (error) {
-            document.getElementById('backupTable').innerHTML = '<div class="loading">❌ حدث خطأ</div>';
+        } catch(error) {
+            document.getElementById('backupTable').innerHTML = '<div style="text-align:center;padding:50px;">❌ حدث خطأ</div>';
         }
     }
 
@@ -117,8 +52,8 @@
             alert('❌ فشل إنشاء النسخة: ' + data.message);
         }
     }
-
+    
+    document.getElementById('createBackupBtn').addEventListener('click', createBackup);
     loadBackups();
 </script>
-</body>
-</html>
+{% endblock %}
