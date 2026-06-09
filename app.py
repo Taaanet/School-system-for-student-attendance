@@ -14,7 +14,6 @@ from io import BytesIO
 import base64
 import threading
 import time as time_module
-import csv
 
 load_dotenv()
 
@@ -58,79 +57,24 @@ def get_language():
 def set_language(lang):
     session['language'] = lang
 
-def get_text(key):
-    """الحصول على النص حسب اللغة"""
-    texts = {
-        'ar': {
-            'title': 'نظام حضور الطلاب',
-            'login': 'تسجيل الدخول',
-            'username': 'اسم المستخدم',
-            'password': 'كلمة المرور',
-            'attendance': 'تسجيل الحضور',
-            'reports': 'التقارير',
-            'dashboard': 'لوحة التحكم',
-            'present': 'حاضر',
-            'late': 'متأخر',
-            'absent': 'غائب',
-            'scan': 'مسح',
-            'export': 'تصدير',
-            'save': 'حفظ',
-            'cancel': 'إلغاء',
-            'search': 'بحث',
-            'filter': 'تصفية',
-            'qr_codes': 'أكواد QR',
-            'backup': 'نسخة احتياطية',
-            'charts': 'رسوم بيانية'
-        },
-        'en': {
-            'title': 'Student Attendance System',
-            'login': 'Login',
-            'username': 'Username',
-            'password': 'Password',
-            'attendance': 'Attendance',
-            'reports': 'Reports',
-            'dashboard': 'Dashboard',
-            'present': 'Present',
-            'late': 'Late',
-            'absent': 'Absent',
-            'scan': 'Scan',
-            'export': 'Export',
-            'save': 'Save',
-            'cancel': 'Cancel',
-            'search': 'Search',
-            'filter': 'Filter',
-            'qr_codes': 'QR Codes',
-            'backup': 'Backup',
-            'charts': 'Charts'
-        }
-    }
-    return texts[get_language()].get(key, key)
-
 # ============== دوال قراءة البيانات من Supabase ==============
 def get_live_students():
-    """قراءة الطلاب من Supabase"""
     try:
-        print("🟢 جلب الطلاب من Supabase...")
         response = supabase.table("students").select("*").execute()
-        print(f"🟢 تم جلب {len(response.data)} طالب")
         return response.data or []
     except Exception as e:
         print(f"❌ خطأ Supabase: {e}")
         return []
 
 def get_live_attendance():
-    """قراءة سجلات الحضور من Supabase"""
     try:
-        print("🟢 جلب سجلات الحضور من Supabase...")
         result = supabase.table("attendance").select("*").execute()
-        print(f"🟢 تم جلب {len(result.data)} سجل")
         return result.data or []
     except Exception as e:
         print(f"❌ خطأ قراءة الحضور: {e}")
         return []
 
 def save_attendance(record):
-    """حفظ سجل حضور في Supabase"""
     try:
         result = supabase.table("attendance").insert(record).execute()
         return True
@@ -140,7 +84,6 @@ def save_attendance(record):
 
 # ============== إرسال رسائل واتساب ==============
 def send_whatsapp_message(to_number, student_name, status, attendance_time):
-    """إرسال رسالة واتساب لولي الأمر"""
     try:
         if not twilio_enabled:
             return False, "خدمة واتساب غير مفعلة"
@@ -167,7 +110,6 @@ def send_whatsapp_message(to_number, student_name, status, attendance_time):
 
 # ============== إنشاء كود QR ==============
 def generate_qr_code(student_id, student_name):
-    """إنشاء كود QR للطالب"""
     attendance_url = f"https://school-system-for-student-attendance.onrender.com/scan?student_id={student_id}"
     
     qr = qrcode.QRCode(version=1, box_size=4, border=2)
@@ -184,7 +126,6 @@ def generate_qr_code(student_id, student_name):
 
 # ============== النسخ الاحتياطي التلقائي ==============
 def create_backup():
-    """إنشاء نسخة احتياطية من قاعدة البيانات"""
     try:
         backup_dir = "backups"
         if not os.path.exists(backup_dir):
@@ -207,7 +148,6 @@ def create_backup():
         return False, str(e)
 
 def scheduled_backup():
-    """جدولة النسخ الاحتياطي التلقائي (كل 24 ساعة)"""
     while True:
         time_module.sleep(86400)
         create_backup()
@@ -218,9 +158,6 @@ def get_saudi_time():
 
 def is_weekend(date):
     return date.weekday() == 4 or date.weekday() == 5
-
-def is_within_daily_hours(current_time):
-    return True
 
 def can_register_attendance():
     now = get_saudi_time()
@@ -243,20 +180,6 @@ app.config['MAIL_PASSWORD'] = os.environ.get('EMAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = 'taaanet@gmail.com'
 
 mail = Mail(app)
-
-def send_report_email(recipient, subject, body, attachment_path=None):
-    try:
-        if not app.config['MAIL_PASSWORD']:
-            return False, "كلمة مرور البريد غير مضبوطة"
-        msg = Message(subject, recipients=[recipient])
-        msg.html = body
-        if attachment_path and os.path.exists(attachment_path):
-            with app.open_resource(attachment_path) as fp:
-                msg.attach(os.path.basename(attachment_path), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fp.read())
-        mail.send(msg)
-        return True, "تم الإرسال"
-    except Exception as e:
-        return False, str(e)
 
 # ============== إدارة المستخدمين ==============
 USERS_FILE = 'users.json'
@@ -473,7 +396,6 @@ def register_attendance():
         }
         
         if save_attendance(new_record):
-            # إرسال إشعار واتساب لولي الأمر
             parent_phone = student.get('parent_phone', '')
             if parent_phone and len(parent_phone) > 5 and twilio_enabled:
                 send_whatsapp_message(parent_phone, student.get('name', ''), status, current_time)
@@ -1060,49 +982,29 @@ def export_student_excel(student_id):
 def upload_local_students():
     try:
         if os.path.exists("students.csv"):
-            print("📖 جاري قراءة ملف students.csv...")
             df = pd.read_csv("students.csv", encoding='utf-8-sig')
         elif os.path.exists("students.xlsx"):
-            print("📖 جاري قراءة ملف students.xlsx...")
             df = pd.read_excel("students.xlsx")
         else:
-            return jsonify({
-                "success": False,
-                "message": "لا يوجد ملف students.csv أو students.xlsx"
-            })
-
-        print(f"📊 عدد الطلاب في الملف: {len(df)}")
+            return jsonify({"success": False, "message": "لا يوجد ملف students.csv أو students.xlsx"})
 
         df = df.fillna("")
         for col in df.columns:
             df[col] = df[col].astype(str)
         
         df['student_id'] = df['student_id'].str.replace('.0', '', regex=False).str.strip()
-        
         records = df.to_dict("records")
 
-        print("🗑️ جاري حذف البيانات القديمة...")
         supabase.table("students").delete().neq("student_id", "").execute()
 
-        print("📤 جاري رفع الطلاب إلى Supabase...")
         batch_size = 50
         for i in range(0, len(records), batch_size):
             batch = records[i:i+batch_size]
             supabase.table("students").insert(batch).execute()
-            print(f"  ✅ تم رفع {min(i+batch_size, len(records))}/{len(records)}")
 
-        print(f"✅ تم رفع {len(records)} طالب بنجاح")
-        return jsonify({
-            "success": True,
-            "message": f"تم رفع {len(records)} طالب إلى Supabase"
-        })
-
+        return jsonify({"success": True, "message": f"تم رفع {len(records)} طالب إلى Supabase"})
     except Exception as e:
-        print(f"❌ خطأ في الرفع: {e}")
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        })
+        return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/refresh_all")
 @login_required
@@ -1120,31 +1022,18 @@ def refresh_all():
 def direct_test():
     try:
         result = supabase.table("attendance").select("*").limit(10).execute()
-        return jsonify({
-            "success": True,
-            "total_rows": len(result.data),
-            "sample_data": result.data
-        })
+        return jsonify({"success": True, "total_rows": len(result.data), "sample_data": result.data})
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        })
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/clear_attendance")
 @login_required
 def clear_attendance():
     try:
         supabase.table("attendance").delete().neq("student_id", "").execute()
-        return jsonify({
-            "success": True,
-            "message": "تم مسح جميع سجلات الحضور"
-        })
+        return jsonify({"success": True, "message": "تم مسح جميع سجلات الحضور"})
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        })
+        return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/stats")
 @login_required
