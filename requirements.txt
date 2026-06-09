@@ -4,12 +4,8 @@ pandas==2.2.3
 openpyxl==3.1.5
 flask-mail==0.10.0
 gunicorn==23.0.0
-gspread==6.1.2
-oauth2client==4.1.3
 supabase
 python-dotenv
 qrcode==7.4.2
 Pillow==10.1.0
 twilio==8.10.0
-openpyxl==3.1.5
-chart.js (via CDN)
