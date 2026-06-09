@@ -181,6 +181,20 @@ app.config['MAIL_DEFAULT_SENDER'] = 'taaanet@gmail.com'
 
 mail = Mail(app)
 
+def send_report_email(recipient, subject, body, attachment_path=None):
+    try:
+        if not app.config['MAIL_PASSWORD']:
+            return False, "كلمة مرور البريد غير مضبوطة"
+        msg = Message(subject, recipients=[recipient])
+        msg.html = body
+        if attachment_path and os.path.exists(attachment_path):
+            with app.open_resource(attachment_path) as fp:
+                msg.attach(os.path.basename(attachment_path), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fp.read())
+        mail.send(msg)
+        return True, "تم الإرسال"
+    except Exception as e:
+        return False, str(e)
+
 # ============== إدارة المستخدمين ==============
 USERS_FILE = 'users.json'
 
@@ -323,6 +337,13 @@ def class_reports():
 @login_required
 def qr_codes_page():
     return render_template("qr_codes.html")
+
+@app.route("/backup")
+@login_required
+def backup_page():
+    if session.get('role') != 'admin':
+        return redirect(url_for('home'))
+    return render_template("backup.html")
 
 # ============== تبديل اللغة ==============
 @app.route("/api/set_language/<lang>")
@@ -1058,14 +1079,6 @@ def test_attendance():
 def health():
     return {"status": "ok", "database": "supabase"}
 
-# ============== صفحة النسخ الاحتياطي ==============
-@app.route("/backup")
-@login_required
-def backup_page():
-    if session.get('role') != 'admin':
-        return redirect(url_for('home'))
-    return render_template("backup.html")
-
 # تشغيل النسخ الاحتياطي التلقائي في الخلفية
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
 backup_thread.start()
@@ -1078,9 +1091,9 @@ if __name__ == "__main__":
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
-    print("📊 التقارير: لوحة تحكم مدمجة مع رسوم بيانية")
-    print("📋 تقارير الصف والشعبة: متاحة")
-    print("📱 أكواد QR: متاحة")
+    print("📊 لوحة التحكم والرسوم البيانية: متاحة على /reports_dashboard")
+    print("📋 تقارير الصف والشعبة: متاحة على /class_reports")
+    print("📱 أكواد QR: متاحة على /qr_codes")
     print("💾 النسخ الاحتياطي: يعمل تلقائياً")
     print("=" * 50)
     app.run(host='0.0.0.0', port=port, debug=False)
