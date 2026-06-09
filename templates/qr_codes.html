@@ -1,39 +1,60 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <title>أكواد QR للطلاب</title>
-    <style>
-        body { font-family: Arial; background: #f0f2f5; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; }
-        .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
-        .qr-card { background: white; border-radius: 10px; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .qr-card img { width: 150px; height: 150px; }
-        .qr-card h4 { margin: 10px 0; }
-        .qr-card p { color: #666; font-size: 12px; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <h1>📱 أكواد QR للطلاب</h1>
-    <p>امسح الكود لفتح صفحة تسجيل الحضور مباشرة</p>
-    <div class="qr-grid" id="qrGrid">جاري التحميل...</div>
+{% extends "base.html" %}
+{% block title %}أكواد QR للطلاب{% endblock %}
+{% block page_title %}📱 أكواد QR للطلاب{% endblock %}
+
+{% block content %}
+<div class="action-buttons">
+    <button class="action-btn action-btn-pdf" onclick="window.print()">🖨️ طباعة PDF</button>
 </div>
+
+<div class="table-wrapper">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+        <input type="text" id="searchInput" placeholder="🔍 بحث باسم الطالب أو الرقم..." style="flex:1; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+    </div>
+    <div id="qrGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+        <div style="text-align:center;padding:50px;">⏳ جاري تحميل أكواد QR...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-    fetch('/api/all_students_qr')
-        .then(res => res.json())
-        .then(data => {
+    let allStudents = [];
+    
+    async function loadQRCodes() {
+        try {
+            const response = await fetch('/api/all_students_qr');
+            const data = await response.json();
             if (data.success) {
-                const grid = document.getElementById('qrGrid');
-                grid.innerHTML = data.data.map(student => `
-                    <div class="qr-card">
-                        <img src="${student.qr_code}" alt="QR Code">
-                        <h4>${student.student_name}</h4>
-                        <p>رقم: ${student.student_id}</p>
-                    </div>
-                `).join('');
+                allStudents = data.data;
+                displayStudents(allStudents);
             }
-        });
+        } catch(error) {
+            document.getElementById('qrGrid').innerHTML = '<div style="text-align:center;padding:50px;">❌ حدث خطأ في التحميل</div>';
+        }
+    }
+    
+    function displayStudents(students) {
+        const grid = document.getElementById('qrGrid');
+        if (students.length === 0) {
+            grid.innerHTML = '<div style="text-align:center;padding:50px;">🔍 لا توجد نتائج</div>';
+            return;
+        }
+        grid.innerHTML = students.map(student => `
+            <div class="qr-card" style="background:white;border-radius:15px;padding:20px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+                <img src="${student.qr_code}" alt="QR Code" style="width:180px;height:180px;margin-bottom:10px;">
+                <h4>${student.student_name}</h4>
+                <p style="color:#718096;font-size:12px;">رقم: ${student.student_id}</p>
+            </div>
+        `).join('');
+    }
+    
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        const search = e.target.value.toLowerCase();
+        const filtered = allStudents.filter(s => s.student_name.toLowerCase().includes(search) || s.student_id.includes(search));
+        displayStudents(filtered);
+    });
+    
+    loadQRCodes();
 </script>
-</body>
-</html>
+{% endblock %}

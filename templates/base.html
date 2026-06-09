@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}نظام حضور الطلاب{% endblock %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* الهيدر */
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 { color: #2d3748; font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .user-info {
+            background: #f7fafc;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .user-name { color: #4a5568; font-weight: bold; }
+        .current-date {
+            background: #edf2f7;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        .logout-btn {
+            background: #e53e3e;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .logout-btn:hover { background: #c53030; transform: translateY(-2px); }
+        .lang-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 5px 10px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        
+        /* أزرار التنقل الرئيسية */
+        .nav-buttons {
+            background: white;
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-btn-primary { background: #667eea; color: white; }
+        .nav-btn-primary:hover { background: #5a67d8; transform: translateY(-2px); }
+        .nav-btn-success { background: #48bb78; color: white; }
+        .nav-btn-success:hover { background: #38a169; transform: translateY(-2px); }
+        .nav-btn-warning { background: #ed8936; color: white; }
+        .nav-btn-warning:hover { background: #dd6b20; transform: translateY(-2px); }
+        .nav-btn-danger { background: #e53e3e; color: white; }
+        .nav-btn-danger:hover { background: #c53030; transform: translateY(-2px); }
+        .nav-btn-info { background: #4299e1; color: white; }
+        .nav-btn-info:hover { background: #3182ce; transform: translateY(-2px); }
+        
+        /* أزرار الطباعة والتصدير */
+        .action-buttons {
+            background: white;
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .action-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .action-btn-pdf { background: #e53e3e; color: white; }
+        .action-btn-pdf:hover { background: #c53030; transform: translateY(-2px); }
+        .action-btn-excel { background: #48bb78; color: white; }
+        .action-btn-excel:hover { background: #38a169; transform: translateY(-2px); }
+        
+        /* الجداول */
+        .table-wrapper { overflow-x: auto; background: white; border-radius: 20px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        th { background: #667eea; color: white; font-weight: bold; }
+        tr:hover { background: #f7fafc; }
+        .present { color: #48bb78; font-weight: bold; }
+        .late { color: #ed8936; font-weight: bold; }
+        .absent { color: #fc8181; font-weight: bold; }
+        
+        /* الفوتر */
+        .footer {
+            background: linear-gradient(135deg, #2d3748, #1a202c);
+            color: #cbd5e0;
+            text-align: center;
+            padding: 25px 20px;
+            border-radius: 20px;
+            margin-top: 30px;
+            font-size: 14px;
+        }
+        .footer a { color: #9f7aea; text-decoration: none; }
+        .footer .heart { color: #fc8181; display: inline-block; animation: heartbeat 1.5s ease infinite; }
+        @keyframes heartbeat { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+        
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; }
+            .nav-buttons { justify-content: center; }
+            .action-buttons { justify-content: center; }
+            th, td { padding: 8px 10px; font-size: 12px; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📚 {% block page_title %}نظام حضور الطلاب{% endblock %}</h1>
+        <div class="user-info">
+            <span class="user-name">👤 {{ session.get('username', 'Admin') }}</span>
+            <span class="current-date" id="currentDate"></span>
+            <a href="/api/set_language/ar" class="lang-btn">🇸🇦 عربي</a>
+            <a href="/api/set_language/en" class="lang-btn">🇬🇧 English</a>
+            <a href="/logout" class="logout-btn">🚪 خروج</a>
+        </div>
+    </div>
+
+    <!-- أزرار التنقل الرئيسية -->
+    <div class="nav-buttons">
+        <a href="/" class="nav-btn nav-btn-primary">🏠 الرئيسية</a>
+        <a href="/scan" class="nav-btn nav-btn-success">📱 تسجيل الحضور</a>
+        <a href="/reports_dashboard" class="nav-btn nav-btn-warning">📊 التقارير</a>
+        <a href="/qr_codes" class="nav-btn nav-btn-info">📱 أكواد QR</a>
+        {% if session.get('role') == 'admin' %}
+        <a href="/users_list" class="nav-btn nav-btn-danger">👥 المستخدمين</a>
+        {% endif %}
+    </div>
+
+    {% block content %}{% endblock %}
+
+    <div class="footer">
+        <div>🏫 نظام الحضور الذكي | جميع الحقوق محفوظة ©</div>
+        <div class="developer">
+            تم التطوير بواسطة <strong>Taha Mohamed</strong> <span class="heart">❤️</span>
+            | 📧 <a href="mailto:taaanet@gmail.com">taaanet@gmail.com</a>
+            | 📞 <a href="tel:0554289816">0554289816</a>
+        </div>
+        <div style="font-size: 11px; margin-top: 8px; color: #718096;">الإصدار 4.0 | نظام متكامل للحضور والغياب</div>
+    </div>
+</div>
+<script>
+    function displayCurrentDate() {
+        const now = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+        document.getElementById('currentDate').innerHTML = now.toLocaleDateString('ar-SA', options);
+    }
+    displayCurrentDate();
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

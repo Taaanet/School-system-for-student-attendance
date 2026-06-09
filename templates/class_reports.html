@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}تقارير الصف والشعبة{% endblock %}
+{% block page_title %}📋 تقارير الصف والشعبة{% endblock %}
+
+{% block content %}
+<div class="action-buttons">
+    <button class="action-btn action-btn-pdf" onclick="window.print()">🖨️ طباعة PDF</button>
+    <button class="action-btn action-btn-excel" id="exportExcelBtn">📎 تصدير Excel</button>
+</div>
+
+<div class="table-wrapper">
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+        <select id="gradeSelect" style="padding: 10px; border-radius: 10px;">
+            <option value="">جميع الصفوف</option>
+            <option value="الأول الثانوي">الأول الثانوي</option>
+            <option value="الثاني الثانوي">الثاني الثانوي</option>
+            <option value="الثالث الثانوي">الثالث الثانوي</option>
+        </select>
+        <select id="classSelect" style="padding: 10px; border-radius: 10px;">
+            <option value="">جميع الشعب</option>
+            <option value="1">الشعبة 1</option>
+            <option value="2">الشعبة 2</option>
+            <option value="3">الشعبة 3</option>
+            <option value="4">الشعبة 4</option>
+            <option value="5">الشعبة 5</option>
+            <option value="6">الشعبة 6</option>
+        </select>
+        <input type="date" id="dateSelect" style="padding: 10px; border-radius: 10px;">
+        <button id="filterBtn" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 10px;">🔍 عرض</button>
+    </div>
+
+    <div id="reportTable">
+        <div style="text-align: center; padding: 50px;">اختر الصف والشعبة والتاريخ ثم اضغط عرض</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentData = [];
+
+    async function loadReport() {
+        const grade = document.getElementById('gradeSelect').value;
+        const classVal = document.getElementById('classSelect').value;
+        const date = document.getElementById('dateSelect').value;
+        
+        if (!date) {
+            alert('الرجاء اختيار التاريخ');
+            return;
+        }
+        
+        const response = await fetch(`/api/attendance_details/${date}`);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            let filtered = data.data;
+            if (grade) filtered = filtered.filter(s => s.grade === grade);
+            if (classVal) filtered = filtered.filter(s => s.class === classVal);
+            currentData = filtered;
+            displayTable(filtered, date);
+        }
+    }
+    
+    function displayTable(data, date) {
+        if (data.length === 0) {
+            document.getElementById('reportTable').innerHTML = '<div style="text-align:center;padding:50px;">⚠️ لا توجد بيانات للعرض</div>';
+            return;
+        }
+        
+        let html = `<table><thead><tr><th>#</th><th>رقم الطالب</th><th>اسم الطالب</th><th>الصف</th><th>الشعبة</th><th>الحالة</th><th>وقت التسجيل</th></tr></thead><tbody>`;
+        data.forEach((s, i) => {
+            let statusClass = s.status === 'حاضر في الوقت' ? 'present' : (s.status === 'متأخر' ? 'late' : 'absent');
+            let statusText = s.status === 'حاضر في الوقت' ? '✅ حاضر في الوقت' : (s.status === 'متأخر' ? '⏰ متأخر' : '❌ غائب');
+            html += `<tr><td>${i+1}</td><td>${s.student_id}</td><td>${s.student_name}</td><td>${s.grade}</td><td>${s.class}</td><td class="${statusClass}">${statusText}</td><td>${s.time}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('reportTable').innerHTML = html;
+    }
+    
+    function exportToExcel() {
+        if (currentData.length === 0) { alert('لا توجد بيانات للتصدير'); return; }
+        let csv = "رقم الطالب,اسم الطالب,الصف,الشعبة,الحالة,وقت التسجيل\n";
+        currentData.forEach(s => {
+            csv += `"${s.student_id}","${s.student_name}","${s.grade}","${s.class}","${s.status === 'حاضر في الوقت' ? 'حاضر' : (s.status === 'متأخر' ? 'متأخر' : 'غائب')}","${s.time}"\n`;
+        });
+        const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `attendance_report_${document.getElementById('dateSelect').value}.csv`;
+        link.click();
+    }
+    
+    document.getElementById('filterBtn').addEventListener('click', loadReport);
+    document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
+    document.getElementById('dateSelect').valueAsDate = new Date();
+</script>
+{% endblock %}
