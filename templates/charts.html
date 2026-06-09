@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>الرسوم البيانية المتقدمة</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: #f5f7fb; padding: 20px; }
+        .container { max-width: 1400px; margin: auto; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }
+        .chart-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        canvas { max-height: 400px; }
+        .controls { margin-bottom: 20px; }
+        select, button { padding: 10px; margin: 5px; border-radius: 8px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📈 الرسوم البيانية المتقدمة</h1>
+    
+    <div class="controls">
+        <select id="yearSelect">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+        </select>
+        <button onclick="loadCharts()">تحديث</button>
+    </div>
+    
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>📊 اتجاه الحضور الشهري</h3>
+            <canvas id="trendChart"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <h3>🥧 توزيع الحضور اليومي</h3>
+            <canvas id="dailyChart"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <h3>🏆 أفضل 10 طلاب حضوراً</h3>
+            <canvas id="topStudentsChart"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <h3>📅 أيام الأسبوع (معدل الحضور)</h3>
+            <canvas id="weeklyChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    let trendChart, dailyChart, topStudentsChart, weeklyChart;
+    
+    async function loadCharts() {
+        const year = document.getElementById('yearSelect').value;
+        
+        // تحميل بيانات الاتجاه الشهري
+        const trendRes = await fetch(`/api/attendance_trend?year=${year}`);
+        const trendData = await trendRes.json();
+        
+        // تحميل إحصائيات اليوم
+        const dailyRes = await fetch('/api/dashboard_stats');
+        const dailyData = await dailyRes.json();
+        
+        // تحميل أفضل الطلاب
+        const topRes = await fetch('/api/top_students');
+        const topData = await topRes.json();
+        
+        // تحديث الرسوم البيانية
+        updateTrendChart(trendData.data);
+        updateDailyChart(dailyData);
+        updateTopStudentsChart(topData.data);
+        updateWeeklyChart();
+    }
+    
+    function updateTrendChart(data) {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        if (trendChart) trendChart.destroy();
+        
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.month),
+                datasets: [
+                    {
+                        label: 'حاضر في الوقت',
+                        data: data.map(d => d.present),
+                        borderColor: '#48bb78',
+                        backgroundColor: 'rgba(72,187,120,0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'متأخر',
+                        data: data.map(d => d.late),
+                        borderColor: '#ed8936',
+                        backgroundColor: 'rgba(237,137,54,0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                animation: { duration: 2000, easing: 'easeInOutQuart' }
+            }
+        });
+    }
+    
+    function updateDailyChart(data) {
+        const ctx = document.getElementById('dailyChart').getContext('2d');
+        if (dailyChart) dailyChart.destroy();
+        
+        dailyChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['حاضر في الوقت', 'متأخر', 'غائب'],
+                datasets: [{
+                    data: [data.present, data.late, data.absent],
+                    backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: { animateRotate: true, duration: 2000 }
+            }
+        });
+    }
+    
+    function updateTopStudentsChart(data) {
+        const ctx = document.getElementById('topStudentsChart').getContext('2d');
+        if (topStudentsChart) topStudentsChart.destroy();
+        
+        topStudentsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.name.slice(0, 15)),
+                datasets: [{
+                    label: 'عدد أيام الحضور',
+                    data: data.map(d => d.count),
+                    backgroundColor: 'rgba(102,126,234,0.7)',
+                    borderRadius: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                animation: { duration: 1500 }
+            }
+        });
+    }
+    
+    async function updateWeeklyChart() {
+        const ctx = document.getElementById('weeklyChart').getContext('2d');
+        if (weeklyChart) weeklyChart.destroy();
+        
+        // بيانات أيام الأسبوع (يمكن جلبها من API)
+        const weeklyData = {
+            labels: ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'],
+            attendance: [85, 88, 82, 90, 78]
+        };
+        
+        weeklyChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: weeklyData.labels,
+                datasets: [{
+                    label: 'نسبة الحضور %',
+                    data: weeklyData.attendance,
+                    backgroundColor: 'rgba(102,126,234,0.2)',
+                    borderColor: '#667eea',
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: { duration: 2000 }
+            }
+        });
+    }
+    
+    loadCharts();
+</script>
+</body>
+</html>
