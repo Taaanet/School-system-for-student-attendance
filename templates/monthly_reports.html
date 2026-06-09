@@ -1,697 +1,118 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التقارير الشهرية المتقدمة - نظام حضور الطلاب</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% extends "base.html" %}
+{% block title %}التقارير الشهرية المتقدمة{% endblock %}
+{% block page_title %}<i class="fas fa-calendar-alt"></i> التقارير الشهرية المتقدمة{% endblock %}
 
-        body {
-            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+{% block extra_css %}
+<style>
+    .monthly-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+    .monthly-card {
+        background: white;
+        padding: 25px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+    .monthly-card .value { font-size: 32px; font-weight: bold; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .monthly-card .label { color: #718096; font-size: 14px; margin-top: 8px; }
+    .best-worst {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    .best-card, .worst-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+    }
+    .best-card { border-right: 4px solid #48bb78; }
+    .worst-card { border-right: 4px solid #fc8181; }
+</style>
+{% endblock %}
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+{% block content %}
+<div class="action-buttons">
+    <button class="action-btn action-btn-pdf" onclick="window.print()"><i class="fas fa-file-pdf"></i> طباعة PDF</button>
+    <button class="action-btn action-btn-excel" id="exportExcelBtn"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+</div>
 
-        /* الهيدر */
-        .header {
-            background: white;
-            border-radius: 20px;
-            padding: 25px 30px;
-            margin-bottom: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .header h1 {
-            color: #2d3748;
-            font-size: 28px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .back-btn {
-            background: #667eea;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            text-decoration: none;
-            transition: 0.3s;
-        }
-
-        .back-btn:hover {
-            background: #5a67d8;
-            transform: translateY(-2px);
-        }
-
-        /* لوحة التحكم */
-        .controls {
-            background: white;
-            border-radius: 20px;
-            padding: 20px 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .control-group label {
-            font-size: 12px;
-            color: #718096;
-            font-weight: bold;
-        }
-
-        .control-group select, .control-group input {
-            padding: 10px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            background: white;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .control-group select:hover, .control-group input:hover {
-            border-color: #667eea;
-        }
-
-        .btn {
-            padding: 10px 25px;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-            color: white;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #48bb78, #38a169);
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-info {
-            background: linear-gradient(135deg, #4299e1, #3182ce);
-        }
-
-        /* تبويبات */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-
-        .tab {
-            background: white;
-            padding: 12px 25px;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: 0.3s;
-            font-weight: bold;
-            color: #4a5568;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        .tab:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .tab.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        /* محتوى التبويبات */
-        .tab-content {
-            display: none;
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        }
-
-        .tab-content.active {
-            display: block;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* بطاقات الإحصائيات */
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            transition: 0.3s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        .card h3 {
-            color: #4a5568;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .card .value {
-            font-size: 32px;
-            font-weight: bold;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-
-        .card .small {
-            font-size: 12px;
-            color: #718096;
-            margin-top: 8px;
-        }
-
-        /* الجداول */
-        .table-wrapper {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px 15px;
-            text-align: center;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        th {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            font-weight: bold;
-            position: sticky;
-            top: 0;
-        }
-
-        tr:hover {
-            background: #f7fafc;
-        }
-
-        .present {
-            color: #48bb78;
-            font-weight: bold;
-        }
-
-        .late {
-            color: #ed8936;
-            font-weight: bold;
-        }
-
-        .absent {
-            color: #fc8181;
-            font-weight: bold;
-        }
-
-        .attendance-high {
-            background: #c6f6d5;
-            color: #22543d;
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-weight: bold;
-        }
-
-        .attendance-low {
-            background: #fed7d7;
-            color: #742a2a;
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-weight: bold;
-        }
-
-        /* حالة التحميل */
-        .loading {
-            text-align: center;
-            padding: 50px;
-            color: #718096;
-        }
-
-        .loading::after {
-            content: '';
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #e2e8f0;
-            border-top-color: #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* بار التقدم */
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #e2e8f0;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #48bb78, #38a169);
-            border-radius: 10px;
-            transition: width 0.5s ease;
-        }
-
-        /* توافق مع الجوال */
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                text-align: center;
-            }
-            .controls {
-                flex-direction: column;
-            }
-            .control-group {
-                width: 100%;
-            }
-            .control-group select, .control-group input {
-                width: 100%;
-            }
-            .btn {
-                width: 100%;
-            }
-            th, td {
-                padding: 8px 10px;
-                font-size: 12px;
-            }
-        }
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="header">
-        <h1>
-            📊 التقارير الشهرية المتقدمة
-        </h1>
-        <a href="/dashboard" class="back-btn">← العودة إلى لوحة التحكم</a>
+<div class="card">
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 25px; align-items: flex-end;">
+        <div><label style="display:block;font-size:12px;color:#718096;"><i class="fas fa-calendar"></i> السنة</label>
+        <select id="yearSelect" style="padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
+            <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+        </select></div>
+        <div><label style="display:block;font-size:12px;color:#718096;"><i class="fas fa-calendar-week"></i> الشهر</label>
+        <select id="monthSelect" style="padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
+            <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
+            <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
+            <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
+            <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+        </select></div>
+        <button id="loadReportBtn" style="padding: 12px 30px; background: linear-gradient(135deg,#667eea,#764ba2); color: white; border: none; border-radius: 12px; cursor: pointer;"><i class="fas fa-chart-line"></i> عرض التقرير</button>
     </div>
 
-    <div class="controls">
-        <div class="control-group">
-            <label>📅 السنة</label>
-            <select id="yearSelect">
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-                <option value="2026" selected>2026</option>
-                <option value="2027">2027</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label>📆 الشهر</label>
-            <select id="monthSelect">
-                <option value="1">يناير</option>
-                <option value="2">فبراير</option>
-                <option value="3">مارس</option>
-                <option value="4">أبريل</option>
-                <option value="5">مايو</option>
-                <option value="6" selected>يونيو</option>
-                <option value="7">يوليو</option>
-                <option value="8">أغسطس</option>
-                <option value="9">سبتمبر</option>
-                <option value="10">أكتوبر</option>
-                <option value="11">نوفمبر</option>
-                <option value="12">ديسمبر</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label>🔍 طالب محدد</label>
-            <input type="text" id="studentIdInput" placeholder="رقم الطالب (اختياري)">
-        </div>
-        <button class="btn btn-primary" id="loadReport">📈 عرض التقرير</button>
-        <button class="btn btn-success" id="exportExcel">📎 تصدير Excel</button>
-        <button class="btn btn-info" id="loadComparative">📊 تقرير مقارن سنوي</button>
-    </div>
-
-    <div class="tabs">
-        <div class="tab active" data-tab="summary">📋 ملخص الشهر</div>
-        <div class="tab" data-tab="daily">📅 تفاصيل يومية</div>
-        <div class="tab" data-tab="student">👨‍🎓 تقرير طالب</div>
-        <div class="tab" data-tab="comparative">📈 مقارنة سنوية</div>
-    </div>
-
-    <div id="summaryTab" class="tab-content active">
-        <div id="summaryCards">
-            <div class="loading">جاري تحميل البيانات...</div>
-        </div>
-        <div id="bestWorstDays"></div>
-    </div>
-
-    <div id="dailyTab" class="tab-content">
-        <div class="table-wrapper">
-            <div id="dailyTable">
-                <div class="loading">جاري تحميل البيانات...</div>
-            </div>
-        </div>
-    </div>
-
-    <div id="studentTab" class="tab-content">
-        <div id="studentInfo"></div>
-        <div class="table-wrapper">
-            <div id="studentTable">
-                <div class="loading">أدخل رقم الطالب ثم اضغط عرض التقرير</div>
-            </div>
-        </div>
-    </div>
-
-    <div id="comparativeTab" class="tab-content">
-        <div class="table-wrapper">
-            <div id="comparativeTable">
-                <div class="loading">جاري تحميل البيانات...</div>
-            </div>
-        </div>
+    <div id="monthlySummary"></div>
+    <div id="bestWorstDays"></div>
+    <div class="table-wrapper">
+        <div id="monthlyTable">اختر السنة والشهر ثم اضغط عرض</div>
     </div>
 </div>
 
 <script>
-    let currentData = null;
-
     async function loadMonthlyReport() {
         const year = document.getElementById('yearSelect').value;
         const month = document.getElementById('monthSelect').value;
-        const studentId = document.getElementById('studentIdInput').value.trim();
         
-        if (studentId) {
-            await loadStudentReport(studentId, year, month);
-            return;
-        }
+        document.getElementById('monthlySummary').innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-pulse"></i> جاري التحميل...</div>';
         
-        document.getElementById('summaryCards').innerHTML = '<div class="loading">جاري تحميل البيانات...</div>';
-        document.getElementById('dailyTable').innerHTML = '<div class="loading">جاري تحميل البيانات...</div>';
+        const res = await fetch(`/api/monthly_report?year=${year}&month=${month}`);
+        const data = await res.json();
         
-        try {
-            const response = await fetch(`/api/monthly_report?year=${year}&month=${month}`);
-            const data = await response.json();
-            currentData = data;
-            
-            if (data.success) {
-                displaySummary(data);
-                displayDailyTable(data);
-                document.getElementById('studentInfo').innerHTML = '';
-                document.getElementById('studentTable').innerHTML = '<div class="loading">أدخل رقم الطالب ثم اضغط عرض التقرير</div>';
-            } else {
-                throw new Error(data.message);
-            }
-        } catch (error) {
-            console.error('خطأ:', error);
-            document.getElementById('summaryCards').innerHTML = '<div class="loading">❌ حدث خطأ في تحميل البيانات</div>';
-            document.getElementById('dailyTable').innerHTML = '<div class="loading">❌ حدث خطأ في تحميل البيانات</div>';
-        }
-    }
-
-    function displaySummary(data) {
-        const summary = data.summary;
-        const html = `
-            <div class="summary-cards">
-                <div class="card">
-                    <h3>📊 إجمالي الحضور</h3>
-                    <div class="value">${summary.total_present + summary.total_late}</div>
-                    <div class="small">حضور في الوقت: ${summary.total_present} | متأخر: ${summary.total_late}</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${summary.avg_attendance_rate}%"></div>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3>📈 نسبة الحضور</h3>
-                    <div class="value">${summary.avg_attendance_rate}%</div>
-                    <div class="small">من أصل ${data.total_students} طالب</div>
-                </div>
-                <div class="card">
-                    <h3>❌ إجمالي الغياب</h3>
-                    <div class="value">${summary.total_absent.toLocaleString()}</div>
-                    <div class="small">على مدار ${data.days_in_month} يوم</div>
-                </div>
-                <div class="card">
-                    <h3>📅 أيام التسجيل</h3>
-                    <div class="value">${summary.days_with_attendance}</div>
-                    <div class="small">من أصل ${data.days_in_month} يوم</div>
-                </div>
-            </div>
-        `;
-        
-        let bestWorstHtml = '';
-        if (summary.best_day) {
-            bestWorstHtml = `
-                <div class="summary-cards">
-                    <div class="card">
-                        <h3>🏆 أفضل يوم</h3>
-                        <div class="value">يوم ${summary.best_day.day}</div>
-                        <div class="small">حضور: ${summary.best_day.present + summary.best_day.late} طالب (${summary.best_day.percentage}%)</div>
-                    </div>
-                    <div class="card">
-                        <h3>📉 أسوأ يوم</h3>
-                        <div class="value">يوم ${summary.worst_day.day}</div>
-                        <div class="small">حضور: ${summary.worst_day.present + summary.worst_day.late} طالب (${summary.worst_day.percentage}%)</div>
-                    </div>
+        if (data.success) {
+            const summary = data.summary;
+            document.getElementById('monthlySummary').innerHTML = `
+                <div class="monthly-summary">
+                    <div class="monthly-card"><div class="value">${summary.total_present + summary.total_late}</div><div class="label"><i class="fas fa-user-check"></i> إجمالي الحضور</div><div style="font-size:12px;">حاضر: ${summary.total_present} | متأخر: ${summary.total_late}</div></div>
+                    <div class="monthly-card"><div class="value">${summary.avg_attendance_rate}%</div><div class="label"><i class="fas fa-chart-line"></i> نسبة الحضور</div><div class="progress-bar" style="margin-top:10px;"><div style="width:${summary.avg_attendance_rate}%;height:6px;background:#48bb78;border-radius:3px;"></div></div></div>
+                    <div class="monthly-card"><div class="value">${summary.total_absent}</div><div class="label"><i class="fas fa-user-times"></i> إجمالي الغياب</div></div>
+                    <div class="monthly-card"><div class="value">${data.days_in_month}</div><div class="label"><i class="fas fa-calendar"></i> أيام الشهر</div><div style="font-size:12px;">أيام تسجيل: ${summary.days_with_attendance}</div></div>
                 </div>
             `;
-        }
-        
-        document.getElementById('summaryCards').innerHTML = html;
-        document.getElementById('bestWorstDays').innerHTML = bestWorstHtml;
-    }
-
-    function displayDailyTable(data) {
-        let html = `<table><thead>\n<th>#</th><th>اليوم</th><th>التاريخ</th><th>✅ حاضر</th><th>⏰ متأخر</th><th>❌ غائب</th><th>📊 النسبة</th></tr></thead><tbody>`;
-        
-        for (const day of data.daily_stats) {
-            const attendancePercent = day.percentage;
-            const percentClass = attendancePercent >= 80 ? 'attendance-high' : (attendancePercent <= 50 ? 'attendance-low' : '');
-            html += `<tr>
-                <td>${day.day}</td>
-                <td>${getDayName(day.date)}</td>
-                <td>${day.date}</td>
-                <td class="present">${day.present}</td>
-                <td class="late">${day.late}</td>
-                <td class="absent">${day.absent}</td>
-                <td><span class="${percentClass}">${day.percentage}%</span></td>
-            </tr>`;
-        }
-        html += '</tbody></table>';
-        document.getElementById('dailyTable').innerHTML = html;
-    }
-
-    async function loadStudentReport(studentId, year, month) {
-        document.getElementById('studentInfo').innerHTML = '<div class="loading">جاري تحميل بيانات الطالب...</div>';
-        document.getElementById('studentTable').innerHTML = '<div class="loading">جاري تحميل البيانات...</div>';
-        
-        try {
-            const response = await fetch(`/api/student_monthly_report/${studentId}?year=${year}&month=${month}`);
-            const data = await response.json();
             
-            if (data.success) {
-                displayStudentInfo(data);
-                displayStudentTable(data);
-            } else {
-                document.getElementById('studentInfo').innerHTML = `<div class="loading">❌ ${data.error}</div>`;
-                document.getElementById('studentTable').innerHTML = '';
-            }
-        } catch (error) {
-            document.getElementById('studentInfo').innerHTML = '<div class="loading">❌ حدث خطأ في تحميل بيانات الطالب</div>';
-        }
-    }
-
-    function displayStudentInfo(data) {
-        const summary = data.summary;
-        const html = `
-            <div class="summary-cards">
-                <div class="card">
-                    <h3>👨‍🎓 اسم الطالب</h3>
-                    <div class="value" style="font-size: 20px;">${data.student_name}</div>
-                    <div class="small">رقم: ${data.student_id}</div>
-                </div>
-                <div class="card">
-                    <h3>📚 الصف</h3>
-                    <div class="value">${data.grade}</div>
-                    <div class="small">الشعبة: ${data.class}</div>
-                </div>
-                <div class="card">
-                    <h3>✅ أيام الحضور</h3>
-                    <div class="value">${summary.present + summary.late}</div>
-                    <div class="small">حاضر: ${summary.present} | متأخر: ${summary.late}</div>
-                </div>
-                <div class="card">
-                    <h3>📈 نسبة الحضور</h3>
-                    <div class="value">${summary.attendance_rate}%</div>
-                    <div class="small">غائب: ${summary.absent} يوم</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${summary.attendance_rate}%"></div>
+            if (summary.best_day) {
+                document.getElementById('bestWorstDays').innerHTML = `
+                    <div class="best-worst">
+                        <div class="best-card"><i class="fas fa-trophy" style="color:#48bb78;font-size:24px;"></i><h3 style="margin:10px 0;">🏆 أفضل يوم</h3><div class="value">يوم ${summary.best_day.day}</div><div>حضور: ${summary.best_day.present + summary.best_day.late} طالب</div><div>النسبة: ${summary.best_day.percentage}%</div></div>
+                        <div class="worst-card"><i class="fas fa-chart-line" style="color:#fc8181;font-size:24px;"></i><h3 style="margin:10px 0;">📉 أسوأ يوم</h3><div class="value">يوم ${summary.worst_day.day}</div><div>حضور: ${summary.worst_day.present + summary.worst_day.late} طالب</div><div>النسبة: ${summary.worst_day.percentage}%</div></div>
                     </div>
-                </div>
-            </div>
-        `;
-        document.getElementById('studentInfo').innerHTML = html;
-    }
-
-    function displayStudentTable(data) {
-        let html = `<table><thead>\n<th>#</th><th>التاريخ</th><th>الحالة</th><th>وقت التسجيل</th></tr></thead><tbody>`;
-        
-        for (const day of data.daily_status) {
-            let statusClass = '';
-            let statusText = '';
-            if (day.status === 'حاضر في الوقت') {
-                statusClass = 'present';
-                statusText = '✅ حاضر في الوقت';
-            } else if (day.status === 'متأخر') {
-                statusClass = 'late';
-                statusText = '⏰ متأخر';
-            } else {
-                statusClass = 'absent';
-                statusText = '❌ غائب';
+                `;
             }
             
-            html += `<tr>
-                <td>${day.day}</td>
-                <td>${day.date}</td>
-                <td class="${statusClass}">${statusText}</td>
-                <td>${day.time}</td>
-            </tr>`;
-        }
-        html += '</tbody></table>';
-        document.getElementById('studentTable').innerHTML = html;
-    }
-
-    async function loadComparativeReport() {
-        const year = document.getElementById('yearSelect').value;
-        document.getElementById('comparativeTable').innerHTML = '<div class="loading">جاري تحميل البيانات...</div>';
-        
-        try {
-            const response = await fetch(`/api/comparative_monthly_report?year=${year}`);
-            const data = await response.json();
-            
-            if (data.success) {
-                let html = `<table><thead>\n<th>الشهر</th><th>📊 إجمالي الحضور</th><th>✅ حاضر</th><th>⏰ متأخر</th><th>🎯 المتوقع</th><th>📈 نسبة الحضور</th></tr></thead><tbody>`;
-                
-                for (const month of data.monthly_summary) {
-                    let percentClass = month.attendance_rate >= 80 ? 'attendance-high' : (month.attendance_rate <= 50 ? 'attendance-low' : '');
-                    html += `<tr>
-                        <td><strong>${month.month_name}</strong></td>
-                        <td>${month.total_attendance.toLocaleString()}</td>
-                        <td class="present">${month.present.toLocaleString()}</td>
-                        <td class="late">${month.late.toLocaleString()}</td>
-                        <td>${month.expected.toLocaleString()}</td>
-                        <td><span class="${percentClass}">${month.attendance_rate}%</span></td>
-                    </tr>`;
-                }
-                html += '</tbody></table>';
-                document.getElementById('comparativeTable').innerHTML = html;
-            }
-        } catch (error) {
-            document.getElementById('comparativeTable').innerHTML = '<div class="loading">❌ حدث خطأ في تحميل البيانات</div>';
+            let html = `<table><thead><th>#</th><th>التاريخ</th><th>✅ حاضر</th><th>⏰ متأخر</th><th>❌ غائب</th><th>📊 النسبة</th></thead><tbody>`;
+            data.daily_stats.forEach(day => {
+                let barColor = day.percentage >= 80 ? '#48bb78' : (day.percentage >= 50 ? '#ed8936' : '#fc8181');
+                html += `<tr><td class="present">${day.day}</td><td>${day.date}</td><td class="present">${day.present}</td><td class="late">${day.late}</td><td class="absent">${day.absent}</td><td><div style="background:#e2e8f0;border-radius:10px;overflow:hidden;"><div style="width:${day.percentage}%;height:6px;background:${barColor};border-radius:10px;"></div></div>${day.percentage}%</td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('monthlyTable').innerHTML = html;
         }
     }
-
-    function getDayName(dateStr) {
-        const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-        const date = new Date(dateStr);
-        return days[date.getDay()];
-    }
-
+    
     function exportToExcel() {
         const year = document.getElementById('yearSelect').value;
         const month = document.getElementById('monthSelect').value;
-        const studentId = document.getElementById('studentIdInput').value.trim();
-        
-        if (studentId) {
-            window.open(`/api/student_monthly_report/${studentId}?year=${year}&month=${month}&export=excel`, '_blank');
-        } else {
-            window.open(`/api/monthly_report?year=${year}&month=${month}&export=excel`, '_blank');
-        }
+        window.open(`/api/monthly_report?year=${year}&month=${month}&export=excel`, '_blank');
     }
-
-    function switchToStudentTab() {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-        document.querySelector('.tab[data-tab="student"]').classList.add('active');
-        document.getElementById('studentTab').classList.add('active');
-    }
-
-    // Event Listeners
-    document.getElementById('loadReport').addEventListener('click', loadMonthlyReport);
-    document.getElementById('exportExcel').addEventListener('click', exportToExcel);
-    document.getElementById('loadComparative').addEventListener('click', loadComparativeReport);
     
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
-            
-            if (tab.dataset.tab === 'comparative') {
-                loadComparativeReport();
-            }
-        });
-    });
-    
-    // Load initial data
+    document.getElementById('loadReportBtn').addEventListener('click', loadMonthlyReport);
+    document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
     loadMonthlyReport();
 </script>
-</body>
-</html>
+{% endblock %}
