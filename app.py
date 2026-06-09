@@ -345,6 +345,31 @@ def backup_page():
         return redirect(url_for('home'))
     return render_template("backup.html")
 
+# ============== إعادة توجيه الصفحات القديمة إلى الجديدة ==============
+@app.route("/reports")
+@login_required
+def reports_redirect():
+    """إعادة توجيه صفحة التقارير القديمة إلى الجديدة"""
+    return redirect(url_for('reports_dashboard'))
+
+@app.route("/dashboard")
+@login_required
+def dashboard_redirect():
+    """إعادة توجيه صفحة لوحة التحكم القديمة إلى الجديدة"""
+    return redirect(url_for('reports_dashboard'))
+
+@app.route("/monthly_reports")
+@login_required
+def monthly_reports_redirect():
+    """إعادة توجيه صفحة التقارير الشهرية القديمة إلى تقارير الصف"""
+    return redirect(url_for('class_reports'))
+
+@app.route("/charts")
+@login_required
+def charts_redirect():
+    """إعادة توجيه صفحة الرسوم البيانية القديمة إلى لوحة التحكم"""
+    return redirect(url_for('reports_dashboard'))
+
 # ============== تبديل اللغة ==============
 @app.route("/api/set_language/<lang>")
 @login_required
@@ -1091,9 +1116,10 @@ if __name__ == "__main__":
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
-    print("📊 لوحة التحكم والرسوم البيانية: متاحة على /reports_dashboard")
-    print("📋 تقارير الصف والشعبة: متاحة على /class_reports")
-    print("📱 أكواد QR: متاحة على /qr_codes")
-    print("💾 النسخ الاحتياطي: يعمل تلقائياً")
+    print("📊 لوحة التحكم والرسوم البيانية: /reports_dashboard")
+    print("📋 تقارير الصف والشعبة: /class_reports")
+    print("📱 أكواد QR: /qr_codes")
+    print("💾 النسخ الاحتياطي: /backup")
+    print("🔄 إعادة توجيه الصفحات القديمة: /reports, /dashboard, /monthly_reports, /charts")
     print("=" * 50)
     app.run(host='0.0.0.0', port=port, debug=False)
