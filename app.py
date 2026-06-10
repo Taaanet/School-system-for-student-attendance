@@ -238,20 +238,35 @@ def increment_login_count(username):
         save_users(users)
 
 def get_remaining_logins(username):
+    """حساب عدد مرات الدخول المتبقية للمستخدم"""
     users = load_users()
     if username not in users:
         return 0
+    
     user = users[username]
-    if user['role'] == 'admin':
+    if user.get('role') == 'admin':
         return "غير محدود"
+    
     max_logins = user.get('max_logins', 5)
     used = user.get('login_count', 0)
+    
     try:
-        max_logins = int(max_logins) if max_logins else 5
-        used = int(used) if used else 0
+        # تحويل max_logins إلى رقم
+        if max_logins is None:
+            max_logins = 5
+        else:
+            max_logins = int(max_logins)
+        
+        # تحويل used إلى رقم
+        if used is None:
+            used = 0
+        else:
+            used = int(used)
+        
         remaining = max_logins - used
         return remaining if remaining > 0 else 0
-    except:
+        
+    except (ValueError, TypeError):
         return 0
 
 def login_required(f):
