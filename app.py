@@ -304,11 +304,15 @@ def get_remaining_logins(username):
         return 0
 
 def create_user(username, password, role='user', max_logins=5):
-    """إنشاء مستخدم جديد"""
+    """إنشاء مستخدم جديد مع صلاحيات"""
     users = load_users()
     
     if username in users:
         return False, "اسم المستخدم موجود بالفعل"
+    
+    # التحقق من صحة الدور
+    if role not in ['user', 'editor', 'admin']:
+        role = 'user'
     
     users[username] = {
         'password': hash_password(password),
@@ -318,7 +322,10 @@ def create_user(username, password, role='user', max_logins=5):
     }
     
     save_users(users)
-    return True, "تم إنشاء المستخدم بنجاح"
+    
+    # رسالة حسب الصلاحية
+    role_names = {'user': 'معلم (قراءة فقط)', 'editor': 'محرر (إضافة وتعديل)', 'admin': 'مدير (كامل الصلاحيات)'}
+    return True, f"تم إنشاء المستخدم {username} كـ {role_names[role]}"
 
 def update_user(username, role=None, max_logins=None, password=None):
     """تحديث بيانات المستخدم"""
@@ -461,14 +468,16 @@ def reset_logins(username):
             return jsonify({"success": False, "message": "لا يمكن إعادة تعيين مدير النظام"})
         users[username]['login_count'] = 0
         save_users(users)
-        return jsonify({"success": True, "message": f"تم إعادة تعيين {username}"})
+        # إعادة توجيه إلى صفحة المستخدمين بدلاً من عرض JSON
+        return redirect(url_for('users_list'))
     return jsonify({"success": False, "message": "المستخدم غير موجود"})
 
 # ============== APIs إدارة المستخدمين المتقدمة ==============
 
-@app.route("/users_list_data")
+@app.route("/api/users")
 @login_required
-def users_list_data():
+def api_users():
+    """API لجلب بيانات المستخدمين بتنسيق JSON مع صلاحيات"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
     
@@ -552,6 +561,92 @@ def api_delete_user(username):
     success, message = delete_user(username)
     return jsonify({"success": success, "message": message})
 
+# ============== API إدارة الطلاب ==============
+
+@app.route("/api/create_student", methods=["POST"])
+@login_required
+def api_create_student():
+    """إنشاء طالب جديد"""
+    if session.get('role') not in ['admin', 'editor']:
+        return jsonify({"success": False, "message": "غير مصرح - ليس لديك صلاحية الإضافة"})
+    
+    data = request.get_json()
+    student_id = str(data.get('student_id', '')).strip()
+    name = data.get('name', '').strip()
+    grade = data.get('grade', 'الأول الثانوي')
+    class_val = data.get('class', '1')
+    phone = data.get('phone', '')
+    parent_phone = data.get('parent_phone', '')
+    
+    if not student_id or not name:
+        return jsonify({"success": False, "message": "الرجاء إدخال رقم الطالب واسمه"})
+    
+    # التحقق من عدم وجود الطالب مسبقاً
+    existing = supabase.table("students").select("*").eq("student_id", student_id).execute()
+    if existing.data:
+        return jsonify({"success": False, "message": f"الطالب رقم {student_id} موجود بالفعل"})
+    
+    new_student = {
+        'student_id': student_id,
+        'name': name,
+        'grade': grade,
+        'class': class_val,
+        'phone': phone,
+        'parent_phone': parent_phone
+    }
+    
+    try:
+        supabase.table("students").insert(new_student).execute()
+        return jsonify({"success": True, "message": f"تم إضافة الطالب {name} بنجاح"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route("/api/update_student/<student_id>", methods=["PUT"])
+@login_required
+def api_update_student(student_id):
+    """تحديث بيانات طالب"""
+    if session.get('role') not in ['admin', 'editor']:
+        return jsonify({"success": False, "message": "غير مصرح - ليس لديك صلاحية التعديل"})
+    
+    data = request.get_json()
+    
+    update_data = {}
+    if 'name' in data:
+        update_data['name'] = data['name']
+    if 'grade' in data:
+        update_data['grade'] = data['grade']
+    if 'class' in data:
+        update_data['class'] = data['class']
+    if 'phone' in data:
+        update_data['phone'] = data['phone']
+    if 'parent_phone' in data:
+        update_data['parent_phone'] = data['parent_phone']
+    
+    if not update_data:
+        return jsonify({"success": False, "message": "لا توجد بيانات للتحديث"})
+    
+    try:
+        supabase.table("students").update(update_data).eq("student_id", student_id).execute()
+        return jsonify({"success": True, "message": f"تم تحديث بيانات الطالب بنجاح"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route("/api/delete_student/<student_id>", methods=["DELETE"])
+@login_required
+def api_delete_student(student_id):
+    """حذف طالب وجميع سجلات حضوره"""
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح - ليس لديك صلاحية الحذف"})
+    
+    try:
+        # حذف سجلات الحضور أولاً
+        supabase.table("attendance").delete().eq("student_id", student_id).execute()
+        # ثم حذف الطالب
+        supabase.table("students").delete().eq("student_id", student_id).execute()
+        return jsonify({"success": True, "message": f"تم حذف الطالب رقم {student_id} وجميع سجلات حضوره"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
 # ============== الصفحات الرئيسية ==============
 @app.route("/")
 @login_required
@@ -594,6 +689,12 @@ def backup_page():
     if session.get('role') != 'admin':
         return redirect(url_for('home'))
     return render_template("backup.html")
+
+@app.route("/manage_students")
+@login_required
+def manage_students():
+    """صفحة إدارة الطلاب"""
+    return render_template("manage_students.html")
 
 # ============== إعادة توجيه الصفحات القديمة ==============
 @app.route("/reports")
@@ -1367,5 +1468,6 @@ if __name__ == "__main__":
     print("   📱 أكواد QR: /qr_codes")
     print("   💾 النسخ الاحتياطي: /backup")
     print("   👥 المستخدمين: /users_list")
+    print("   📚 إدارة الطلاب: /manage_students")
     print("=" * 60)
     app.run(host='0.0.0.0', port=port, debug=False)
