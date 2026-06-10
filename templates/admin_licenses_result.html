@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}نتيجة إنشاء الترخيص{% endblock %}
+{% block page_title %}✅ تم إنشاء رمز التفعيل{% endblock %}
+
+{% block content %}
+<div class="card" style="text-align: center;">
+    <div style="font-size: 60px; margin-bottom: 20px;">🔑</div>
+    <h3>تم إنشاء رمز التفعيل بنجاح</h3>
+    <p><strong>معرف الجهاز:</strong> {{ hardware_id }}</p>
+    <p><strong>تاريخ الانتهاء:</strong> {{ expiry_date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    <div style="background: #f7fafc; padding: 15px; border-radius: 12px; margin: 20px 0; direction: ltr; word-break: break-all;">
+        <code style="font-size: 14px;">{{ activation_code }}</code>
+    </div>
+    <p>انسخ هذا الرمز وأرسله إلى المستخدم لتفعيل جهازه.</p>
+    <button onclick="copyToClipboard()" class="action-btn action-btn-excel" style="background:#4299e1;"><i class="fas fa-copy"></i> نسخ الرمز</button>
+    <a href="/admin/licenses" class="nav-btn nav-btn-info" style="margin-top: 15px;">← العودة إلى لوحة التحكم</a>
+</div>
+
+<script>
+    function copyToClipboard() {
+        const copyText = document.querySelector('code').innerText;
+        navigator.clipboard.writeText(copyText).then(() => {
+            alert('✅ تم نسخ رمز التفعيل!');
+        });
+    }
+</script>
+{% endblock %}

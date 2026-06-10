@@ -14,10 +14,14 @@
     </form>
 </div>
 {% if error %}
-<div class="alert alert-error" style="display: block;">{{ error }}</div>
+<div class="alert alert-error" style="display: block; background: #fed7d7; color: #742a2a; padding: 12px; border-radius: 12px; margin-top: 15px;">
+    ❌ {{ error }}
+</div>
 {% endif %}
 {% if success %}
-<div class="alert alert-success" style="display: block;">✅ {{ success }} سيتم تحديث الصفحة...</div>
+<div class="alert alert-success" style="display: block; background: #c6f6d5; color: #22543d; padding: 12px; border-radius: 12px; margin-top: 15px;">
+    ✅ {{ success }} سيتم تحديث الصفحة...
+</div>
 <script>
     setTimeout(() => { window.location.href = '/'; }, 3000);
 </script>
