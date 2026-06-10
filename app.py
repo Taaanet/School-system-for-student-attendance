@@ -281,8 +281,18 @@ def license_required(f):
     """ديكورator لحماية الصفحات، يمنع الوصول إذا لم يكن الجهاز مرخصاً"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # السماح بالوصول إلى صفحات الترخيص والثابتة
-        allowed_paths = ['/login', '/request_activation', '/activate_device', '/admin/licenses', '/api/admin/', '/static/', '/test_supabase', '/health']
+        # السماح بالوصول إلى صفحات الترخيص والمصادقة
+        allowed_paths = [
+            '/login', 
+            '/logout',
+            '/request_activation', 
+            '/activate_device',
+            '/admin/licenses',
+            '/api/admin/',
+            '/static/',
+            '/test_supabase',
+            '/health'
+        ]
         for path in allowed_paths:
             if request.path.startswith(path):
                 return f(*args, **kwargs)
