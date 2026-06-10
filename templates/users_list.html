@@ -8,50 +8,79 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
-            background: #f0f2f5;
-            padding: 20px;
-        }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             padding: 20px;
-            border-radius: 15px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         }
-        .header h1 { font-size: 22px; }
-        .header a { color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; }
+        .header h1 { color: #2d3748; font-size: 24px; }
+        .header a { 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
         table {
             width: 100%;
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-collapse: collapse;
         }
         th, td {
             padding: 15px;
             text-align: center;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #e2e8f0;
         }
         th {
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
         }
+        tr:hover { background: #f7fafc; }
         .btn {
-            background: #28a745;
+            background: #48bb78;
             color: white;
             padding: 8px 16px;
             text-decoration: none;
             border-radius: 20px;
-            font-size: 14px;
+            font-size: 13px;
             border: none;
             cursor: pointer;
+            display: inline-block;
         }
-        .btn:hover { opacity: 0.8; }
+        .btn-danger { background: #e53e3e; }
+        .btn-warning { background: #ed8936; }
+        .admin-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .user-badge {
+            background: #48bb78;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .warning { color: #e53e3e; font-weight: bold; }
         .nav-buttons {
             margin-top: 20px;
             text-align: center;
@@ -65,23 +94,9 @@
             margin: 5px;
             display: inline-block;
         }
-        .admin-badge {
-            background: #667eea;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 15px;
-            font-size: 12px;
-        }
-        .user-badge {
-            background: #28a745;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 15px;
-            font-size: 12px;
-        }
-        .warning { color: #fd7e14; font-weight: bold; }
         @media (max-width: 768px) {
             th, td { padding: 10px; font-size: 12px; }
+            .btn { padding: 5px 10px; font-size: 11px; }
         }
     </style>
 </head>
@@ -92,58 +107,64 @@
         <a href="/">🏠 العودة للرئيسية</a>
     </div>
 
-    {% if users and users|length > 0 %}
-    <table>
-        <thead>
-            <tr>
-                <th>اسم المستخدم</th>
-                <th>الدور</th>
-                <th>عدد مرات الدخول</th>
-                <th>الحد الأقصى</th>
-                <th>المتبقي</th>
-                <th>إجراء</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user in users %}
-            <tr>
-                <td><strong>{{ user.username }}</strong></td>
-                <td>
-                    {% if user.role == 'admin' %}
-                        <span class="admin-badge">👑 مدير النظام</span>
-                    {% else %}
-                        <span class="user-badge">👨‍🏫 معلم</span>
-                    {% endif %}
-                </td>
-                <td>{{ user.login_count }}</td>
-                <td>{{ user.max_logins }}</td>
-                <td class="{% if user.remaining < 3 %}warning{% endif %}">
-                    {{ user.remaining }}
-                </td>
-                <td>
-                    {% if user.role != 'admin' %}
-                    <a href="/reset_logins/{{ user.username }}" class="btn" onclick="return confirm('هل أنت متأكد من إعادة تعيين عدد محاولات {{ user.username }}؟')">
-                        🔄 إعادة تعيين
-                    </a>
-                    {% else %}
-                    <span style="color:#999;">-</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div style="background:white; padding:40px; text-align:center; border-radius:15px;">
-        <p>⚠️ لا توجد بيانات مستخدمين لعرضها</p>
+    <div class="card">
+        {% if users and users|length > 0 %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم المستخدم</th>
+                        <th>الدور</th>
+                        <th>عدد مرات الدخول</th>
+                        <th>الحد الأقصى</th>
+                        <th>المتبقي</th>
+                        <th>إجراء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                                <span class="admin-badge">👑 مدير النظام</span>
+                            {% else %}
+                                <span class="user-badge">👨‍🏫 معلم</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.login_count }}</td>
+                        <td>{{ user.max_logins }}</td>
+                        <td class="{% if user.remaining != 'غير محدود' and user.remaining < 3 %}warning{% endif %}">
+                            {{ user.remaining }}
+                        </td>
+                        <td>
+                            {% if user.role != 'admin' %}
+                            <a href="/reset_logins/{{ user.username }}" class="btn" onclick="return confirm('هل أنت متأكد من إعادة تعيين عدد محاولات {{ user.username }}؟')">
+                                🔄 إعادة تعيين
+                            </a>
+                            {% else %}
+                            <span style="color:#999;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:50px;">
+            <p>⚠️ لا توجد بيانات مستخدمين لعرضها</p>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 
     <div class="nav-buttons">
         <a href="/">🏠 الرئيسية</a>
         <a href="/scan">📷 المسح</a>
         <a href="/general_reports">📊 التقارير</a>
         <a href="/charts">📈 الرسوم البيانية</a>
+        <a href="/class_reports">📋 تقارير الصف</a>
+        <a href="/qr_codes">📱 أكواد QR</a>
     </div>
 </div>
 </body>
