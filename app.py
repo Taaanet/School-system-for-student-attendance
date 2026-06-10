@@ -281,14 +281,14 @@ def license_required(f):
     """ديكورator لحماية الصفحات، يمنع الوصول إذا لم يكن الجهاز مرخصاً"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # السماح بالوصول إلى صفحات الترخيص والمصادقة
+        # السماح بالوصول إلى صفحات الترخيص والمصادقة (للمدير حتى لو لم يكن الجهاز مرخصاً)
         allowed_paths = [
             '/login', 
             '/logout',
             '/request_activation', 
             '/activate_device',
-            '/admin/licenses',
-            '/api/admin/',
+            '/admin',
+            '/api/admin',
             '/static/',
             '/test_supabase',
             '/health'
@@ -300,6 +300,7 @@ def license_required(f):
         if 'logged_in' not in session:
             return redirect(url_for('login'))
 
+        # التحقق من الترخيص
         if not check_device_license():
             try:
                 supabase.table("security_logs").insert({
@@ -309,6 +310,10 @@ def license_required(f):
                 }).execute()
             except:
                 pass
+            
+            # إذا كان المستخدم مديراً، نسمح له بالدخول حتى بدون ترخيص
+            if session.get('role') == 'admin':
+                return f(*args, **kwargs)
             return redirect(url_for('activation_required_page'))
         return f(*args, **kwargs)
     return decorated_function
@@ -1643,6 +1648,7 @@ if __name__ == "__main__":
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
     print("🔒 نظام حماية الأجهزة: مفعل")
+    print("👑 المدير يمكنه الدخول إلى إدارة التراخيص بدون تفعيل")
     print("")
     print("📱 الصفحات المتاحة:")
     print("   🏠 الرئيسية: /")
