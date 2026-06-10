@@ -23,6 +23,116 @@ from Crypto.Util.Padding import pad, unpad
 load_dotenv()
 
 app = Flask(__name__)
+# ============== تمرير اللغة إلى جميع القوالب تلقائياً ==============
+@app.context_processor
+def inject_language():
+    """يجعل متغير 'lang' متاحاً في جميع القوالب"""
+    lang = session.get('language', 'ar')
+    return dict(lang=lang)
+
+# قاموس الترجمة الكامل
+TRANSLATIONS = {
+    # القائمة الرئيسية
+    'home': {'ar': 'الرئيسية', 'en': 'Home'},
+    'scan': {'ar': 'تسجيل الحضور', 'en': 'Scan Attendance'},
+    'general_reports': {'ar': 'التقارير العامة', 'en': 'General Reports'},
+    'monthly_reports': {'ar': 'التقارير الشهرية', 'en': 'Monthly Reports'},
+    'charts': {'ar': 'الرسوم البيانية', 'en': 'Charts'},
+    'class_reports': {'ar': 'تقارير الصف والفصل', 'en': 'Class Reports'},
+    'qr_codes': {'ar': 'أكواد QR', 'en': 'QR Codes'},
+    'manage_students': {'ar': 'إدارة الطلاب', 'en': 'Manage Students'},
+    'backup': {'ar': 'نسخ احتياطي', 'en': 'Backup'},
+    'users': {'ar': 'المستخدمين', 'en': 'Users'},
+    'licenses': {'ar': 'إدارة التراخيص', 'en': 'Licenses'},
+    'logout': {'ar': 'خروج', 'en': 'Logout'},
+    
+    # الإحصائيات والبطاقات
+    'present_on_time': {'ar': 'حاضر في الوقت', 'en': 'Present On Time'},
+    'late': {'ar': 'متأخر', 'en': 'Late'},
+    'absent': {'ar': 'غائب', 'en': 'Absent'},
+    'total_students': {'ar': 'إجمالي الطلاب', 'en': 'Total Students'},
+    'attendance_percentage': {'ar': 'نسبة الحضور', 'en': 'Attendance Rate'},
+    'total_records': {'ar': 'إجمالي سجلات الحضور', 'en': 'Total Attendance Records'},
+    'best_day': {'ar': 'أفضل يوم في الشهر', 'en': 'Best Day of Month'},
+    'total_attendance': {'ar': 'إجمالي الحضور', 'en': 'Total Attendance'},
+    
+    # الأزرار والإجراءات
+    'print_pdf': {'ar': 'طباعة PDF', 'en': 'Print PDF'},
+    'export_excel': {'ar': 'تصدير Excel', 'en': 'Export Excel'},
+    'search': {'ar': 'بحث', 'en': 'Search'},
+    'add': {'ar': 'إضافة', 'en': 'Add'},
+    'edit': {'ar': 'تعديل', 'en': 'Edit'},
+    'delete': {'ar': 'حذف', 'en': 'Delete'},
+    'save': {'ar': 'حفظ', 'en': 'Save'},
+    'cancel': {'ar': 'إلغاء', 'en': 'Cancel'},
+    'refresh': {'ar': 'تحديث', 'en': 'Refresh'},
+    'filter': {'ar': 'تصفية', 'en': 'Filter'},
+    'show': {'ar': 'عرض', 'en': 'Show'},
+    'upload': {'ar': 'رفع', 'en': 'Upload'},
+    'download': {'ar': 'تحميل', 'en': 'Download'},
+    'install': {'ar': 'تثبيت', 'en': 'Install'},
+    'close': {'ar': 'إغلاق', 'en': 'Close'},
+    
+    # الرسائل
+    'loading': {'ar': 'جاري التحميل...', 'en': 'Loading...'},
+    'no_data': {'ar': 'لا توجد بيانات', 'en': 'No data available'},
+    'error': {'ar': 'حدث خطأ', 'en': 'Error occurred'},
+    'success': {'ar': 'تم بنجاح', 'en': 'Success'},
+    'confirm_delete': {'ar': 'هل أنت متأكد من الحذف؟', 'en': 'Are you sure you want to delete?'},
+    'no_internet': {'ar': 'لا يوجد اتصال بالإنترنت', 'en': 'No internet connection'},
+    'cached_data': {'ar': 'البيانات المخزنة محلياً', 'en': 'Cached data'},
+    
+    # أيام الأسبوع
+    'sunday': {'ar': 'الأحد', 'en': 'Sunday'},
+    'monday': {'ar': 'الإثنين', 'en': 'Monday'},
+    'tuesday': {'ar': 'الثلاثاء', 'en': 'Tuesday'},
+    'wednesday': {'ar': 'الأربعاء', 'en': 'Wednesday'},
+    'thursday': {'ar': 'الخميس', 'en': 'Thursday'},
+    'friday': {'ar': 'الجمعة', 'en': 'Friday'},
+    'saturday': {'ar': 'السبت', 'en': 'Saturday'},
+    
+    # أشهر السنة
+    'january': {'ar': 'يناير', 'en': 'January'},
+    'february': {'ar': 'فبراير', 'en': 'February'},
+    'march': {'ar': 'مارس', 'en': 'March'},
+    'april': {'ar': 'أبريل', 'en': 'April'},
+    'may': {'ar': 'مايو', 'en': 'May'},
+    'june': {'ar': 'يونيو', 'en': 'June'},
+    'july': {'ar': 'يوليو', 'en': 'July'},
+    'august': {'ar': 'أغسطس', 'en': 'August'},
+    'september': {'ar': 'سبتمبر', 'en': 'September'},
+    'october': {'ar': 'أكتوبر', 'en': 'October'},
+    'november': {'ar': 'نوفمبر', 'en': 'November'},
+    'december': {'ar': 'ديسمبر', 'en': 'December'},
+    
+    # عناوين الصفحات
+    'smart_attendance_system': {'ar': 'نظام حضور الطلاب الذكي', 'en': 'Smart Student Attendance System'},
+    'attendance_recording': {'ar': 'تسجيل الحضور', 'en': 'Attendance Recording'},
+    'quick_reports': {'ar': 'التقارير السريعة', 'en': 'Quick Reports'},
+    'advanced_statistics': {'ar': 'إحصائيات متقدمة', 'en': 'Advanced Statistics'},
+    'student_management': {'ar': 'إدارة الطلاب', 'en': 'Student Management'},
+    'system_backup': {'ar': 'النسخ الاحتياطي', 'en': 'System Backup'},
+    'user_management': {'ar': 'إدارة المستخدمين', 'en': 'User Management'},
+    'license_management': {'ar': 'إدارة التراخيص', 'en': 'License Management'},
+    
+    # الفوتر
+    'all_rights_reserved': {'ar': 'جميع الحقوق محفوظة', 'en': 'All Rights Reserved'},
+    'developed_by': {'ar': 'تم التطوير بواسطة', 'en': 'Developed by'},
+    'version': {'ar': 'الإصدار', 'en': 'Version'},
+    'integrated_system': {'ar': 'نظام متكامل للحضور والغياب مع تقارير متقدمة', 'en': 'Integrated attendance system with advanced reports'},
+    
+    # PWA
+    'install_app': {'ar': 'تثبيت التطبيق', 'en': 'Install App'},
+    'install_app_desc': {'ar': 'ثبّت التطبيق على جهازك للوصول السريع', 'en': 'Install app on your device for quick access'},
+}
+
+def t(key):
+    """دالة الترجمة - تستخدم في القوالب"""
+    lang = session.get('language', 'ar')
+    return TRANSLATIONS.get(key, {}).get(lang, key)
+
+# جعل دالة الترجمة متاحة في جميع القوالب
+app.jinja_env.globals.update(t=t)
 
 # ============== إعداد JSON للغة العربية ==============
 app.config['JSON_AS_ASCII'] = False
