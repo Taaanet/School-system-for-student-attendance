@@ -14,6 +14,7 @@ from io import BytesIO
 import base64
 import threading
 import time as time_module
+import hashlib
 
 load_dotenv()
 
@@ -195,20 +196,40 @@ def send_report_email(recipient, subject, body, attachment_path=None):
     except Exception as e:
         return False, str(e)
 
-# ============== إدارة المستخدمين ==============
+# ============== دوال تشفير كلمات المرور ==============
+def hash_password(password):
+    """تشفير كلمة المرور"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password, hashed):
+    """التحقق من كلمة المرور"""
+    return hash_password(password) == hashed
+
+# ============== إدارة المستخدمين المتقدمة ==============
 USERS_FILE = 'users.json'
 
 def load_users():
     try:
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                users = json.load(f)
+                # تحويل كلمات المرور القديمة إلى مشفرة
+                updated = False
+                for username, data in users.items():
+                    password = data.get('password', '')
+                    if password and not password.startswith('hash_') and len(password) < 50 and 'admin' not in password:
+                        # إذا كانت كلمة المرور غير مشفرة (قديمة)
+                        data['password'] = hash_password(password)
+                        updated = True
+                if updated:
+                    save_users(users)
+                return users
     except:
         pass
 
     default_users = {
-        'Taha_Mohamed': {'password': 'hetaonet0hros', 'role': 'admin', 'login_count': 0, 'max_logins': None},
-        'admin': {'password': 'admin123', 'role': 'user', 'login_count': 0, 'max_logins': 5}
+        'Taha_Mohamed': {'password': hash_password('hetaonet0hros'), 'role': 'admin', 'login_count': 0, 'max_logins': None},
+        'admin': {'password': hash_password('admin123'), 'role': 'user', 'login_count': 0, 'max_logins': 5}
     }
     save_users(default_users)
     return default_users
@@ -251,13 +272,11 @@ def get_remaining_logins(username):
     used = user.get('login_count', 0)
     
     try:
-        # تحويل max_logins إلى رقم
         if max_logins is None:
             max_logins = 5
         else:
             max_logins = int(max_logins)
         
-        # تحويل used إلى رقم
         if used is None:
             used = 0
         else:
@@ -268,6 +287,63 @@ def get_remaining_logins(username):
         
     except (ValueError, TypeError):
         return 0
+
+def create_user(username, password, role='user', max_logins=5):
+    """إنشاء مستخدم جديد"""
+    users = load_users()
+    
+    if username in users:
+        return False, "اسم المستخدم موجود بالفعل"
+    
+    users[username] = {
+        'password': hash_password(password),
+        'role': role,
+        'login_count': 0,
+        'max_logins': max_logins if role != 'admin' else None
+    }
+    
+    save_users(users)
+    return True, "تم إنشاء المستخدم بنجاح"
+
+def update_user(username, role=None, max_logins=None, password=None):
+    """تحديث بيانات المستخدم"""
+    users = load_users()
+    
+    if username not in users:
+        return False, "المستخدم غير موجود"
+    
+    if username == 'Taha_Mohamed':
+        return False, "لا يمكن تعديل حساب المدير الأساسي"
+    
+    if role:
+        users[username]['role'] = role
+        if role == 'admin':
+            users[username]['max_logins'] = None
+        elif max_logins:
+            users[username]['max_logins'] = max_logins
+    
+    if max_logins and users[username]['role'] != 'admin':
+        users[username]['max_logins'] = max_logins
+    
+    if password:
+        users[username]['password'] = hash_password(password)
+    
+    save_users(users)
+    return True, "تم تحديث المستخدم بنجاح"
+
+def delete_user(username):
+    """حذف مستخدم"""
+    users = load_users()
+    
+    if username == 'Taha_Mohamed':
+        return False, "لا يمكن حذف حساب المدير الأساسي"
+    
+    if username not in users:
+        return False, "المستخدم غير موجود"
+    
+    del users[username]
+    save_users(users)
+    return True, "تم حذف المستخدم بنجاح"
 
 def login_required(f):
     @wraps(f)
@@ -284,16 +360,21 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         users = load_users()
-        if username in users and users[username]['password'] == password:
-            can_login_flag, message = can_login(username)
-            if not can_login_flag:
-                return render_template('login.html', error=message)
-            increment_login_count(username)
-            session['logged_in'] = True
-            session['username'] = username
-            session['role'] = users[username]['role']
-            session['remaining_logins'] = get_remaining_logins(username)
-            return redirect(url_for('home'))
+        
+        if username in users:
+            stored_password = users[username]['password']
+            # التحقق من كلمة المرور (تدعم كلاً من المشفرة وغير المشفرة)
+            if stored_password == password or verify_password(password, stored_password):
+                can_login_flag, message = can_login(username)
+                if not can_login_flag:
+                    return render_template('login.html', error=message)
+                increment_login_count(username)
+                session['logged_in'] = True
+                session['username'] = username
+                session['role'] = users[username]['role']
+                session['remaining_logins'] = get_remaining_logins(username)
+                return redirect(url_for('home'))
+        
         return render_template('login.html', error="اسم المستخدم أو كلمة المرور غير صحيحة")
     return render_template('login.html')
 
@@ -316,7 +397,6 @@ def users_list():
             role = data.get('role', 'user')
             login_count = data.get('login_count', 0)
 
-            # تحويل login_count إلى رقم
             try:
                 login_count = int(login_count) if login_count else 0
             except:
@@ -365,6 +445,98 @@ def reset_logins(username):
         save_users(users)
         return jsonify({"success": True, "message": f"تم إعادة تعيين {username}"})
     return jsonify({"success": False, "message": "المستخدم غير موجود"})
+
+# ============== APIs إدارة المستخدمين المتقدمة ==============
+
+@app.route("/users_list_data")
+@login_required
+def users_list_data():
+    """API لجلب بيانات المستخدمين بتنسيق JSON"""
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"})
+    
+    users = load_users()
+    users_data = []
+    
+    for username, data in users.items():
+        role = data.get('role', 'user')
+        login_count = data.get('login_count', 0)
+        
+        try:
+            login_count = int(login_count) if login_count else 0
+        except:
+            login_count = 0
+        
+        if role == 'admin':
+            max_logins_display = "غير محدود"
+            remaining = "غير محدود"
+        else:
+            max_logins = data.get('max_logins', 5)
+            try:
+                max_logins = int(max_logins) if max_logins else 5
+            except:
+                max_logins = 5
+            max_logins_display = max_logins
+            remaining = max_logins - login_count
+            if remaining < 0:
+                remaining = 0
+        
+        users_data.append({
+            'username': username,
+            'role': role,
+            'login_count': login_count,
+            'max_logins': max_logins_display,
+            'remaining': remaining
+        })
+    
+    return jsonify({"success": True, "users": users_data})
+
+@app.route("/api/create_user", methods=["POST"])
+@login_required
+def api_create_user():
+    """إنشاء مستخدم جديد"""
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"})
+    
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    role = data.get('role', 'user')
+    max_logins = data.get('max_logins', 5)
+    
+    if not username or not password:
+        return jsonify({"success": False, "message": "الرجاء إدخال اسم المستخدم وكلمة المرور"})
+    
+    if len(password) < 4:
+        return jsonify({"success": False, "message": "كلمة المرور يجب أن تكون 4 أحرف على الأقل"})
+    
+    success, message = create_user(username, password, role, max_logins)
+    return jsonify({"success": success, "message": message})
+
+@app.route("/api/update_user/<username>", methods=["PUT"])
+@login_required
+def api_update_user(username):
+    """تحديث بيانات مستخدم"""
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"})
+    
+    data = request.get_json()
+    role = data.get('role')
+    max_logins = data.get('max_logins')
+    password = data.get('password')
+    
+    success, message = update_user(username, role, max_logins, password)
+    return jsonify({"success": success, "message": message})
+
+@app.route("/api/delete_user/<username>", methods=["DELETE"])
+@login_required
+def api_delete_user(username):
+    """حذف مستخدم"""
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"})
+    
+    success, message = delete_user(username)
+    return jsonify({"success": success, "message": message})
 
 # ============== الصفحات الرئيسية ==============
 @app.route("/")
