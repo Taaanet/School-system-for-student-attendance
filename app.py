@@ -215,16 +215,19 @@ def load_users():
                 users = json.load(f)
                 updated = False
                 for username, data in users.items():
-                    if 'max_logins' in data and isinstance(data['max_logins'], str):
-                        try:
-                            if data['max_logins'] == 'null' or data['max_logins'] == '':
-                                data['max_logins'] = None
-                            else:
-                                data['max_logins'] = int(data['max_logins'])
-                            updated = True
-                        except:
-                            data['max_logins'] = 5
-                            updated = True
+                    # إصلاح max_logins
+                    if 'max_logins' in data:
+                        if isinstance(data['max_logins'], str):
+                            try:
+                                if data['max_logins'] in ['null', '', 'None']:
+                                    data['max_logins'] = None
+                                else:
+                                    data['max_logins'] = int(data['max_logins'])
+                                updated = True
+                            except:
+                                data['max_logins'] = 5
+                                updated = True
+                    # إصلاح login_count
                     if 'login_count' in data and isinstance(data['login_count'], str):
                         try:
                             data['login_count'] = int(data['login_count'])
@@ -232,10 +235,6 @@ def load_users():
                         except:
                             data['login_count'] = 0
                             updated = True
-                    password = data.get('password', '')
-                    if password and not password.startswith('hash_') and len(password) < 50 and 'admin' not in password:
-                        data['password'] = hash_password(password)
-                        updated = True
                 if updated:
                     save_users(users)
                 return users
@@ -277,43 +276,33 @@ def get_remaining_logins(username):
     users = load_users()
     if username not in users:
         return 0
-    
     user = users[username]
     if user.get('role') == 'admin':
         return "غير محدود"
     
-    # الحصول على القيم مع تحويل آمن
     max_logins = user.get('max_logins', 5)
     used = user.get('login_count', 0)
     
-    # تحويل آمن
     try:
         # تحويل max_logins
-        if max_logins is None:
+        if max_logins is None or str(max_logins).lower() in ['null', 'none', '']:
             max_logins = 5
-        elif isinstance(max_logins, str):
-            try:
-                max_logins = int(float(max_logins))
-            except:
-                max_logins = 5
         else:
-            max_logins = int(max_logins)
+            max_logins = int(str(max_logins))
         
         # تحويل used
-        if used is None:
+        if used is None or str(used).lower() in ['null', 'none', '']:
             used = 0
-        elif isinstance(used, str):
-            try:
-                used = int(float(used))
-            except:
-                used = 0
         else:
-            used = int(used)
+            used = int(str(used))
         
         remaining = max_logins - used
-        return remaining if remaining > 0 else 0
+        if remaining < 0:
+            return 0
+        return remaining
     except:
         return 0
+
 def create_user(username, password, role='user', max_logins=5):
     """إنشاء مستخدم جديد"""
     users = load_users()
@@ -421,10 +410,10 @@ def users_list():
         for username, data in users.items():
             role = data.get('role', 'user')
             login_count = data.get('login_count', 0)
-
+            
             try:
-                login_count = int(login_count) if login_count else 0
-            except:
+                login_count = int(login_count) if login_count is not None else 0
+            except (ValueError, TypeError):
                 login_count = 0
 
             if role == 'admin':
@@ -433,9 +422,13 @@ def users_list():
             else:
                 max_logins = data.get('max_logins', 5)
                 try:
-                    max_logins = int(max_logins) if max_logins else 5
-                except:
+                    if max_logins is None or str(max_logins).lower() == 'null':
+                        max_logins = 5
+                    else:
+                        max_logins = int(str(max_logins))
+                except (ValueError, TypeError):
                     max_logins = 5
+                
                 max_logins_display = max_logins
                 remaining = max_logins - login_count
                 if remaining < 0:
@@ -838,7 +831,7 @@ def weekly_attendance():
 
     return jsonify({"success": True, "data": result})
 
-# ============== API التقارير الأساسية (مختصرة) ==============
+# ============== API التقارير الأساسية ==============
 @app.route("/api/students_list")
 @login_required
 def students_list():
