@@ -277,29 +277,43 @@ def get_remaining_logins(username):
     users = load_users()
     if username not in users:
         return 0
+    
     user = users[username]
     if user.get('role') == 'admin':
         return "غير محدود"
     
+    # الحصول على القيم مع تحويل آمن
     max_logins = user.get('max_logins', 5)
     used = user.get('login_count', 0)
     
+    # تحويل آمن
     try:
-        if max_logins is None or str(max_logins).lower() == 'null':
+        # تحويل max_logins
+        if max_logins is None:
             max_logins = 5
+        elif isinstance(max_logins, str):
+            try:
+                max_logins = int(float(max_logins))
+            except:
+                max_logins = 5
         else:
-            max_logins = int(str(max_logins))
+            max_logins = int(max_logins)
         
-        if used is None or str(used).lower() == 'null':
+        # تحويل used
+        if used is None:
             used = 0
+        elif isinstance(used, str):
+            try:
+                used = int(float(used))
+            except:
+                used = 0
         else:
-            used = int(str(used))
+            used = int(used)
         
         remaining = max_logins - used
         return remaining if remaining > 0 else 0
     except:
         return 0
-
 def create_user(username, password, role='user', max_logins=5):
     """إنشاء مستخدم جديد"""
     users = load_users()
