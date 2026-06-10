@@ -284,19 +284,40 @@ def logout():
 @app.route('/users_list')
 @login_required
 def users_list():
-    if session.get('role') != 'admin':
-        return redirect(url_for('home'))
-    users = load_users()
-    users_data = []
-    for username, data in users.items():
-        users_data.append({
-            'username': username,
-            'role': data['role'],
-            'login_count': data.get('login_count', 0),
-            'max_logins': data.get('max_logins', 'غير محدود') if data['role'] == 'admin' else data.get('max_logins', 5),
-            'remaining': get_remaining_logins(username)
-        })
-    return render_template('users_list.html', users=users_data)
+    try:
+        if session.get('role') != 'admin':
+            return redirect(url_for('home'))
+        
+        users = load_users()
+        users_data = []
+        
+        for username, data in users.items():
+            # التحقق من وجود البيانات المطلوبة
+            role = data.get('role', 'user')
+            login_count = data.get('login_count', 0)
+            max_logins = data.get('max_logins', 5)
+            
+            # حساب المتبقي
+            if role == 'admin':
+                remaining = "غير محدود"
+                max_logins_display = "غير محدود"
+            else:
+                remaining = get_remaining_logins(username)
+                max_logins_display = max_logins
+            
+            users_data.append({
+                'username': username,
+                'role': role,
+                'login_count': login_count,
+                'max_logins': max_logins_display,
+                'remaining': remaining
+            })
+        
+        return render_template('users_list.html', users=users_data)
+    
+    except Exception as e:
+        print(f"❌ خطأ في صفحة المستخدمين: {e}")
+        return f"<h1>خطأ في النظام</h1><p>الرجاء المحاولة لاحقاً</p><p>التفاصيل: {str(e)}</p>", 500
 
 @app.route('/reset_logins/<username>')
 @login_required
