@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}" lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>{% block title %}نظام حضور الطلاب{% endblock %}</title>
+    <title>{% block title %}{{ t('home') }} - {{ t('smart_attendance_system') }}{% endblock %}</title>
     
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#667eea">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="حضور الطلاب">
+    <meta name="apple-mobile-web-app-title" content="{{ t('smart_attendance_system') }}">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="نظام حضور الطلاب">
+    <meta name="application-name" content="{{ t('smart_attendance_system') }}">
     <meta name="msapplication-TileColor" content="#667eea">
     <meta name="msapplication-config" content="/static/browserconfig.xml">
     
@@ -32,6 +32,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            direction: {{ 'rtl' if lang == 'ar' else 'ltr' }};
         }
         .container { max-width: 1400px; margin: 0 auto; }
         
@@ -318,61 +319,61 @@
 
 <!-- Offline Indicator -->
 <div class="offline-indicator" id="offlineIndicator">
-    <i class="fas fa-wifi"></i> لا يوجد اتصال بالإنترنت - البيانات المخزنة محلياً
+    <i class="fas fa-wifi"></i> {{ t('no_internet') }} - {{ t('cached_data') }}
 </div>
 
 <!-- Install Prompt for PWA -->
 <div class="install-prompt" id="installPrompt">
     <div>
         <i class="fas fa-download"></i>
-        <strong>تثبيت التطبيق</strong><br>
-        <small>ثبّت التطبيق على جهازك للوصول السريع</small>
+        <strong>{{ t('install_app') }}</strong><br>
+        <small>{{ t('install_app_desc') }}</small>
     </div>
     <div>
-        <button id="installAppBtn"><i class="fas fa-download"></i> تثبيت</button>
-        <button id="closeInstallBtn" class="close-install"><i class="fas fa-times"></i> إغلاق</button>
+        <button id="installAppBtn"><i class="fas fa-download"></i> {{ t('install') }}</button>
+        <button id="closeInstallBtn" class="close-install"><i class="fas fa-times"></i> {{ t('close') }}</button>
     </div>
 </div>
 
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-graduation-cap"></i> نظام حضور الطلاب الذكي</h1>
+        <h1><i class="fas fa-graduation-cap"></i> {{ t('smart_attendance_system') }}</h1>
         <div class="user-info">
             <span class="user-name"><i class="fas fa-user-circle"></i> {{ session.get('username', 'Admin') }}</span>
             <span class="current-date" id="currentDate"></span>
             <a href="/api/set_language/ar" class="lang-btn"><i class="fas fa-language"></i> عربي</a>
             <a href="/api/set_language/en" class="lang-btn"><i class="fas fa-language"></i> English</a>
-            <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> خروج</a>
+            <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> {{ t('logout') }}</a>
         </div>
     </div>
 
     <div class="nav-buttons">
-        <a href="/" class="nav-btn nav-btn-primary"><i class="fas fa-home"></i> الرئيسية</a>
-        <a href="/scan" class="nav-btn nav-btn-success"><i class="fas fa-qrcode"></i> تسجيل الحضور</a>
-        <a href="/general_reports" class="nav-btn nav-btn-warning"><i class="fas fa-chart-line"></i> التقارير العامة</a>
-        <a href="/monthly_reports" class="nav-btn nav-btn-info"><i class="fas fa-calendar-alt"></i> التقارير الشهرية</a>
-        <a href="/charts" class="nav-btn nav-btn-info"><i class="fas fa-chart-pie"></i> الرسوم البيانية</a>
-        <a href="/class_reports" class="nav-btn nav-btn-info"><i class="fas fa-users"></i> تقارير الصف والفصل</a>
-        <a href="/qr_codes" class="nav-btn nav-btn-info"><i class="fas fa-qrcode"></i> أكواد QR</a>
-        <a href="/manage_students" class="nav-btn nav-btn-info"><i class="fas fa-user-graduate"></i> إدارة الطلاب</a>
+        <a href="/" class="nav-btn nav-btn-primary"><i class="fas fa-home"></i> {{ t('home') }}</a>
+        <a href="/scan" class="nav-btn nav-btn-success"><i class="fas fa-qrcode"></i> {{ t('scan') }}</a>
+        <a href="/general_reports" class="nav-btn nav-btn-warning"><i class="fas fa-chart-line"></i> {{ t('general_reports') }}</a>
+        <a href="/monthly_reports" class="nav-btn nav-btn-info"><i class="fas fa-calendar-alt"></i> {{ t('monthly_reports') }}</a>
+        <a href="/charts" class="nav-btn nav-btn-info"><i class="fas fa-chart-pie"></i> {{ t('charts') }}</a>
+        <a href="/class_reports" class="nav-btn nav-btn-info"><i class="fas fa-users"></i> {{ t('class_reports') }}</a>
+        <a href="/qr_codes" class="nav-btn nav-btn-info"><i class="fas fa-qrcode"></i> {{ t('qr_codes') }}</a>
+        <a href="/manage_students" class="nav-btn nav-btn-info"><i class="fas fa-user-graduate"></i> {{ t('manage_students') }}</a>
         {% if session.get('role') == 'admin' %}
-        <a href="/backup" class="nav-btn nav-btn-danger"><i class="fas fa-database"></i> نسخ احتياطي</a>
-        <a href="/users_list" class="nav-btn nav-btn-danger"><i class="fas fa-users-cog"></i> المستخدمين</a>
-        <a href="/admin/licenses" class="nav-btn nav-btn-danger"><i class="fas fa-key"></i> إدارة التراخيص</a>
+        <a href="/backup" class="nav-btn nav-btn-danger"><i class="fas fa-database"></i> {{ t('backup') }}</a>
+        <a href="/users_list" class="nav-btn nav-btn-danger"><i class="fas fa-users-cog"></i> {{ t('users') }}</a>
+        <a href="/admin/licenses" class="nav-btn nav-btn-danger"><i class="fas fa-key"></i> {{ t('licenses') }}</a>
         {% endif %}
     </div>
 
     {% block content %}{% endblock %}
 
     <div class="footer">
-        <div><i class="fas fa-school"></i> نظام الحضور الذكي | جميع الحقوق محفوظة © 2026</div>
+        <div><i class="fas fa-school"></i> {{ t('smart_attendance_system') }} | {{ t('all_rights_reserved') }} © 2026</div>
         <div style="margin-top: 10px;">
-            تم التطوير بواسطة <strong>Taha Mohamed</strong> <span class="heart">❤️</span>
+            {{ t('developed_by') }} <strong>Taha Mohamed</strong> <span class="heart">❤️</span>
             | <i class="fas fa-envelope"></i> <a href="mailto:taaanet@gmail.com">taaanet@gmail.com</a>
             | <i class="fas fa-phone"></i> <a href="tel:0554289816">0554289816</a>
         </div>
         <div style="font-size: 11px; margin-top: 8px; color: #718096;">
-            <i class="fas fa-chart-line"></i> الإصدار 5.0 | نظام متكامل للحضور والغياب مع تقارير متقدمة
+            <i class="fas fa-chart-line"></i> {{ t('version') }} 5.0 | {{ t('integrated_system') }}
         </div>
     </div>
 </div>
@@ -388,7 +389,6 @@
         e.preventDefault();
         deferredPrompt = e;
         
-        // إظهار زر التثبيت إذا لم يتم إغلاقه من قبل
         if (!localStorage.getItem('installPromptClosed')) {
             installPrompt.style.display = 'flex';
         }
@@ -511,8 +511,9 @@
         const now = new Date();
         const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
         const dateElement = document.getElementById('currentDate');
+        const lang = '{{ lang }}';
         if (dateElement) {
-            dateElement.innerHTML = '<i class="far fa-calendar-alt"></i> ' + now.toLocaleDateString('ar-SA', options);
+            dateElement.innerHTML = '<i class="far fa-calendar-alt"></i> ' + now.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', options);
         }
     }
     displayCurrentDate();
@@ -553,7 +554,7 @@
                     const data = await response.json();
                     const savedVersion = localStorage.getItem('appVersion');
                     if (savedVersion && savedVersion !== data.version) {
-                        if (confirm('📱 يوجد تحديث جديد للتطبيق! هل تريد تحديث الصفحة؟')) {
+                        if (confirm('📱 ' + (lang === 'ar' ? 'يوجد تحديث جديد للتطبيق! هل تريد تحديث الصفحة؟' : 'New update available! Do you want to refresh?'))) {
                             localStorage.setItem('appVersion', data.version);
                             window.location.reload();
                         }
