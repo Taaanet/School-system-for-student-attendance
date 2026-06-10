@@ -1,17 +1,6 @@
-google-credentials.json
-# ملفات Google API السرية
-credentials.json
-token.pickle
-
-# ملفات البيانات
-attendance.json
-users.json
-
-# ملفات مؤقتة
-__pycache__/
-*.pyc
-.env
-
-# ملفات التقارير
-*.xlsx
-!students.xlsx
+echo "users.json" >> .gitignore
+echo ".env" >> .gitignore
+echo "__pycache__/" >> .gitignore
+git add .gitignore
+git commit -m "إضافة .gitignore لحماية الملفات الحساسة"
+git push origin main
