@@ -15,6 +15,10 @@ import base64
 import threading
 import time as time_module
 import hashlib
+import platform
+import subprocess
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 
 load_dotenv()
 
@@ -205,6 +209,100 @@ def verify_password(password, hashed):
     """التحقق من كلمة المرور"""
     return hash_password(password) == hashed
 
+# ============== دوال الحماية والتشفير (Device Licensing) ==============
+SECRET_KEY_FOR_LICENSES = hashlib.sha256(b"Your-Super-Secret-Key-For-Licensing-2024-Taha").digest()
+
+def get_hardware_id():
+    """يُولد مُعرّفاً فريداً للجهاز بناءً على مكونات الهاردوير الأساسية"""
+    system = platform.system().lower()
+    unique_id_parts = []
+
+    try:
+        if system == "windows":
+            board_serial = subprocess.check_output("wmic baseboard get serialnumber", shell=True, text=True).strip().split("\n")[1].strip()
+            cpu_id = subprocess.check_output("wmic cpu get processorid", shell=True, text=True).strip().split("\n")[1].strip()
+            unique_id_parts = [board_serial, cpu_id]
+        else:
+            import uuid
+            unique_id_parts = [str(uuid.getnode())]
+    except Exception as e:
+        print(f"⚠️ فشل في قراءة معرف الجهاز: {e}")
+        import uuid
+        unique_id_parts = [str(uuid.uuid4())]
+
+    combined_string = "|".join(unique_id_parts)
+    hardware_hash = hashlib.sha256(combined_string.encode()).hexdigest()
+    return hardware_hash
+
+def encrypt_activation_code(hardware_id, expiration_date):
+    """تشفير معرف الجهاز وتاريخ انتهاء الصلاحية إلى رمز تفعيل"""
+    data = f"{hardware_id}|{expiration_date.isoformat()}"
+    cipher = AES.new(SECRET_KEY_FOR_LICENSES, AES.MODE_CBC)
+    ct_bytes = cipher.encrypt(pad(data.encode(), AES.block_size))
+    iv = base64.b64encode(cipher.iv).decode('utf-8')
+    ct = base64.b64encode(ct_bytes).decode('utf-8')
+    return f"{iv}${ct}"
+
+def decrypt_activation_code(activation_code):
+    """فك تشفير رمز التفعيل لاستخراج معرف الجهاز وتاريخ الانتهاء"""
+    try:
+        iv_b64, ct_b64 = activation_code.split('$')
+        iv = base64.b64decode(iv_b64)
+        ct = base64.b64decode(ct_b64)
+        cipher = AES.new(SECRET_KEY_FOR_LICENSES, AES.MODE_CBC, iv=iv)
+        pt = unpad(cipher.decrypt(ct), AES.block_size).decode()
+        hardware_id, expiration_date_str = pt.split('|')
+        return hardware_id, datetime.fromisoformat(expiration_date_str)
+    except Exception as e:
+        print(f"خطأ في فك تشفير رمز التفعيل: {e}")
+        return None, None
+
+def check_device_license():
+    """تتحقق مما إذا كان الجهاز الحالي مرخصاً لاستخدام التطبيق"""
+    current_hardware_id = get_hardware_id()
+    if not current_hardware_id:
+        return False
+
+    try:
+        result = supabase.table("device_licenses").select("expires_at").eq("hardware_id", current_hardware_id).execute()
+        if result.data:
+            expiry_date = datetime.fromisoformat(result.data[0]['expires_at'])
+            if expiry_date > datetime.now():
+                return True
+            else:
+                return False
+    except Exception as e:
+        print(f"⚠️ خطأ في الاتصال بقاعدة بيانات التراخيص: {e}")
+        return False
+
+    return False
+
+def license_required(f):
+    """ديكورator لحماية الصفحات، يمنع الوصول إذا لم يكن الجهاز مرخصاً"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # السماح بالوصول إلى صفحات الترخيص والثابتة
+        allowed_paths = ['/login', '/request_activation', '/activate_device', '/admin/licenses', '/api/admin/', '/static/', '/test_supabase', '/health']
+        for path in allowed_paths:
+            if request.path.startswith(path):
+                return f(*args, **kwargs)
+
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+
+        if not check_device_license():
+            try:
+                supabase.table("security_logs").insert({
+                    "hardware_id": get_hardware_id(),
+                    "ip_address": request.remote_addr,
+                    "attempted_path": request.path
+                }).execute()
+            except:
+                pass
+            return redirect(url_for('activation_required_page'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # ============== إدارة المستخدمين المتقدمة ==============
 USERS_FILE = 'users.json'
 
@@ -215,7 +313,6 @@ def load_users():
                 users = json.load(f)
                 updated = False
                 for username, data in users.items():
-                    # إصلاح max_logins
                     if 'max_logins' in data:
                         if isinstance(data['max_logins'], str):
                             try:
@@ -227,7 +324,6 @@ def load_users():
                             except:
                                 data['max_logins'] = 5
                                 updated = True
-                    # إصلاح login_count
                     if 'login_count' in data and isinstance(data['login_count'], str):
                         try:
                             data['login_count'] = int(data['login_count'])
@@ -284,13 +380,11 @@ def get_remaining_logins(username):
     used = user.get('login_count', 0)
     
     try:
-        # تحويل max_logins
         if max_logins is None or str(max_logins).lower() in ['null', 'none', '']:
             max_logins = 5
         else:
             max_logins = int(str(max_logins))
         
-        # تحويل used
         if used is None or str(used).lower() in ['null', 'none', '']:
             used = 0
         else:
@@ -310,7 +404,6 @@ def create_user(username, password, role='user', max_logins=5):
     if username in users:
         return False, "اسم المستخدم موجود بالفعل"
     
-    # التحقق من صحة الدور
     if role not in ['user', 'editor', 'admin']:
         role = 'user'
     
@@ -323,7 +416,6 @@ def create_user(username, password, role='user', max_logins=5):
     
     save_users(users)
     
-    # رسالة حسب الصلاحية
     role_names = {'user': 'معلم (قراءة فقط)', 'editor': 'محرر (إضافة وتعديل)', 'admin': 'مدير (كامل الصلاحيات)'}
     return True, f"تم إنشاء المستخدم {username} كـ {role_names[role]}"
 
@@ -404,7 +496,102 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-@app.route('/users_list')
+# ============== صفحات الترخيص والحماية ==============
+@app.route('/activation_required')
+def activation_required_page():
+    return render_template('activation_required.html')
+
+@app.route('/request_activation')
+def request_activation_page():
+    hardware_id = get_hardware_id()
+    return render_template('request_activation.html', hardware_id=hardware_id)
+
+@app.route('/activate_device', methods=['GET', 'POST'])
+def activate_device_page():
+    if request.method == 'POST':
+        activation_code = request.form.get('activation_code')
+        hardware_id, expiry_date = decrypt_activation_code(activation_code)
+        current_hardware_id = get_hardware_id()
+
+        if not hardware_id or not expiry_date:
+            return render_template('activate_device.html', error="رمز التفعيل غير صالح.")
+
+        if hardware_id != current_hardware_id:
+            return render_template('activate_device.html', error="هذا الرمز مخصص لجهاز آخر. يرجى مراجعة مدير النظام.")
+
+        if expiry_date < datetime.now():
+            return render_template('activate_device.html', error="هذا الرمز منتهي الصلاحية.")
+
+        try:
+            supabase.table("device_licenses").upsert({
+                "hardware_id": hardware_id,
+                "activation_code": activation_code,
+                "expires_at": expiry_date.isoformat()
+            }, on_conflict="hardware_id").execute()
+            return render_template('activate_device.html', success="تم تفعيل الجهاز بنجاح!")
+        except Exception as e:
+            return render_template('activate_device.html', error=f"حدث خطأ في قاعدة البيانات: {e}")
+
+    return render_template('activate_device.html')
+
+@app.route('/admin/licenses')
+@login_required
+def admin_licenses_page():
+    if session.get('role') != 'admin':
+        return redirect(url_for('home'))
+    try:
+        result = supabase.table("device_licenses").select("*").order("created_at", desc=True).execute()
+        licenses = result.data
+    except Exception as e:
+        licenses = []
+    return render_template('admin_licenses.html', licenses=licenses)
+
+@app.route('/api/admin/create_license', methods=['POST'])
+@login_required
+def create_license_api():
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    hardware_id = request.form.get('hardware_id')
+    validity_days = int(request.form.get('validity_days', 365))
+
+    if not hardware_id:
+        return "معرف الجهاز مطلوب.", 400
+
+    expiry_date = datetime.now() + timedelta(days=validity_days)
+    activation_code = encrypt_activation_code(hardware_id, expiry_date)
+
+    try:
+        supabase.table("device_licenses").insert({
+            "hardware_id": hardware_id,
+            "activation_code": activation_code,
+            "expires_at": expiry_date.isoformat(),
+            "created_by": session.get('username')
+        }).execute()
+        return render_template('admin_licenses_result.html', activation_code=activation_code, hardware_id=hardware_id, expiry_date=expiry_date)
+    except Exception as e:
+        return f"حدث خطأ أثناء حفظ الترخيص: {e}", 500
+
+@app.route('/api/admin/revoke_license/<int:license_id>')
+@login_required
+def revoke_license(license_id):
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    try:
+        supabase.table("device_licenses").delete().eq("id", license_id).execute()
+        return redirect(url_for('admin_licenses_page'))
+    except Exception as e:
+        return f"حدث خطأ أثناء إلغاء الترخيص: {e}", 500
+
+@app.route('/api/admin/check_license')
+@login_required
+def check_license_api():
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    is_licensed = check_device_license()
+    return jsonify({"success": True, "is_licensed": is_licensed, "hardware_id": get_hardware_id()})
+
+# ============== APIs إدارة المستخدمين المتقدمة ==============
+@app.route("/users_list")
 @login_required
 def users_list():
     try:
@@ -468,16 +655,12 @@ def reset_logins(username):
             return jsonify({"success": False, "message": "لا يمكن إعادة تعيين مدير النظام"})
         users[username]['login_count'] = 0
         save_users(users)
-        # إعادة توجيه إلى صفحة المستخدمين بدلاً من عرض JSON
         return redirect(url_for('users_list'))
     return jsonify({"success": False, "message": "المستخدم غير موجود"})
-
-# ============== APIs إدارة المستخدمين المتقدمة ==============
 
 @app.route("/api/users")
 @login_required
 def api_users():
-    """API لجلب بيانات المستخدمين بتنسيق JSON مع صلاحيات"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
     
@@ -562,11 +745,9 @@ def api_delete_user(username):
     return jsonify({"success": success, "message": message})
 
 # ============== API إدارة الطلاب ==============
-
 @app.route("/api/create_student", methods=["POST"])
-@login_required
+@license_required
 def api_create_student():
-    """إنشاء طالب جديد"""
     if session.get('role') not in ['admin', 'editor']:
         return jsonify({"success": False, "message": "غير مصرح - ليس لديك صلاحية الإضافة"})
     
@@ -581,7 +762,6 @@ def api_create_student():
     if not student_id or not name:
         return jsonify({"success": False, "message": "الرجاء إدخال رقم الطالب واسمه"})
     
-    # التحقق من عدم وجود الطالب مسبقاً
     existing = supabase.table("students").select("*").eq("student_id", student_id).execute()
     if existing.data:
         return jsonify({"success": False, "message": f"الطالب رقم {student_id} موجود بالفعل"})
@@ -602,9 +782,8 @@ def api_create_student():
         return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/update_student/<student_id>", methods=["PUT"])
-@login_required
+@license_required
 def api_update_student(student_id):
-    """تحديث بيانات طالب"""
     if session.get('role') not in ['admin', 'editor']:
         return jsonify({"success": False, "message": "غير مصرح - ليس لديك صلاحية التعديل"})
     
@@ -632,89 +811,85 @@ def api_update_student(student_id):
         return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/delete_student/<student_id>", methods=["DELETE"])
-@login_required
+@license_required
 def api_delete_student(student_id):
-    """حذف طالب وجميع سجلات حضوره"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح - ليس لديك صلاحية الحذف"})
     
     try:
-        # حذف سجلات الحضور أولاً
         supabase.table("attendance").delete().eq("student_id", student_id).execute()
-        # ثم حذف الطالب
         supabase.table("students").delete().eq("student_id", student_id).execute()
         return jsonify({"success": True, "message": f"تم حذف الطالب رقم {student_id} وجميع سجلات حضوره"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-# ============== الصفحات الرئيسية ==============
+# ============== الصفحات الرئيسية (محمية بالترخيص) ==============
 @app.route("/")
-@login_required
+@license_required
 def home():
     return render_template("index.html")
 
 @app.route("/scan")
-@login_required
+@license_required
 def scan():
     return render_template("scan.html")
 
 @app.route("/general_reports")
-@login_required
+@license_required
 def general_reports():
     return render_template("general_reports.html")
 
 @app.route("/monthly_reports")
-@login_required
+@license_required
 def monthly_reports_page():
     return render_template("monthly_reports.html")
 
 @app.route("/charts")
-@login_required
+@license_required
 def charts_page():
     return render_template("charts.html")
 
 @app.route("/class_reports")
-@login_required
+@license_required
 def class_reports():
     return render_template("class_reports.html")
 
 @app.route("/qr_codes")
-@login_required
+@license_required
 def qr_codes_page():
     return render_template("qr_codes.html")
 
 @app.route("/backup")
-@login_required
+@license_required
 def backup_page():
     if session.get('role') != 'admin':
         return redirect(url_for('home'))
     return render_template("backup.html")
 
 @app.route("/manage_students")
-@login_required
+@license_required
 def manage_students():
-    """صفحة إدارة الطلاب"""
     return render_template("manage_students.html")
 
 # ============== إعادة توجيه الصفحات القديمة ==============
 @app.route("/reports")
-@login_required
+@license_required
 def reports_redirect():
     return redirect(url_for('general_reports'))
 
 @app.route("/dashboard")
-@login_required
+@license_required
 def dashboard_redirect():
     return redirect(url_for('charts'))
 
 @app.route("/reports_dashboard")
-@login_required
+@license_required
 def reports_dashboard_redirect():
     return redirect(url_for('general_reports'))
 
 # ============== تبديل اللغة ==============
 @app.route("/api/set_language/<lang>")
-@login_required
+@license_required
 def set_language_route(lang):
     if lang in ['ar', 'en']:
         session['language'] = lang
@@ -722,7 +897,7 @@ def set_language_route(lang):
 
 # ============== API تسجيل الحضور ==============
 @app.route("/api/register", methods=["POST"])
-@login_required
+@license_required
 def register_attendance():
     try:
         can_register, error_message = can_register_attendance()
@@ -790,7 +965,7 @@ def register_attendance():
 
 # ============== API أكواد QR ==============
 @app.route("/api/student_qr/<student_id>")
-@login_required
+@license_required
 def student_qr(student_id):
     students = get_live_students()
     student = next((s for s in students if s.get('student_id') == student_id), None)
@@ -807,7 +982,7 @@ def student_qr(student_id):
     })
 
 @app.route("/api/all_students_qr")
-@login_required
+@license_required
 def all_students_qr():
     students = get_live_students()
     qr_codes = []
@@ -824,7 +999,7 @@ def all_students_qr():
 
 # ============== API النسخ الاحتياطي ==============
 @app.route("/api/create_backup")
-@login_required
+@license_required
 def manual_backup():
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
@@ -833,7 +1008,7 @@ def manual_backup():
     return jsonify({"success": success, "message": message})
 
 @app.route("/api/list_backups")
-@login_required
+@license_required
 def list_backups():
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
@@ -857,7 +1032,7 @@ def list_backups():
     return jsonify({"success": True, "backups": files})
 
 @app.route("/api/download_backup/<filename>")
-@login_required
+@license_required
 def download_backup(filename):
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
@@ -869,7 +1044,7 @@ def download_backup(filename):
 
 # ============== API الرسوم البيانية ==============
 @app.route("/api/attendance_trend")
-@login_required
+@license_required
 def attendance_trend():
     year = int(request.args.get('year', get_saudi_time().year))
     attendance = get_live_attendance()
@@ -899,7 +1074,7 @@ def attendance_trend():
     })
 
 @app.route("/api/weekly_attendance")
-@login_required
+@license_required
 def weekly_attendance():
     attendance = get_live_attendance()
     weekdays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس']
@@ -934,7 +1109,7 @@ def weekly_attendance():
 
 # ============== API التقارير الأساسية ==============
 @app.route("/api/students_list")
-@login_required
+@license_required
 def students_list():
     students = get_live_students()
     response = make_response(jsonify({"success": True, "data": students}))
@@ -942,7 +1117,7 @@ def students_list():
     return response
 
 @app.route("/api/attendance_summary")
-@login_required
+@license_required
 def attendance_summary():
     today = get_saudi_time().strftime("%Y-%m-%d")
     students = get_live_students()
@@ -968,7 +1143,7 @@ def attendance_summary():
     return response
 
 @app.route("/api/attendance_details/<date>")
-@login_required
+@license_required
 def attendance_details(date):
     students = get_live_students()
     attendance = get_live_attendance()
@@ -993,7 +1168,7 @@ def attendance_details(date):
     return response
 
 @app.route("/api/absent_students_today")
-@login_required
+@license_required
 def absent_students_today():
     today = get_saudi_time().strftime("%Y-%m-%d")
     students = get_live_students()
@@ -1006,7 +1181,7 @@ def absent_students_today():
     return response
 
 @app.route("/api/top_students")
-@login_required
+@license_required
 def top_students():
     attendance = get_live_attendance()
     counts = {}
@@ -1020,7 +1195,7 @@ def top_students():
     return response
 
 @app.route("/api/student_report/<student_id>")
-@login_required
+@license_required
 def student_report(student_id):
     students = get_live_students()
     student = next((s for s in students if s.get('student_id') == student_id), None)
@@ -1044,7 +1219,7 @@ def student_report(student_id):
 
 # ============== التقارير الشهرية ==============
 @app.route("/api/monthly_report")
-@login_required
+@license_required
 def monthly_report():
     year = int(request.args.get('year', get_saudi_time().year))
     month = int(request.args.get('month', get_saudi_time().month))
@@ -1116,7 +1291,7 @@ def monthly_report():
     return response
 
 @app.route("/api/student_monthly_report/<student_id>")
-@login_required
+@license_required
 def student_monthly_report(student_id):
     year = int(request.args.get('year', get_saudi_time().year))
     month = int(request.args.get('month', get_saudi_time().month))
@@ -1182,7 +1357,7 @@ def student_monthly_report(student_id):
     return response
 
 @app.route("/api/comparative_monthly_report")
-@login_required
+@license_required
 def comparative_monthly_report():
     year = int(request.args.get('year', get_saudi_time().year))
     months = request.args.get('months', '1,2,3,4,5,6,7,8,9,10,11,12')
@@ -1226,7 +1401,7 @@ def comparative_monthly_report():
 
 # ============== API التقارير الأخرى ==============
 @app.route("/api/attendance_chart")
-@login_required
+@license_required
 def attendance_chart():
     today = get_saudi_time().strftime("%Y-%m-%d")
     students = get_live_students()
@@ -1246,7 +1421,7 @@ def attendance_chart():
     return response
 
 @app.route("/api/dashboard_stats")
-@login_required
+@license_required
 def dashboard_stats():
     today = get_saudi_time().strftime("%Y-%m-%d")
     students = get_live_students()
@@ -1274,7 +1449,7 @@ def dashboard_stats():
 
 # ============== APIs التصدير ==============
 @app.route("/api/export_today_excel")
-@login_required
+@license_required
 def export_today_excel():
     today = get_saudi_time().strftime("%Y-%m-%d")
     filename = f"attendance_{today}.xlsx"
@@ -1301,7 +1476,7 @@ def export_today_excel():
     return send_file(filename, as_attachment=True)
 
 @app.route("/api/export_attendance/<date>")
-@login_required
+@license_required
 def export_attendance(date):
     filename = f"attendance_{date}.xlsx"
     students = get_live_students()
@@ -1327,7 +1502,7 @@ def export_attendance(date):
     return send_file(filename, as_attachment=True)
 
 @app.route("/api/export_student_excel/<student_id>")
-@login_required
+@license_required
 def export_student_excel(student_id):
     students = get_live_students()
     student = next((s for s in students if s.get('student_id') == student_id), None)
@@ -1345,7 +1520,7 @@ def export_student_excel(student_id):
 
 # ============== APIs إدارة البيانات ==============
 @app.route("/api/upload_local_students")
-@login_required
+@license_required
 def upload_local_students():
     try:
         if os.path.exists("students.csv"):
@@ -1374,7 +1549,7 @@ def upload_local_students():
         return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/refresh_all")
-@login_required
+@license_required
 def refresh_all():
     students = get_live_students()
     attendance = get_live_attendance()
@@ -1385,7 +1560,7 @@ def refresh_all():
     })
 
 @app.route("/api/direct_test")
-@login_required
+@license_required
 def direct_test():
     try:
         result = supabase.table("attendance").select("*").limit(10).execute()
@@ -1394,7 +1569,7 @@ def direct_test():
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/api/clear_attendance")
-@login_required
+@license_required
 def clear_attendance():
     try:
         supabase.table("attendance").delete().neq("student_id", "").execute()
@@ -1403,7 +1578,7 @@ def clear_attendance():
         return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/stats")
-@login_required
+@license_required
 def stats():
     students = get_live_students()
     attendance = get_live_attendance()
@@ -1415,7 +1590,7 @@ def stats():
     })
 
 @app.route("/api/saudi_time")
-@login_required
+@license_required
 def saudi_time():
     now = get_saudi_time()
     return jsonify({
@@ -1457,6 +1632,7 @@ if __name__ == "__main__":
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
+    print("🔒 نظام حماية الأجهزة: مفعل")
     print("")
     print("📱 الصفحات المتاحة:")
     print("   🏠 الرئيسية: /")
@@ -1469,5 +1645,6 @@ if __name__ == "__main__":
     print("   💾 النسخ الاحتياطي: /backup")
     print("   👥 المستخدمين: /users_list")
     print("   📚 إدارة الطلاب: /manage_students")
+    print("   🔑 إدارة التراخيص: /admin/licenses")
     print("=" * 60)
     app.run(host='0.0.0.0', port=port, debug=False)
