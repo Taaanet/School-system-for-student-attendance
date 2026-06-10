@@ -1694,6 +1694,12 @@ def test_attendance():
 def health():
     return {"status": "ok", "database": "supabase"}
 
+# ============== صفحة عدم الاتصال (PWA Offline) ==============
+@app.route('/offline')
+def offline_page():
+    """صفحة تظهر عند عدم وجود اتصال بالإنترنت"""
+    return render_template('offline.html')
+
 # ============== تشغيل النسخ الاحتياطي التلقائي في الخلفية ==============
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
 backup_thread.start()
@@ -1724,5 +1730,6 @@ if __name__ == "__main__":
     print("   👥 المستخدمين: /users_list")
     print("   📚 إدارة الطلاب: /manage_students")
     print("   🔑 إدارة التراخيص: /admin/licenses")
+    print("   📡 صفحة عدم الاتصال: /offline")
     print("=" * 60)
     app.run(host='0.0.0.0', port=port, debug=False)
