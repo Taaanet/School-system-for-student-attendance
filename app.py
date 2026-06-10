@@ -213,12 +213,31 @@ def load_users():
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
                 users = json.load(f)
-                # تحويل كلمات المرور القديمة إلى مشفرة
+                # إصلاح تلقائي لأنواع البيانات
                 updated = False
                 for username, data in users.items():
+                    # إصلاح max_logins إذا كان نصاً
+                    if 'max_logins' in data and isinstance(data['max_logins'], str):
+                        try:
+                            if data['max_logins'] == 'null' or data['max_logins'] == '':
+                                data['max_logins'] = None
+                            else:
+                                data['max_logins'] = int(data['max_logins'])
+                            updated = True
+                        except:
+                            data['max_logins'] = 5
+                            updated = True
+                    # إصلاح login_count إذا كان نصاً
+                    if 'login_count' in data and isinstance(data['login_count'], str):
+                        try:
+                            data['login_count'] = int(data['login_count'])
+                            updated = True
+                        except:
+                            data['login_count'] = 0
+                            updated = True
+                    # تحويل كلمات المرور القديمة إلى مشفرة
                     password = data.get('password', '')
                     if password and not password.startswith('hash_') and len(password) < 50 and 'admin' not in password:
-                        # إذا كانت كلمة المرور غير مشفرة (قديمة)
                         data['password'] = hash_password(password)
                         updated = True
                 if updated:
@@ -363,7 +382,6 @@ def login():
         
         if username in users:
             stored_password = users[username]['password']
-            # التحقق من كلمة المرور (تدعم كلاً من المشفرة وغير المشفرة)
             if stored_password == password or verify_password(password, stored_password):
                 can_login_flag, message = can_login(username)
                 if not can_login_flag:
@@ -552,31 +570,26 @@ def scan():
 @app.route("/general_reports")
 @login_required
 def general_reports():
-    """التقارير العامة (يومي - بتاريخ - طالب)"""
     return render_template("general_reports.html")
 
 @app.route("/monthly_reports")
 @login_required
 def monthly_reports_page():
-    """التقارير الشهرية المتقدمة"""
     return render_template("monthly_reports.html")
 
 @app.route("/charts")
 @login_required
 def charts_page():
-    """الرسوم البيانية المتقدمة"""
     return render_template("charts.html")
 
 @app.route("/class_reports")
 @login_required
 def class_reports():
-    """تقارير الصف والفصل"""
     return render_template("class_reports.html")
 
 @app.route("/qr_codes")
 @login_required
 def qr_codes_page():
-    """أكواد QR للطلاب"""
     return render_template("qr_codes.html")
 
 @app.route("/backup")
