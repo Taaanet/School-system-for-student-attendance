@@ -1,0 +1,14 @@
+{
+  "Taha_Mohamed": {
+    "password": "hetaonet0hros",
+    "role": "admin",
+    "login_count": 0,
+    "max_logins": null
+  },
+  "admin": {
+    "password": "admin123",
+    "role": "user",
+    "login_count": 0,
+    "max_logins": 5
+  }
+}
