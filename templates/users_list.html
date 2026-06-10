@@ -92,6 +92,7 @@
         <a href="/">🏠 العودة للرئيسية</a>
     </div>
 
+    {% if users and users|length > 0 %}
     <table>
         <thead>
             <tr>
@@ -132,12 +133,17 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <div style="background:white; padding:40px; text-align:center; border-radius:15px;">
+        <p>⚠️ لا توجد بيانات مستخدمين لعرضها</p>
+    </div>
+    {% endif %}
 
     <div class="nav-buttons">
         <a href="/">🏠 الرئيسية</a>
         <a href="/scan">📷 المسح</a>
-        <a href="/reports">📊 التقارير</a>
-        <a href="/dashboard">📈 لوحة التحكم</a>
+        <a href="/general_reports">📊 التقارير</a>
+        <a href="/charts">📈 الرسوم البيانية</a>
     </div>
 </div>
 </body>
