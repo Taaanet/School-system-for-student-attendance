@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الطلاب - نظام حضور الطلاب</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .header h1 { color: #2d3748; font-size: 24px; }
+        .header a {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .form-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-group input, .form-group select {
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+        .form-group button {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+        }
+        .search-box button {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td {
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        tr:hover { background: #f7fafc; }
+        
+        .btn-edit { background: #ed8936; color: white; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; margin: 2px; }
+        .btn-delete { background: #e53e3e; color: white; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; margin: 2px; }
+        .btn-refresh { background: #4299e1; color: white; padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .modal-content h3 { margin-bottom: 20px; }
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .btn-save { background: #48bb78; color: white; }
+        .btn-cancel { background: #a0aec0; color: white; }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .alert-success { background: #c6f6d5; color: #22543d; }
+        .alert-error { background: #fed7d7; color: #742a2a; }
+        
+        .nav-buttons {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .nav-buttons a {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 5px;
+            display: inline-block;
+        }
+        
+        .stats-info {
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        
+        @media (max-width: 768px) {
+            .form-group { flex-direction: column; }
+            .form-group input, .form-group select, .form-group button { width: 100%; }
+            th, td { padding: 8px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-user-graduate"></i> إدارة الطلاب</h1>
+        <a href="/"><i class="fas fa-home"></i> العودة للرئيسية</a>
+    </div>
+
+    <div id="alert" class="alert"></div>
+
+    <!-- إحصائيات -->
+    <div class="stats-info">
+        <div><i class="fas fa-users"></i> <strong id="totalStudents">0</strong> طالب</div>
+        <div><i class="fas fa-school"></i> الصفوف: الأول - الثاني - الثالث الثانوي</div>
+        <div><i class="fas fa-layer-group"></i> الشعب: 1 - 2 - 3 - 4 - 5 - 6</div>
+    </div>
+
+    <!-- نموذج إضافة طالب -->
+    <div class="card">
+        <h3><i class="fas fa-user-plus"></i> إضافة طالب جديد</h3>
+        <div class="form-group">
+            <input type="text" id="newStudentId" placeholder="رقم الطالب *">
+            <input type="text" id="newStudentName" placeholder="اسم الطالب *">
+            <select id="newStudentGrade">
+                <option value="الأول الثانوي">الأول الثانوي</option>
+                <option value="الثاني الثانوي">الثاني الثانوي</option>
+                <option value="الثالث الثانوي">الثالث الثانوي</option>
+            </select>
+            <select id="newStudentClass">
+                <option value="1">الشعبة 1</option><option value="2">الشعبة 2</option><option value="3">الشعبة 3</option>
+                <option value="4">الشعبة 4</option><option value="5">الشعبة 5</option><option value="6">الشعبة 6</option>
+            </select>
+            <input type="text" id="newStudentPhone" placeholder="رقم الجوال (اختياري)">
+            <input type="text" id="newStudentParentPhone" placeholder="رقم ولي الأمر (اختياري)">
+            <button onclick="createStudent()"><i class="fas fa-plus"></i> إضافة طالب</button>
+        </div>
+    </div>
+
+    <!-- بحث وتصفية -->
+    <div class="card">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 بحث بالاسم أو رقم الطالب...">
+            <select id="filterGrade">
+                <option value="">جميع الصفوف</option>
+                <option value="الأول الثانوي">الأول الثانوي</option>
+                <option value="الثاني الثانوي">الثاني الثانوي</option>
+                <option value="الثالث الثانوي">الثالث الثانوي</option>
+            </select>
+            <select id="filterClass">
+                <option value="">جميع الشعب</option>
+                <option value="1">الشعبة 1</option><option value="2">الشعبة 2</option>
+                <option value="3">الشعبة 3</option><option value="4">الشعبة 4</option>
+                <option value="5">الشعبة 5</option><option value="6">الشعبة 6</option>
+            </select>
+            <button onclick="loadStudents()"><i class="fas fa-search"></i> بحث</button>
+            <button onclick="refreshStudents()" style="background:#48bb78;"><i class="fas fa-sync-alt"></i> تحديث</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>رقم الطالب</th>
+                        <th>اسم الطالب</th>
+                        <th>الصف</th>
+                        <th>الشعبة</th>
+                        <th>الجوال</th>
+                        <th>ولي الأمر</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsTableBody">
+                    <tr><td colspan="8" style="text-align:center;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="nav-buttons">
+        <a href="/"><i class="fas fa-home"></i> الرئيسية</a>
+        <a href="/scan"><i class="fas fa-qrcode"></i> تسجيل الحضور</a>
+        <a href="/general_reports"><i class="fas fa-chart-line"></i> التقارير</a>
+        <a href="/users_list"><i class="fas fa-users-cog"></i> المستخدمين</a>
+    </div>
+</div>
+
+<!-- مودال تعديل الطالب -->
+<div id="editStudentModal" class="modal">
+    <div class="modal-content">
+        <h3><i class="fas fa-edit"></i> تعديل بيانات الطالب</h3>
+        <input type="hidden" id="editStudentId">
+        <input type="text" id="editStudentName" placeholder="اسم الطالب">
+        <select id="editStudentGrade">
+            <option value="الأول الثانوي">الأول الثانوي</option>
+            <option value="الثاني الثانوي">الثاني الثانوي</option>
+            <option value="الثالث الثانوي">الثالث الثانوي</option>
+        </select>
+        <select id="editStudentClass">
+            <option value="1">الشعبة 1</option><option value="2">الشعبة 2</option>
+            <option value="3">الشعبة 3</option><option value="4">الشعبة 4</option>
+            <option value="5">الشعبة 5</option><option value="6">الشعبة 6</option>
+        </select>
+        <input type="text" id="editStudentPhone" placeholder="رقم الجوال">
+        <input type="text" id="editStudentParentPhone" placeholder="رقم ولي الأمر">
+        <div class="modal-buttons">
+            <button class="btn-save" onclick="updateStudent()"><i class="fas fa-save"></i> حفظ</button>
+            <button class="btn-cancel" onclick="closeStudentModal()"><i class="fas fa-times"></i> إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allStudents = [];
+    let currentUserRole = '{{ session.get("role", "user") }}';
+
+    function showAlert(message, type) {
+        const alertDiv = document.getElementById('alert');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.innerHTML = type === 'success' ? `✅ ${message}` : `❌ ${message}`;
+        alertDiv.style.display = 'block';
+        setTimeout(() => { alertDiv.style.display = 'none'; }, 3000);
+    }
+
+    async function loadStudents() {
+        try {
+            const response = await fetch('/api/students_list');
+            const data = await response.json();
+            if (data.success) {
+                allStudents = data.data;
+                document.getElementById('totalStudents').innerHTML = allStudents.length;
+                filterAndDisplay();
+            }
+        } catch(e) {
+            document.getElementById('studentsTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;">❌ حدث خطأ في التحميل</td></tr>';
+        }
+    }
+
+    function filterAndDisplay() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const filterGrade = document.getElementById('filterGrade').value;
+        const filterClass = document.getElementById('filterClass').value;
+        
+        let filtered = allStudents;
+        
+        if (search) {
+            filtered = filtered.filter(s => 
+                s.name.toLowerCase().includes(search) || 
+                s.student_id.includes(search)
+            );
+        }
+        if (filterGrade) {
+            filtered = filtered.filter(s => s.grade === filterGrade);
+        }
+        if (filterClass) {
+            filtered = filtered.filter(s => s.class === filterClass);
+        }
+        
+        displayStudents(filtered);
+    }
+
+    function displayStudents(students) {
+        const tbody = document.getElementById('studentsTableBody');
+        if (!students || students.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">⚠️ لا توجد بيانات للعرض</td></tr>';
+            return;
+        }
+        
+        const canEdit = currentUserRole === 'admin' || currentUserRole === 'editor';
+        const canDelete = currentUserRole === 'admin';
+        
+        tbody.innerHTML = students.map((s, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td>${s.student_id}</td>
+                <td><strong>${s.name}</strong></td>
+                <td>${s.grade}</td>
+                <td>${s.class}</td>
+                <td>${s.phone || '-'}</td>
+                <td>${s.parent_phone || '-'}</td>
+                <td>
+                    ${canEdit ? `<button class="btn-edit" onclick="openEditStudentModal('${s.student_id}')"><i class="fas fa-edit"></i> تعديل</button>` : ''}
+                    ${canDelete ? `<button class="btn-delete" onclick="deleteStudent('${s.student_id}')"><i class="fas fa-trash"></i> حذف</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function createStudent() {
+        if (currentUserRole === 'user') {
+            showAlert('ليس لديك صلاحية لإضافة طلاب', 'error');
+            return;
+        }
+        
+        const student_id = document.getElementById('newStudentId').value.trim();
+        const name = document.getElementById('newStudentName').value.trim();
+        const grade = document.getElementById('newStudentGrade').value;
+        const classVal = document.getElementById('newStudentClass').value;
+        const phone = document.getElementById('newStudentPhone').value.trim();
+        const parent_phone = document.getElementById('newStudentParentPhone').value.trim();
+        
+        if (!student_id) { showAlert('الرجاء إدخال رقم الطالب', 'error'); return; }
+        if (!name) { showAlert('الرجاء إدخال اسم الطالب', 'error'); return; }
+        
+        try {
+            const response = await fetch('/api/create_student', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id, name, grade, class: classVal, phone, parent_phone })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert(data.message, 'success');
+                document.getElementById('newStudentId').value = '';
+                document.getElementById('newStudentName').value = '';
+                document.getElementById('newStudentPhone').value = '';
+                document.getElementById('newStudentParentPhone').value = '';
+                loadStudents();
+            } else {
+                showAlert(data.message, 'error');
+            }
+        } catch(e) {
+            showAlert('خطأ في الاتصال', 'error');
+        }
+    }
+
+    function openEditStudentModal(student_id) {
+        const student = allStudents.find(s => s.student_id === student_id);
+        if (student) {
+            document.getElementById('editStudentId').value = student.student_id;
+            document.getElementById('editStudentName').value = student.name || '';
+            document.getElementById('editStudentGrade').value = student.grade || 'الأول الثانوي';
+            document.getElementById('editStudentClass').value = student.class || '1';
+            document.getElementById('editStudentPhone').value = student.phone || '';
+            document.getElementById('editStudentParentPhone').value = student.parent_phone || '';
+            document.getElementById('editStudentModal').style.display = 'flex';
+        }
+    }
+
+    async function updateStudent() {
+        if (currentUserRole === 'user') {
+            showAlert('ليس لديك صلاحية لتعديل الطلاب', 'error');
+            return;
+        }
+        
+        const student_id = document.getElementById('editStudentId').value;
+        const name = document.getElementById('editStudentName').value;
+        const grade = document.getElementById('editStudentGrade').value;
+        const classVal = document.getElementById('editStudentClass').value;
+        const phone = document.getElementById('editStudentPhone').value;
+        const parent_phone = document.getElementById('editStudentParentPhone').value;
+        
+        try {
+            const response = await fetch(`/api/update_student/${student_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, grade, class: classVal, phone, parent_phone })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert(data.message, 'success');
+                closeStudentModal();
+                loadStudents();
+            } else {
+                showAlert(data.message, 'error');
+            }
+        } catch(e) {
+            showAlert('خطأ في الاتصال', 'error');
+        }
+    }
+
+    async function deleteStudent(student_id) {
+        if (currentUserRole !== 'admin') {
+            showAlert('ليس لديك صلاحية لحذف الطلاب', 'error');
+            return;
+        }
+        
+        if (!confirm(`هل أنت متأكد من حذف الطالب رقم ${student_id}؟\nملاحظة: سيتم حذف جميع سجلات حضوره أيضاً!`)) return;
+        
+        try {
+            const response = await fetch(`/api/delete_student/${student_id}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadStudents();
+            } else {
+                showAlert(data.message, 'error');
+            }
+        } catch(e) {
+            showAlert('خطأ في الاتصال', 'error');
+        }
+    }
+
+    function refreshStudents() {
+        loadStudents();
+    }
+
+    function closeStudentModal() {
+        document.getElementById('editStudentModal').style.display = 'none';
+    }
+
+    document.getElementById('searchInput').addEventListener('input', filterAndDisplay);
+    document.getElementById('filterGrade').addEventListener('change', filterAndDisplay);
+    document.getElementById('filterClass').addEventListener('change', filterAndDisplay);
+    
+    window.onclick = function(event) {
+        if (event.target === document.getElementById('editStudentModal')) {
+            closeStudentModal();
+        }
+    }
+    
+    loadStudents();
+</script>
+</body>
+</html>
