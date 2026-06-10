@@ -213,10 +213,8 @@ def load_users():
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
                 users = json.load(f)
-                # إصلاح تلقائي لأنواع البيانات
                 updated = False
                 for username, data in users.items():
-                    # إصلاح max_logins إذا كان نصاً
                     if 'max_logins' in data and isinstance(data['max_logins'], str):
                         try:
                             if data['max_logins'] == 'null' or data['max_logins'] == '':
@@ -227,7 +225,6 @@ def load_users():
                         except:
                             data['max_logins'] = 5
                             updated = True
-                    # إصلاح login_count إذا كان نصاً
                     if 'login_count' in data and isinstance(data['login_count'], str):
                         try:
                             data['login_count'] = int(data['login_count'])
@@ -235,7 +232,6 @@ def load_users():
                         except:
                             data['login_count'] = 0
                             updated = True
-                    # تحويل كلمات المرور القديمة إلى مشفرة
                     password = data.get('password', '')
                     if password and not password.startswith('hash_') and len(password) < 50 and 'admin' not in password:
                         data['password'] = hash_password(password)
@@ -278,11 +274,9 @@ def increment_login_count(username):
         save_users(users)
 
 def get_remaining_logins(username):
-    """حساب عدد مرات الدخول المتبقية للمستخدم"""
     users = load_users()
     if username not in users:
         return 0
-    
     user = users[username]
     if user.get('role') == 'admin':
         return "غير محدود"
@@ -291,20 +285,19 @@ def get_remaining_logins(username):
     used = user.get('login_count', 0)
     
     try:
-        if max_logins is None:
+        if max_logins is None or str(max_logins).lower() == 'null':
             max_logins = 5
         else:
-            max_logins = int(max_logins)
+            max_logins = int(str(max_logins))
         
-        if used is None:
+        if used is None or str(used).lower() == 'null':
             used = 0
         else:
-            used = int(used)
+            used = int(str(used))
         
         remaining = max_logins - used
         return remaining if remaining > 0 else 0
-        
-    except (ValueError, TypeError):
+    except:
         return 0
 
 def create_user(username, password, role='user', max_logins=5):
@@ -469,7 +462,6 @@ def reset_logins(username):
 @app.route("/users_list_data")
 @login_required
 def users_list_data():
-    """API لجلب بيانات المستخدمين بتنسيق JSON"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
     
@@ -512,7 +504,6 @@ def users_list_data():
 @app.route("/api/create_user", methods=["POST"])
 @login_required
 def api_create_user():
-    """إنشاء مستخدم جديد"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
     
@@ -534,7 +525,6 @@ def api_create_user():
 @app.route("/api/update_user/<username>", methods=["PUT"])
 @login_required
 def api_update_user(username):
-    """تحديث بيانات مستخدم"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
     
@@ -549,7 +539,6 @@ def api_update_user(username):
 @app.route("/api/delete_user/<username>", methods=["DELETE"])
 @login_required
 def api_delete_user(username):
-    """حذف مستخدم"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
     
@@ -835,7 +824,7 @@ def weekly_attendance():
 
     return jsonify({"success": True, "data": result})
 
-# ============== API التقارير الأساسية ==============
+# ============== API التقارير الأساسية (مختصرة) ==============
 @app.route("/api/students_list")
 @login_required
 def students_list():
@@ -955,7 +944,6 @@ def monthly_report():
     attendance = get_live_attendance()
 
     days_in_month = monthrange(year, month)[1]
-
     daily_stats = []
     total_present = 0
     total_late = 0
