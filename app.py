@@ -246,8 +246,14 @@ def get_remaining_logins(username):
         return "غير محدود"
     max_logins = user.get('max_logins', 5)
     used = user.get('login_count', 0)
-    return max(max_logins - used, 0)
-
+    # التأكد من أن max_logins رقم وليس نص
+    try:
+        max_logins = int(max_logins) if max_logins else 5
+        used = int(used) if used else 0
+        remaining = max_logins - used
+        return remaining if remaining > 0 else 0
+    except:
+        return 0
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -292,11 +298,46 @@ def users_list():
         users_data = []
         
         for username, data in users.items():
-            # التحقق من وجود البيانات المطلوبة
+            # التأكد من أن جميع القيم من النوع الصحيح
             role = data.get('role', 'user')
             login_count = data.get('login_count', 0)
-            max_logins = data.get('max_logins', 5)
             
+            # تحويل login_count إلى رقم
+            try:
+                login_count = int(login_count) if login_count else 0
+            except:
+                login_count = 0
+            
+            # معالجة max_logins
+            if role == 'admin':
+                max_logins_display = "غير محدود"
+                remaining = "غير محدود"
+            else:
+                max_logins = data.get('max_logins', 5)
+                try:
+                    max_logins = int(max_logins) if max_logins else 5
+                except:
+                    max_logins = 5
+                max_logins_display = max_logins
+                remaining = max_logins - login_count
+                if remaining < 0:
+                    remaining = 0
+            
+            users_data.append({
+                'username': username,
+                'role': role,
+                'login_count': login_count,
+                'max_logins': max_logins_display,
+                'remaining': remaining
+            })
+        
+        return render_template('users_list.html', users=users_data)
+    
+    except Exception as e:
+        print(f"❌ خطأ في صفحة المستخدمين: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"<h1>خطأ في النظام</h1><p>الرجاء المحاولة لاحقاً</p><p>التفاصيل: {str(e)}</p>", 500            
             # حساب المتبقي
             if role == 'admin':
                 remaining = "غير محدود"
@@ -319,13 +360,16 @@ def users_list():
         print(f"❌ خطأ في صفحة المستخدمين: {e}")
         return f"<h1>خطأ في النظام</h1><p>الرجاء المحاولة لاحقاً</p><p>التفاصيل: {str(e)}</p>", 500
 
-@app.route('/reset_logins/<username>')
+@@app.route('/reset_logins/<username>')
 @login_required
 def reset_logins(username):
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"})
     users = load_users()
     if username in users:
+        # التأكد من أن المستخدم ليس مديراً
+        if users[username].get('role') == 'admin':
+            return jsonify({"success": False, "message": "لا يمكن إعادة تعيين مدير النظام"})
         users[username]['login_count'] = 0
         save_users(users)
         return jsonify({"success": True, "message": f"تم إعادة تعيين {username}"})
