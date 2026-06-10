@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}إدارة التراخيص{% endblock %}
+{% block page_title %}👑 لوحة تحكم التراخيص{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3>➕ إنشاء ترخيص جديد</h3>
+    <form method="POST" action="/api/admin/create_license">
+        <div class="form-group">
+            <input type="text" name="hardware_id" placeholder="معرف الجهاز (من طلب التفعيل)" required style="flex: 2;">
+            <input type="number" name="validity_days" placeholder="عدد أيام الصلاحية" value="365" required style="flex: 1;">
+            <button type="submit" class="action-btn action-btn-excel">🔑 إنشاء رمز التفعيل</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>📋 التراخيص النشطة</h3>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>معرف الجهاز</th><th>تاريخ الانتهاء</th><th>تاريخ الإنشاء</th><th>تم الإنشاء بواسطة</th><th>الإجراءات</th></tr>
+            </thead>
+            <tbody>
+                {% for license in licenses %}
+                <tr>
+                    <td><code style="font-size: 12px;">{{ license.hardware_id }}</code></td>
+                    <td>{{ license.expires_at }}</td>
+                    <td>{{ license.created_at }}</td>
+                    <td>{{ license.created_by or 'admin' }}</td>
+                    <td>
+                        <a href="/api/admin/revoke_license/{{ license.id }}" onclick="return confirm('هل أنت متأكد من إلغاء هذا الترخيص؟')" style="color: #e53e3e;">🗑️ إلغاء</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

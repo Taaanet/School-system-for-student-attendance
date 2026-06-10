@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}تفعيل الجهاز{% endblock %}
+{% block page_title %}🔓 تفعيل الجهاز{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3><i class="fas fa-key"></i> أدخل رمز التفعيل</h3>
+    <p>قم بإدخال رمز التفعيل الذي استلمته من مدير النظام.</p>
+    <form method="POST">
+        <div class="form-group" style="margin-top: 20px;">
+            <input type="text" name="activation_code" placeholder="رمز التفعيل" required style="flex: 3;">
+            <button type="submit" class="action-btn action-btn-excel" style="background:#48bb78;">🔓 تفعيل الجهاز</button>
+        </div>
+    </form>
+</div>
+{% if error %}
+<div class="alert alert-error" style="display: block;">{{ error }}</div>
+{% endif %}
+{% if success %}
+<div class="alert alert-success" style="display: block;">✅ {{ success }} سيتم تحديث الصفحة...</div>
+<script>
+    setTimeout(() => { window.location.href = '/'; }, 3000);
+</script>
+{% endif %}
+{% endblock %}
