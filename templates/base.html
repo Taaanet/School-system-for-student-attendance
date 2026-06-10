@@ -2,10 +2,29 @@
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}نظام حضور الطلاب{% endblock %}</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حضور الطلاب">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="نظام حضور الطلاب">
+    <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="msapplication-config" content="/static/browserconfig.xml">
+    
+    <!-- Icons for different platforms -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="mask-icon" href="/static/safari-pinned-tab.svg" color="#667eea">
+    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -184,6 +203,87 @@
         .late { color: #ed8936; font-weight: bold; }
         .absent { color: #fc8181; font-weight: bold; }
         
+        /* PWA Install Prompt */
+        .install-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #1a202c, #2d3748);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation: slideUp 0.5s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .install-prompt button {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .install-prompt .close-install {
+            background: #e53e3e;
+        }
+        
+        /* Offline Indicator */
+        .offline-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #e53e3e;
+            color: white;
+            text-align: center;
+            padding: 8px;
+            font-size: 14px;
+            z-index: 1001;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        .offline-indicator.show {
+            transform: translateY(0);
+        }
+        
+        /* Loading Spinner */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         /* الفوتر */
         .footer {
             background: linear-gradient(135deg, #1a202c, #2d3748);
@@ -210,6 +310,30 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<!-- Offline Indicator -->
+<div class="offline-indicator" id="offlineIndicator">
+    <i class="fas fa-wifi"></i> لا يوجد اتصال بالإنترنت - البيانات المخزنة محلياً
+</div>
+
+<!-- Install Prompt for PWA -->
+<div class="install-prompt" id="installPrompt">
+    <div>
+        <i class="fas fa-download"></i>
+        <strong>تثبيت التطبيق</strong><br>
+        <small>ثبّت التطبيق على جهازك للوصول السريع</small>
+    </div>
+    <div>
+        <button id="installAppBtn"><i class="fas fa-download"></i> تثبيت</button>
+        <button id="closeInstallBtn" class="close-install"><i class="fas fa-times"></i> إغلاق</button>
+    </div>
+</div>
+
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-graduation-cap"></i> نظام حضور الطلاب الذكي</h1>
@@ -252,14 +376,202 @@
         </div>
     </div>
 </div>
+
 <script>
+    // ============== PWA Installation ==============
+    let deferredPrompt;
+    const installPrompt = document.getElementById('installPrompt');
+    const installBtn = document.getElementById('installAppBtn');
+    const closeInstallBtn = document.getElementById('closeInstallBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // إظهار زر التثبيت إذا لم يتم إغلاقه من قبل
+        if (!localStorage.getItem('installPromptClosed')) {
+            installPrompt.style.display = 'flex';
+        }
+    });
+
+    installBtn.addEventListener('click', async () => {
+        installPrompt.style.display = 'none';
+        localStorage.setItem('installPromptClosed', 'true');
+        
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+        }
+    });
+
+    closeInstallBtn.addEventListener('click', () => {
+        installPrompt.style.display = 'none';
+        localStorage.setItem('installPromptClosed', 'true');
+    });
+
+    // ============== Service Worker Registration ==============
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/static/sw.js')
+                .then(registration => {
+                    console.log('Service Worker registered successfully:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        });
+    }
+
+    // ============== Online/Offline Detection ==============
+    const offlineIndicator = document.getElementById('offlineIndicator');
+    
+    function updateOnlineStatus() {
+        if (navigator.onLine) {
+            offlineIndicator.classList.remove('show');
+            console.log('🟢 Online');
+        } else {
+            offlineIndicator.classList.add('show');
+            console.log('🔴 Offline');
+        }
+    }
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    // ============== Loading Overlay Functions ==============
+    function showLoading() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+    
+    function hideLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    // ============== Cache API for Offline Support ==============
+    async function cacheData(key, data) {
+        if (navigator.onLine && 'caches' in window) {
+            const cache = await caches.open('attendance-data-v1');
+            const response = new Response(JSON.stringify(data), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            await cache.put(key, response);
+        }
+    }
+
+    async function getCachedData(key) {
+        if ('caches' in window) {
+            const cache = await caches.open('attendance-data-v1');
+            const response = await cache.match(key);
+            if (response) {
+                return await response.json();
+            }
+        }
+        return null;
+    }
+
+    // Override fetch for API calls with caching
+    const originalFetch = window.fetch;
+    window.fetch = async function(url, options) {
+        if (navigator.onLine) {
+            try {
+                const response = await originalFetch(url, options);
+                if (response.ok && url.includes('/api/')) {
+                    const clone = response.clone();
+                    const data = await clone.json();
+                    await cacheData(url, data);
+                }
+                return response;
+            } catch (error) {
+                const cachedData = await getCachedData(url);
+                if (cachedData) {
+                    return new Response(JSON.stringify(cachedData), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                throw error;
+            }
+        } else {
+            const cachedData = await getCachedData(url);
+            if (cachedData) {
+                return new Response(JSON.stringify(cachedData), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+            throw new Error('No internet connection and no cached data');
+        }
+    };
+
+    // ============== Display Current Date ==============
     function displayCurrentDate() {
         const now = new Date();
         const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
-        document.getElementById('currentDate').innerHTML = '<i class="far fa-calendar-alt"></i> ' + now.toLocaleDateString('ar-SA', options);
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) {
+            dateElement.innerHTML = '<i class="far fa-calendar-alt"></i> ' + now.toLocaleDateString('ar-SA', options);
+        }
     }
     displayCurrentDate();
+
+    // ============== Cache important data on load ==============
+    async function cacheInitialData() {
+        if (navigator.onLine) {
+            try {
+                const responses = await Promise.all([
+                    fetch('/api/students_list'),
+                    fetch('/api/dashboard_stats')
+                ]);
+                
+                for (const response of responses) {
+                    if (response.ok) {
+                        const data = await response.clone().json();
+                        await cacheData(response.url, data);
+                    }
+                }
+                console.log('✅ Initial data cached successfully');
+            } catch (error) {
+                console.log('⚠️ Failed to cache initial data:', error);
+            }
+        }
+    }
+
+    // Run caching on page load
+    if (navigator.onLine) {
+        cacheInitialData();
+    }
+
+    // ============== Check for app updates ==============
+    async function checkForUpdates() {
+        if (navigator.onLine) {
+            try {
+                const response = await fetch('/api/version');
+                if (response.ok) {
+                    const data = await response.json();
+                    const savedVersion = localStorage.getItem('appVersion');
+                    if (savedVersion && savedVersion !== data.version) {
+                        if (confirm('📱 يوجد تحديث جديد للتطبيق! هل تريد تحديث الصفحة؟')) {
+                            localStorage.setItem('appVersion', data.version);
+                            window.location.reload();
+                        }
+                    } else if (!savedVersion) {
+                        localStorage.setItem('appVersion', data.version);
+                    }
+                }
+            } catch (error) {
+                console.log('Failed to check for updates:', error);
+            }
+        }
+    }
+    
+    // Check for updates every hour
+    checkForUpdates();
+    setInterval(checkForUpdates, 3600000);
 </script>
+
 {% block extra_js %}{% endblock %}
 </body>
 </html>
