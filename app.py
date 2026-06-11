@@ -1372,10 +1372,6 @@ def charts_page():
 def class_reports():
     return render_template("class_reports.html")
 
-@app.route("/qr_codes")
-@license_required
-def qr_codes_page():
-    return render_template("qr_codes.html")
 
 @app.route("/backup")
 @license_required
