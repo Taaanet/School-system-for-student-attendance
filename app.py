@@ -223,22 +223,6 @@ def send_whatsapp_message(to_number, student_name, status, attendance_time):
         print(f"❌ خطأ واتساب: {e}")
         return False, str(e)
 
-# ============== إنشاء كود QR ==============
-def generate_qr_code(student_id, student_name):
-    attendance_url = f"https://school-system-for-student-attendance.onrender.com/scan?student_id={student_id}"
-
-    qr = qrcode.QRCode(version=1, box_size=4, border=2)
-    qr.add_data(attendance_url)
-    qr.make(fit=True)
-
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-
-    return f"data:image/png;base64,{img_str}"
-
 # ============== النسخ الاحتياطي التلقائي ==============
 def create_backup():
     try:
@@ -697,6 +681,55 @@ def setup_rls_policies():
         
     except Exception as e:
         print(f"⚠️ خطأ في إعداد السياسات: {e}")
+
+# ============== تحسين دوال QR ==============
+def clean_student_id(student_id):
+    """تنظيف رقم الطالب من أي علامات تنصيص أو مسافات زائدة"""
+    if student_id is None:
+        return ""
+    # تحويل إلى نص وإزالة العلامات غير المرغوب فيها
+    cleaned = str(student_id).strip()
+    # إزالة علامات التنصيص المفردة والمزدوجة
+    cleaned = cleaned.replace('"', '').replace("'", '').replace('`', '')
+    # إزالة أي أحرف غير رقمية أو حروف (مع الاحتفاظ بالأرقام والحروف العربية/الإنجليزية)
+    # لكن نترك المعرف كما هو مع إزالة الرموز الخاصة فقط
+    cleaned = cleaned.replace('\\', '').replace('/', '')
+    return cleaned
+
+def generate_qr_code_improved(student_id, student_name, base_url=None):
+    """إنشاء كود QR محسن مع رابط نظيف"""
+    if base_url is None:
+        base_url = "https://school-system-for-student-attendance.onrender.com"
+    
+    # تنظيف رقم الطالب بشكل كامل
+    clean_id = clean_student_id(student_id)
+    
+    # إنشاء رابط نظيف بدون أي رموز خاصة
+    attendance_url = f"{base_url}/scan?student_id={clean_id}"
+    
+    # طباعة للتأكد (للتتبع)
+    print(f"🔗 إنشاء QR للطالب: {student_name} | الرقم النظيف: {clean_id}")
+    print(f"📱 الرابط: {attendance_url}")
+    
+    # إنشاء QR بحجم أكبر وجودة أعلى
+    qr = qrcode.QRCode(
+        version=2,  # زيادة الإصدار للحصول على تفاصيل أفضل
+        error_correction=qrcode.constants.ERROR_CORRECT_M,  # تصحيح أخطاء متوسط
+        box_size=6,  # زيادة حجم الصندوق
+        border=2
+    )
+    qr.add_data(attendance_url)
+    qr.make(fit=True)
+    
+    # إنشاء صورة بجودة أفضل
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # تحويل إلى Base64
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    
+    return f"data:image/png;base64,{img_str}"
 
 # ============== صفحات المصادقة ==============
 @app.route('/login', methods=['GET', 'POST'])
@@ -1220,39 +1253,93 @@ def register_attendance():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-# ============== API أكواد QR ==============
+# ============== API أكواد QR المحسنة ==============
 @app.route("/api/student_qr/<student_id>")
 @license_required
 def student_qr(student_id):
+    """إنشاء كود QR لطالب محدد"""
+    # تنظيف رقم الطالب المرسل
+    clean_id = clean_student_id(student_id)
+    
     students = get_live_students()
-    student = next((s for s in students if s.get('student_id') == student_id), None)
+    student = None
+    for s in students:
+        # مقارنة بعد تنظيف كلا الرقمين
+        if clean_student_id(s.get('student_id')) == clean_id:
+            student = s
+            break
+    
     if not student:
         return jsonify({"success": False, "error": "الطالب غير موجود"})
 
-    qr_code = generate_qr_code(student_id, student.get('name', ''))
+    qr_code = generate_qr_code_improved(
+        student.get('student_id'), 
+        student.get('name', '')
+    )
 
     return jsonify({
         "success": True,
-        "student_id": student_id,
+        "student_id": clean_student_id(student.get('student_id')),
         "student_name": student.get('name'),
+        "grade": student.get('grade'),
+        "class": student.get('class'),
         "qr_code": qr_code
     })
 
 @app.route("/api/all_students_qr")
 @license_required
 def all_students_qr():
+    """إنشاء أكواد QR للطلاب مع إمكانية التصفية حسب الصف والفصل"""
+    # جلب معاملات التصفية من الطلب
+    grade_filter = request.args.get('grade', '').strip()
+    class_filter = request.args.get('class', '').strip()
+    
     students = get_live_students()
-    qr_codes = []
-
+    
+    # تطبيق التصفية
+    filtered_students = []
     for student in students:
-        qr_code = generate_qr_code(student.get('student_id'), student.get('name', ''))
+        # تنظيف رقم الطالب أولاً
+        student['clean_id'] = clean_student_id(student.get('student_id', ''))
+        
+        # تطبيق فلتر الصف
+        if grade_filter and grade_filter != 'all':
+            if student.get('grade', '') != grade_filter:
+                continue
+        
+        # تطبيق فلتر الشعبة/الفصل
+        if class_filter and class_filter != 'all':
+            if str(student.get('class', '')) != class_filter:
+                continue
+        
+        filtered_students.append(student)
+    
+    # إنشاء أكواد QR للطلاب المفلترين
+    qr_codes = []
+    for student in filtered_students:
+        qr_code = generate_qr_code_improved(
+            student.get('student_id'), 
+            student.get('name', '')
+        )
         qr_codes.append({
-            'student_id': student.get('student_id'),
+            'student_id': clean_student_id(student.get('student_id')),
             'student_name': student.get('name'),
+            'grade': student.get('grade'),
+            'class': student.get('class'),
             'qr_code': qr_code
         })
-
-    return jsonify({"success": True, "data": qr_codes})
+    
+    # إضافة معلومات التصفية للرد
+    return jsonify({
+        "success": True, 
+        "data": qr_codes,
+        "filters": {
+            "grade": grade_filter if grade_filter else "all",
+            "class": class_filter if class_filter else "all"
+        },
+        "total": len(qr_codes),
+        "message": f"تم إنشاء {len(qr_codes)} كود QR للطلاب"
+    })
 
 # ============== API النسخ الاحتياطي ==============
 @app.route("/api/create_backup")
