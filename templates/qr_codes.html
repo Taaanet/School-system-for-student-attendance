@@ -143,6 +143,16 @@
             font-size: 14px;
         }
 
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
         /* شبكة QR Codes */
         .qr-grid {
             display: grid;
@@ -245,13 +255,25 @@
             gap: 10px;
             justify-content: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* رسالة التنظيف */
+        .cleanup-banner {
+            background: #ff9800;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
         }
 
         @media print {
             body {
                 background: white;
             }
-            .navbar, .filters-card, .action-buttons, .print-btn {
+            .navbar, .filters-card, .action-buttons, .print-btn, .cleanup-banner {
                 display: none;
             }
             .qr-card {
@@ -281,6 +303,7 @@
                 <a href="/backup">{{ t('backup') }}</a>
                 <a href="/users_list">{{ t('users') }}</a>
                 <a href="/admin/licenses">{{ t('licenses') }}</a>
+                <a href="/debug_student_ids" style="background:#ff9800;">🔍 فحص البيانات</a>
                 {% endif %}
                 <a href="/logout">{{ t('logout') }}</a>
             </div>
@@ -291,6 +314,11 @@
                 </div>
                 <span>👤 {{ session.get('username', '') }}</span>
             </div>
+        </div>
+
+        <!-- رسالة تنظيف البيانات -->
+        <div id="cleanupBanner" class="cleanup-banner">
+            ⚠️ تم اكتشاف أرقام طلاب غير نظيفة! <a href="/admin/clean_student_ids" style="color:white; text-decoration:underline;">انقر هنا لتنظيف البيانات</a>
         </div>
 
         <!-- منطقة الفلترة -->
@@ -327,6 +355,9 @@
         <div class="action-buttons">
             <button class="btn-primary" onclick="loadAllStudents()">📋 جميع الطلاب</button>
             <button class="btn-primary" onclick="loadCurrentFilter()">🔄 تحديث بالفلتر الحالي</button>
+            {% if session.get('role') == 'admin' %}
+            <button class="btn-danger" onclick="cleanData()">🧹 تنظيف البيانات</button>
+            {% endif %}
         </div>
 
         <!-- شبكة QR Codes -->
@@ -340,54 +371,7 @@
 
     <script>
         let currentQRCodes = [];
-
-        // تحميل الطلاب حسب الصف والفصل من قاعدة البيانات
-        async function loadStudentsByFilter(grade, classVal) {
-            try {
-                let url = '/api/students_list';
-                const response = await fetch(url);
-                const result = await response.json();
-                
-                if (result.success) {
-                    let students = result.data;
-                    
-                    // تطبيق الفلتر
-                    if (grade && grade !== 'all') {
-                        students = students.filter(s => s.grade === grade);
-                    }
-                    if (classVal && classVal !== 'all') {
-                        students = students.filter(s => String(s.class) === String(classVal));
-                    }
-                    
-                    return students;
-                }
-                return [];
-            } catch (error) {
-                console.error('خطأ:', error);
-                return [];
-            }
-        }
-
-        // إنشاء QR لطالب واحد
-        async function generateStudentQR(student) {
-            try {
-                const response = await fetch(`/api/student_qr/${encodeURIComponent(student.student_id)}`);
-                const result = await response.json();
-                if (result.success) {
-                    return {
-                        student_id: result.student_id,
-                        student_name: result.student_name,
-                        grade: result.grade,
-                        class: result.class,
-                        qr_code: result.qr_code
-                    };
-                }
-                return null;
-            } catch (error) {
-                console.error('خطأ في إنشاء QR:', error);
-                return null;
-            }
-        }
+        let needsCleanup = false;
 
         // تحميل وعرض أكواد QR
         async function loadQRCodes() {
@@ -398,7 +382,6 @@
             container.innerHTML = '<div class="loading"><div class="spinner"></div>جاري تحميل أكواد QR...</div>';
             
             try {
-                // استخدام API محسن مع دعم التصفية
                 let url = `/api/all_students_qr?grade=${encodeURIComponent(grade)}&class=${encodeURIComponent(classVal)}`;
                 const response = await fetch(url);
                 const result = await response.json();
@@ -406,6 +389,9 @@
                 if (result.success && result.data.length > 0) {
                     currentQRCodes = result.data;
                     displayQRCodes(currentQRCodes);
+                    
+                    // التحقق من وجود أرقام غير نظيفة
+                    checkForDirtyData(currentQRCodes);
                 } else {
                     container.innerHTML = '<div class="no-data">📭 لا توجد طلاب في هذه الفئة</div>';
                 }
@@ -426,11 +412,13 @@
             
             let html = '<div class="qr-grid">';
             for (const qr of qrCodes) {
+                // تنظيف رقم الطالب للعرض
+                const displayId = cleanDisplayId(qr.student_id);
                 html += `
                     <div class="qr-card">
-                        <img src="${qr.qr_code}" alt="QR Code for ${qr.student_name}">
+                        <img src="${qr.qr_code}" alt="QR Code for ${escapeHtml(qr.student_name)}">
                         <div class="student-name">${escapeHtml(qr.student_name)}</div>
-                        <div class="student-id">🆔 ${escapeHtml(qr.student_id)}</div>
+                        <div class="student-id">🆔 ${escapeHtml(displayId)}</div>
                         <div class="student-info">📚 ${escapeHtml(qr.grade || '-')} | 🏫 شعبة ${escapeHtml(qr.class || '-')}</div>
                         <button class="print-btn" onclick="printSingleCard(this)">🖨️ طباعة</button>
                     </div>
@@ -438,6 +426,34 @@
             }
             html += '</div>';
             container.innerHTML = html;
+        }
+
+        // تنظيف رقم الطالب للعرض فقط
+        function cleanDisplayId(id) {
+            if (!id) return '';
+            return String(id).replace(/[\\"']/g, '').trim();
+        }
+
+        // التحقق من وجود بيانات غير نظيفة
+        function checkForDirtyData(qrCodes) {
+            let hasDirty = false;
+            for (const qr of qrCodes) {
+                const rawId = qr.student_id;
+                const cleanedId = cleanDisplayId(rawId);
+                if (rawId !== cleanedId) {
+                    hasDirty = true;
+                    break;
+                }
+            }
+            
+            const banner = document.getElementById('cleanupBanner');
+            if (hasDirty && banner) {
+                banner.style.display = 'block';
+                needsCleanup = true;
+            } else if (banner) {
+                banner.style.display = 'none';
+                needsCleanup = false;
+            }
         }
 
         // تحميل جميع الطلاب
@@ -450,6 +466,27 @@
         // تحميل الفلتر الحالي
         async function loadCurrentFilter() {
             await loadQRCodes();
+        }
+
+        // تنظيف البيانات
+        async function cleanData() {
+            if (!confirm('⚠️ هل أنت متأكد من تنظيف جميع أرقام الطلاب؟\nسيتم إزالة العلامات غير المرئية والمسافات الزائدة.')) {
+                return;
+            }
+            
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>جاري تنظيف البيانات...</div>';
+            
+            try {
+                const response = await fetch('/admin/clean_student_ids');
+                const text = await response.text();
+                
+                // عرض النتيجة
+                container.innerHTML = '<div class="no-data">✅ تم تنظيف البيانات! <br> <button class="btn-primary" onclick="location.reload()">تحديث الصفحة</button></div>';
+            } catch (error) {
+                console.error('خطأ:', error);
+                container.innerHTML = '<div class="no-data">❌ حدث خطأ أثناء التنظيف</div>';
+            }
         }
 
         // طباعة كل البطاقات
@@ -487,6 +524,7 @@
                         .student-name { font-size: 18px; font-weight: bold; margin: 10px 0; }
                         .student-id { font-size: 14px; color: #666; }
                         .student-info { font-size: 12px; color: #888; margin-top: 5px; }
+                        .print-btn { display: none; }
                     </style>
                 </head>
                 <body>${printContents.outerHTML}</body>
@@ -507,10 +545,6 @@
         // تحميل أولي عند فتح الصفحة
         document.addEventListener('DOMContentLoaded', function() {
             loadAllStudents();
-            
-            // إضافة مستمع للأحداث للفلترة التلقائية (اختياري)
-            // document.getElementById('gradeFilter').addEventListener('change', loadQRCodes);
-            // document.getElementById('classFilter').addEventListener('change', loadQRCodes);
         });
     </script>
 </body>
