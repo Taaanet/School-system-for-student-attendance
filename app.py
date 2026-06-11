@@ -17,6 +17,7 @@ import time as time_module
 import hashlib
 import platform
 import subprocess
+import re
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
@@ -176,7 +177,18 @@ def set_language(lang):
 def get_live_students():
     try:
         response = supabase.table("students").select("*").execute()
-        return response.data or []
+        students = response.data or []
+        
+        # تنظيف أرقام الطلاب تلقائياً عند القراءة
+        for student in students:
+            if 'student_id' in student:
+                original_id = student['student_id']
+                cleaned_id = clean_student_id(original_id)
+                if original_id != cleaned_id:
+                    student['student_id'] = cleaned_id
+                    student['original_id'] = original_id
+        
+        return students
     except Exception as e:
         print(f"❌ خطأ Supabase: {e}")
         return []
@@ -434,7 +446,9 @@ def license_required(f):
             '/static/',
             '/test_supabase',
             '/health',
-            '/trial_info'  # صفحة معلومات المحاولات المجانية
+            '/trial_info',  # صفحة معلومات المحاولات المجانية
+            '/debug_student_ids',  # صفحة فحص البيانات
+            '/admin/clean_student_ids'  # صفحة تنظيف البيانات
         ]
         
         for path in allowed_paths:
@@ -682,22 +696,37 @@ def setup_rls_policies():
     except Exception as e:
         print(f"⚠️ خطأ في إعداد السياسات: {e}")
 
-# ============== تحسين دوال QR ==============
+# ============== تحسين دوال QR (النسخة المحسنة) ==============
 def clean_student_id(student_id):
-    """تنظيف رقم الطالب من أي علامات تنصيص أو مسافات زائدة"""
+    """تنظيف رقم الطالب من أي علامات تنصيص أو مسافات زائدة أو أحرف غير مرئية - النسخة المحسنة"""
     if student_id is None:
         return ""
-    # تحويل إلى نص وإزالة العلامات غير المرغوب فيها
-    cleaned = str(student_id).strip()
-    # إزالة علامات التنصيص المفردة والمزدوجة
-    cleaned = cleaned.replace('"', '').replace("'", '').replace('`', '')
-    # إزالة أي أحرف غير رقمية أو حروف (مع الاحتفاظ بالأرقام والحروف العربية/الإنجليزية)
-    # لكن نترك المعرف كما هو مع إزالة الرموز الخاصة فقط
-    cleaned = cleaned.replace('\\', '').replace('/', '')
+    
+    # تحويل إلى نص
+    cleaned = str(student_id)
+    
+    # إزالة أحرف التحكم (control characters)
+    cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', cleaned)
+    # إزالة المسافات بجميع أنواعها
+    cleaned = re.sub(r'\s+', '', cleaned)
+    # إزالة علامات التنصيص
+    cleaned = cleaned.replace('"', '').replace("'", '').replace('`', '').replace('"', '')
+    # إزالة الشرطات والخطوط
+    cleaned = cleaned.replace('-', '').replace('_', '').replace('\\', '').replace('/', '')
+    # إزالة أي أحرف غير أرقام (إذا كان الرقم يجب أن يكون أرقام فقط - اختياري)
+    # cleaned = re.sub(r'[^0-9]', '', cleaned)
+    
+    # إزالة المسافات من البداية والنهاية
+    cleaned = cleaned.strip()
+    
+    # إذا أصبح فارغاً، أرجع المعرف الأصلي بعد تنظيف أساسي
+    if not cleaned:
+        cleaned = str(student_id).strip().replace('"', '').replace("'", '')
+    
     return cleaned
 
 def generate_qr_code_improved(student_id, student_name, base_url=None):
-    """إنشاء كود QR محسن مع رابط نظيف"""
+    """إنشاء كود QR محسن مع رابط نظيف وجودة عالية"""
     if base_url is None:
         base_url = "https://school-system-for-student-attendance.onrender.com"
     
@@ -707,22 +736,26 @@ def generate_qr_code_improved(student_id, student_name, base_url=None):
     # إنشاء رابط نظيف بدون أي رموز خاصة
     attendance_url = f"{base_url}/scan?student_id={clean_id}"
     
-    # طباعة للتأكد (للتتبع)
-    print(f"🔗 إنشاء QR للطالب: {student_name} | الرقم النظيف: {clean_id}")
-    print(f"📱 الرابط: {attendance_url}")
+    # طباعة مفصلة للمراقبة
+    print("=" * 50)
+    print(f"👨‍🎓 الطالب: {student_name}")
+    print(f"📝 الرقم الأصلي: '{student_id}' (length: {len(str(student_id))})")
+    print(f"✨ الرقم بعد التنظيف: '{clean_id}' (length: {len(clean_id)})")
+    print(f"🔗 الرابط: {attendance_url}")
+    print("=" * 50)
     
     # إنشاء QR بحجم أكبر وجودة أعلى
     qr = qrcode.QRCode(
-        version=2,  # زيادة الإصدار للحصول على تفاصيل أفضل
-        error_correction=qrcode.constants.ERROR_CORRECT_M,  # تصحيح أخطاء متوسط
-        box_size=6,  # زيادة حجم الصندوق
-        border=2
+        version=3,  # إصدار أعلى لمزيد من البيانات
+        error_correction=qrcode.constants.ERROR_CORRECT_H,  # تصحيح أخطاء عالي
+        box_size=8,  # حجم أكبر
+        border=3
     )
     qr.add_data(attendance_url)
     qr.make(fit=True)
     
-    # إنشاء صورة بجودة أفضل
-    img = qr.make_image(fill_color="black", back_color="white")
+    # إنشاء صورة بتباين أفضل وجودة عالية
+    img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
     
     # تحويل إلى Base64
     buffered = BytesIO()
@@ -879,6 +912,198 @@ def check_license_api():
         return jsonify({"success": False, "message": "غير مصرح"}), 403
     is_licensed = check_device_license()
     return jsonify({"success": True, "is_licensed": is_licensed, "hardware_id": get_hardware_id()})
+
+# ============== صفحات فحص وتنظيف البيانات ==============
+@app.route('/debug_student_ids')
+@login_required
+def debug_student_ids():
+    """فحص أرقام الطلاب للتأكد من نظافتها"""
+    if session.get('role') != 'admin':
+        return jsonify({"error": "غير مصرح"}), 403
+    
+    students = get_live_students()
+    results = []
+    
+    for student in students[:50]:  # أول 50 طالب فقط
+        original_id = student.get('student_id', '')
+        # عرض التمثيل الحرفي للرقم
+        raw_repr = repr(original_id)
+        # طول الرقم
+        length = len(original_id)
+        # بعد التنظيف
+        cleaned = clean_student_id(original_id)
+        
+        results.append({
+            'name': student.get('name'),
+            'original': original_id,
+            'raw_repr': raw_repr,
+            'length': length,
+            'cleaned': cleaned,
+            'is_different': original_id != cleaned
+        })
+    
+    # إنشاء صفحة HTML لعرض النتائج
+    html = """
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <title>فحص أرقام الطلاب</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+            h1 { color: #333; text-align: center; }
+            table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+            th { background: #667eea; color: white; }
+            tr:nth-child(even) { background: #f9f9f9; }
+            .different { background: #ffeb3b !important; }
+            .badge { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 12px; }
+            .badge-clean { background: #4caf50; color: white; }
+            .badge-dirty { background: #ff9800; color: white; }
+            .summary { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+            button { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; }
+            button:hover { background: #5a67d8; }
+        </style>
+    </head>
+    <body>
+        <h1>🔍 فحص أرقام الطلاب</h1>
+        <div class="summary">
+            <p><strong>📊 ملخص:</strong></p>
+            <p>عدد الطلاب المعروضين: """ + str(len(results)) + """</p>
+            <p>عدد الأرقام غير النظيفة: """ + str(sum(1 for r in results if r['is_different'])) + """</p>
+            <button onclick="window.location.href='/admin/clean_student_ids'">🧹 تنظيف البيانات الآن</button>
+            <button onclick="window.location.href='/qr_codes'">📱 العودة إلى QR Codes</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم الطالب</th>
+                    <th>الرقم الأصلي</th>
+                    <th>التمثيل الخام (raw)</th>
+                    <th>الطول</th>
+                    <th>بعد التنظيف</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    
+    for r in results:
+        row_class = 'class="different"' if r['is_different'] else ''
+        badge = '<span class="badge badge-dirty">🟠 غير نظيف</span>' if r['is_different'] else '<span class="badge badge-clean">✅ نظيف</span>'
+        html += f"""
+        <tr {row_class}>
+            <td>{r['name']}</td>
+            <td>{r['original']}</td>
+            <td><code style="font-size:11px">{r['raw_repr']}</code></td>
+            <td>{r['length']}</td>
+            <td>{r['cleaned']}</td>
+            <td>{badge}</td>
+        </tr>
+        """
+    
+    html += """
+            </tbody>
+        </table>
+        <p style="text-align:center; margin-top:20px;">💡 <strong>ملاحظة:</strong> الأرقام باللون الأصفر تحتاج إلى تنظيف</p>
+    </body>
+    </html>
+    """
+    
+    return html
+
+@app.route('/admin/clean_student_ids')
+@login_required
+def admin_clean_student_ids():
+    """صفحة لتنظيف أرقام الطلاب (للمدير فقط)"""
+    if session.get('role') != 'admin':
+        return jsonify({"error": "غير مصرح"}), 403
+    
+    students = get_live_students()
+    cleaned_count = 0
+    changes = []
+    
+    for student in students:
+        old_id = student.get('student_id', '')
+        new_id = clean_student_id(old_id)
+        
+        if old_id != new_id:
+            # تحديث في قاعدة البيانات
+            try:
+                supabase.table("students").update({
+                    "student_id": new_id
+                }).eq("student_id", old_id).execute()
+                cleaned_count += 1
+                changes.append({
+                    'name': student.get('name'),
+                    'old': repr(old_id),
+                    'new': new_id
+                })
+                print(f"✅ تم تنظيف: {repr(old_id)} -> {new_id}")
+            except Exception as e:
+                print(f"❌ خطأ في تنظيف {student.get('name')}: {e}")
+    
+    # إنشاء صفحة HTML لعرض النتائج
+    html = f"""
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <title>تنظيف أرقام الطلاب</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; text-align: center; }}
+            h1 {{ color: #333; }}
+            .success {{ background: #4caf50; color: white; padding: 20px; border-radius: 10px; margin: 20px; }}
+            .info {{ background: #2196f3; color: white; padding: 15px; border-radius: 10px; margin: 20px; }}
+            table {{ width: 80%; margin: 20px auto; border-collapse: collapse; background: white; }}
+            th, td {{ border: 1px solid #ddd; padding: 10px; text-align: center; }}
+            th {{ background: #667eea; color: white; }}
+            button {{ background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; font-size: 16px; }}
+            button:hover {{ background: #5a67d8; }}
+        </style>
+    </head>
+    <body>
+        <h1>🧹 تنظيف أرقام الطلاب</h1>
+        <div class="success">
+            <h2>✅ اكتمل التنظيف!</h2>
+            <p>عدد الطلاب الذين تم تنظيفهم: <strong>{cleaned_count}</strong></p>
+        </div>
+    """
+    
+    if changes:
+        html += """
+        <div class="info">
+            <h3>📋 التغييرات التي تمت:</h3>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم الطالب</th>
+                    <th>الرقم القديم (raw)</th>
+                    <th>الرقم الجديد</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        for change in changes[:50]:
+            html += f"""
+                <tr>
+                    <td>{change['name']}</td>
+                    <td><code>{change['old']}</code></td>
+                    <td>{change['new']}</td>
+                </tr>
+            """
+        html += "</tbody></table>"
+    
+    html += """
+        <button onclick="window.location.href='/debug_student_ids'">🔍 فحص النتائج</button>
+        <button onclick="window.location.href='/qr_codes'">📱 الذهاب إلى QR Codes</button>
+        <button onclick="window.location.href='/api/all_students_qr'">🔄 إعادة إنشاء QR Codes</button>
+    </body>
+    </html>
+    """
+    
+    return html
 
 # ============== APIs إدارة المستخدمين المتقدمة ==============
 @app.route("/users_list")
@@ -1051,6 +1276,9 @@ def api_create_student():
     
     if not student_id or not name:
         return jsonify({"success": False, "message": "الرجاء إدخال رقم الطالب واسمه"})
+    
+    # تنظيف رقم الطالب قبل الحفظ
+    student_id = clean_student_id(student_id)
     
     existing = supabase.table("students").select("*").eq("student_id", student_id).execute()
     if existing.data:
@@ -1879,6 +2107,8 @@ def upload_local_students():
             df[col] = df[col].astype(str)
 
         df['student_id'] = df['student_id'].str.replace('.0', '', regex=False).str.strip()
+        # تنظيف جميع أرقام الطلاب قبل الرفع
+        df['student_id'] = df['student_id'].apply(clean_student_id)
         records = df.to_dict("records")
 
         supabase.table("students").delete().neq("student_id", "").execute()
@@ -2017,6 +2247,8 @@ if __name__ == "__main__":
     print("   📚 إدارة الطلاب: /manage_students")
     print("   🔑 إدارة التراخيص: /admin/licenses")
     print("   🆓 معلومات المحاولات: /trial_info")
+    print("   🔍 فحص البيانات: /debug_student_ids")
+    print("   🧹 تنظيف البيانات: /admin/clean_student_ids")
     print("   📡 صفحة عدم الاتصال: /offline")
     print("=" * 60)
     app.run(host='0.0.0.0', port=port, debug=False)
