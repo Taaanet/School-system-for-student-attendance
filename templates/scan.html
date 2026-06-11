@@ -204,7 +204,7 @@
     <div class="manual-section">
         <div class="manual-title">🖊️ إدخال رقم الطالب يدوياً</div>
         <div class="input-group">
-            <input type="text" id="manualId" placeholder="مثال: 1150436838" value="">
+            <input type="text" id="manualId" placeholder="مثال: 1150436838" value="" autocomplete="off">
             <button id="registerBtn" onclick="registerManually()">✅ تسجيل الحضور</button>
         </div>
     </div>
@@ -231,6 +231,11 @@ const studentIdInput = document.getElementById('manualId');
 let stream = null;
 let scanning = false;
 let animationId = null;
+let lastScannedCode = null;
+let lastScanTime = 0;
+
+// منع المسح المتكرر لنفس الطالب (مدة 3 ثوانٍ)
+const SCAN_COOLDOWN = 3000;
 
 // ========== دالة تحديث البيانات بعد التسجيل ==========
 async function refreshDataAfterRegistration() {
@@ -245,7 +250,7 @@ async function refreshDataAfterRegistration() {
     }
 }
 
-// ========== دالة التسجيل الرئيسية ==========
+// ========== دالة التسجيل الرئيسية (معدلة - لا توقف الكاميرا) ==========
 async function registerStudent(studentId) {
     if (!studentId || studentId.trim() === '') {
         showResult("⚠️ الرجاء إدخال رقم الطالب", "error");
@@ -286,7 +291,7 @@ async function registerStudent(studentId) {
             // تحديث البيانات بعد التسجيل الناجح
             await refreshDataAfterRegistration();
             
-            // تشغيل صوت عند النجاح (اختياري)
+            // تشغيل صوت عند النجاح
             try {
                 const audio = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
                 audio.play().catch(e => console.log('صوت غير متاح'));
@@ -329,23 +334,32 @@ function showResult(message, type, studentData = null) {
     } else {
         resultDiv.innerHTML = message;
     }
-    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // إخفاء النتيجة تلقائياً بعد 5 ثوانٍ
+    setTimeout(() => {
+        if (resultDiv.style.display === 'block') {
+            resultDiv.style.display = 'none';
+        }
+    }, 5000);
 }
 
-// ========== معالجة المسح من الكاميرا ==========
+// ========== معالجة المسح من الكاميرا (معدلة - لا توقف الكاميرا) ==========
 async function handleScannedCode(decodedText) {
     if (!decodedText) return;
     
-    console.log("✅ تم مسح الرقم:", decodedText);
-    stopScanner();
-    await registerStudent(decodedText);
+    const now = Date.now();
+    // منع مسح نفس الرقم مراراً خلال فترة التهدئة
+    if (lastScannedCode === decodedText && (now - lastScanTime) < SCAN_COOLDOWN) {
+        console.log("⏳ تم مسح نفس الرقم مؤخراً، يتم تجاهله");
+        return;
+    }
     
-    // إعادة تشغيل الكاميرا بعد 3 ثوانٍ
-    setTimeout(() => {
-        if (stream && !scanning) {
-            startScanner();
-        }
-    }, 3000);
+    lastScannedCode = decodedText;
+    lastScanTime = now;
+    
+    console.log("✅ تم مسح الرقم:", decodedText);
+    
+    // ✅ الكاميرا تستمر في العمل - لا نقوم بإيقافها
+    await registerStudent(decodedText);
 }
 
 // ========== مسح الإطار من الفيديو ==========
@@ -390,7 +404,7 @@ async function startScanner() {
         
         startBtn.style.display = "none";
         stopBtn.style.display = "block";
-        cameraStatus.innerHTML = "✅ الكاميرا تعمل - وجه الهاتف نحو رمز QR";
+        cameraStatus.innerHTML = "✅ الكاميرا تعمل - المسح التلقائي مستمر (وجه الكاميرا نحو رمز QR)";
         cameraStatus.style.color = "#28a745";
         
     } catch(err) {
@@ -406,7 +420,7 @@ async function startScanner() {
             scanFrame();
             startBtn.style.display = "none";
             stopBtn.style.display = "block";
-            cameraStatus.innerHTML = "✅ الكاميرا تعمل - وجه الهاتف نحو رمز QR";
+            cameraStatus.innerHTML = "✅ الكاميرا تعمل - المسح التلقائي مستمر (وجه الكاميرا نحو رمز QR)";
             cameraStatus.style.color = "#28a745";
         } catch(err2) {
             cameraStatus.innerHTML = "❌ لا يمكن تشغيل الكاميرا - تأكد من منح الإذن";
@@ -443,13 +457,16 @@ stopBtn.addEventListener('click', stopScanner);
 // السماح بإرسال الإدخال بالضغط على Enter
 studentIdInput.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
+        e.preventDefault();
         registerManually();
     }
 });
 
-// تحميل البيانات عند فتح الصفحة (للتأكد من أن البيانات محدثة)
+// تحميل البيانات عند فتح الصفحة وتشغيل الكاميرا تلقائياً
 window.addEventListener('load', function() {
     refreshDataAfterRegistration();
+    // ✅ تشغيل الكاميرا تلقائياً عند تحميل الصفحة
+    startScanner();
 });
 
 // تنظيف عند مغادرة الصفحة
