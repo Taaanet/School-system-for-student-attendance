@@ -387,11 +387,59 @@ def check_device_license():
 
     return False
 
+# ============== نظام المحاولات المجانية ==============
+FREE_TRIAL_LIMIT = 3  # عدد المحاولات المجانية
+
+def get_trial_attempts(hardware_id):
+    """الحصول على عدد المحاولات المجانية المستخدمة لجهاز معين"""
+    try:
+        result = supabase.table("trial_attempts").select("attempts").eq("hardware_id", hardware_id).execute()
+        if result.data:
+            return result.data[0]['attempts']
+        return 0
+    except Exception as e:
+        print(f"⚠️ خطأ في قراءة المحاولات: {e}")
+        return 0
+
+def increment_trial_attempts(hardware_id):
+    """زيادة عدد المحاولات المجانية للجهاز"""
+    try:
+        current = get_trial_attempts(hardware_id)
+        if current == 0:
+            # إدراج سجل جديد
+            supabase.table("trial_attempts").insert({
+                "hardware_id": hardware_id,
+                "attempts": 1,
+                "first_attempt_at": datetime.now().isoformat(),
+                "last_attempt_at": datetime.now().isoformat()
+            }).execute()
+        else:
+            # تحديث السجل الموجود
+            supabase.table("trial_attempts").update({
+                "attempts": current + 1,
+                "last_attempt_at": datetime.now().isoformat()
+            }).eq("hardware_id", hardware_id).execute()
+        return True
+    except Exception as e:
+        print(f"⚠️ خطأ في تحديث المحاولات: {e}")
+        return False
+
+def can_access_trial(hardware_id):
+    """التحقق مما إذا كان الجهاز لا يزال ضمن المحاولات المجانية"""
+    attempts = get_trial_attempts(hardware_id)
+    return attempts < FREE_TRIAL_LIMIT
+
+def get_remaining_trials(hardware_id):
+    """الحصول على عدد المحاولات المجانية المتبقية"""
+    attempts = get_trial_attempts(hardware_id)
+    remaining = FREE_TRIAL_LIMIT - attempts
+    return remaining if remaining > 0 else 0
+
 def license_required(f):
-    """ديكورator لحماية الصفحات، يمنع الوصول إذا لم يكن الجهاز مرخصاً"""
+    """ديكورator لحماية الصفحات - يسمح بـ 3 محاولات مجانية ثم يطلب الترخيص"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # السماح بالوصول إلى صفحات الترخيص والمصادقة (للمدير حتى لو لم يكن الجهاز مرخصاً)
+        # الصفحات المسموح بها دائماً (بدون أي قيود)
         allowed_paths = [
             '/login', 
             '/logout',
@@ -401,31 +449,56 @@ def license_required(f):
             '/api/admin',
             '/static/',
             '/test_supabase',
-            '/health'
+            '/health',
+            '/trial_info'  # صفحة معلومات المحاولات المجانية
         ]
+        
         for path in allowed_paths:
             if request.path.startswith(path):
                 return f(*args, **kwargs)
 
+        # إذا لم يكن المستخدم مسجلاً دخوله
         if 'logged_in' not in session:
             return redirect(url_for('login'))
 
-        # التحقق من الترخيص
-        if not check_device_license():
-            try:
-                supabase.table("security_logs").insert({
-                    "hardware_id": get_hardware_id(),
-                    "ip_address": request.remote_addr,
-                    "attempted_path": request.path
-                }).execute()
-            except:
-                pass
+        current_hardware_id = get_hardware_id()
+        
+        # التحقق من وجود ترخيص صالح
+        is_licensed = check_device_license()
+        
+        # إذا كان الجهاز مرخصاً، يسمح بالدخول مباشرة
+        if is_licensed:
+            return f(*args, **kwargs)
+        
+        # إذا كان المستخدم مديراً، يسمح بالدخول حتى بدون ترخيص
+        if session.get('role') == 'admin':
+            return f(*args, **kwargs)
+        
+        # التحقق من المحاولات المجانية
+        if can_access_trial(current_hardware_id):
+            # زيادة عدد المحاولات
+            increment_trial_attempts(current_hardware_id)
+            remaining = get_remaining_trials(current_hardware_id)
             
-            # إذا كان المستخدم مديراً، نسمح له بالدخول حتى بدون ترخيص
-            if session.get('role') == 'admin':
-                return f(*args, **kwargs)
-            return redirect(url_for('activation_required_page'))
-        return f(*args, **kwargs)
+            # تخزين عدد المحاولات المتبقية في الجلسة لعرضها للمستخدم
+            session['remaining_trials'] = remaining
+            
+            # السماح بالدخول (محاولة مجانية)
+            return f(*args, **kwargs)
+        
+        # انتهت المحاولات المجانية وليس هناك ترخيص
+        try:
+            supabase.table("security_logs").insert({
+                "hardware_id": current_hardware_id,
+                "ip_address": request.remote_addr,
+                "attempted_path": request.path,
+                "trial_expired": True
+            }).execute()
+        except:
+            pass
+        
+        return redirect(url_for('activation_required_page'))
+    
     return decorated_function
 
 # ============== إدارة المستخدمين المتقدمة ==============
@@ -1810,6 +1883,21 @@ def offline_page():
     """صفحة تظهر عند عدم وجود اتصال بالإنترنت"""
     return render_template('offline.html')
 
+# ============== نظام المحاولات المجانية - صفحات إضافية ==============
+@app.route('/trial_info')
+def trial_info():
+    """صفحة معلومات المحاولات المجانية"""
+    hardware_id = get_hardware_id()
+    remaining = get_remaining_trials(hardware_id)
+    return render_template('trial_info.html', remaining=remaining)
+
+@app.route('/api/remaining_trials')
+def api_remaining_trials():
+    """API للحصول على عدد المحاولات المتبقية"""
+    hardware_id = get_hardware_id()
+    remaining = get_remaining_trials(hardware_id)
+    return jsonify({"success": True, "remaining": remaining})
+
 # ============== تشغيل النسخ الاحتياطي التلقائي في الخلفية ==============
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
 backup_thread.start()
@@ -1826,6 +1914,7 @@ if __name__ == "__main__":
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
     print("🔒 نظام حماية الأجهزة: مفعل")
+    print("🎫 المحاولات المجانية: 3 محاولات لكل جهاز")
     print("👑 المدير يمكنه الدخول إلى إدارة التراخيص بدون تفعيل")
     print("")
     print("📱 الصفحات المتاحة:")
@@ -1840,6 +1929,7 @@ if __name__ == "__main__":
     print("   👥 المستخدمين: /users_list")
     print("   📚 إدارة الطلاب: /manage_students")
     print("   🔑 إدارة التراخيص: /admin/licenses")
+    print("   🆓 معلومات المحاولات: /trial_info")
     print("   📡 صفحة عدم الاتصال: /offline")
     print("=" * 60)
     app.run(host='0.0.0.0', port=port, debug=False)
