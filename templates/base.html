@@ -98,6 +98,35 @@
         }
         .lang-btn:hover { background: #cbd5e0; }
         
+        /* زر المحاولات المجانية */
+        .trial-btn {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .trial-btn:hover {
+            background: linear-gradient(135deg, #38a169, #2f855a);
+            transform: scale(1.05);
+        }
+        .trial-warning {
+            background: linear-gradient(135deg, #ed8936, #dd6b20);
+        }
+        .trial-danger {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
         /* أزرار التنقل الرئيسية */
         .nav-buttons {
             background: rgba(255,255,255,0.95);
@@ -341,6 +370,32 @@
         <div class="user-info">
             <span class="user-name"><i class="fas fa-user-circle"></i> {{ session.get('username', 'Admin') }}</span>
             <span class="current-date" id="currentDate"></span>
+            
+            <!-- عرض المحاولات المجانية المتبقية (لغير المديرين) -->
+            {% if session.get('role') != 'admin' %}
+                {% if remaining_trials is defined and remaining_trials is not none %}
+                    {% if remaining_trials > 0 %}
+                        <a href="/trial_info" class="trial-btn" id="trialBtn">
+                            <i class="fas fa-gift"></i> 
+                            {% if lang == 'ar' %}
+                                متبقي {{ remaining_trials }} محاولات مجانية
+                            {% else %}
+                                {{ remaining_trials }} free trials left
+                            {% endif %}
+                        </a>
+                    {% elif remaining_trials == 0 %}
+                        <a href="/trial_info" class="trial-btn trial-warning" id="trialBtn">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            {% if lang == 'ar' %}
+                                انتهت المحاولات المجانية
+                            {% else %}
+                                Free trials expired
+                            {% endif %}
+                        </a>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+            
             <a href="/api/set_language/ar" class="lang-btn"><i class="fas fa-language"></i> عربي</a>
             <a href="/api/set_language/en" class="lang-btn"><i class="fas fa-language"></i> English</a>
             <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> {{ t('logout') }}</a>
@@ -543,6 +598,40 @@
     // Run caching on page load
     if (navigator.onLine) {
         cacheInitialData();
+    }
+
+    // ============== تحديث عدد المحاولات المجانية ديناميكياً ==============
+    async function updateRemainingTrials() {
+        const trialBtn = document.getElementById('trialBtn');
+        if (trialBtn) {
+            try {
+                const response = await fetch('/api/remaining_trials');
+                const data = await response.json();
+                if (data.success) {
+                    const remaining = data.remaining;
+                    const lang = '{{ lang }}';
+                    
+                    if (remaining > 0) {
+                        trialBtn.innerHTML = `<i class="fas fa-gift"></i> ${lang === 'ar' ? 'متبقي ' + remaining + ' محاولات مجانية' : remaining + ' free trials left'}`;
+                        trialBtn.classList.remove('trial-warning', 'trial-danger');
+                    } else if (remaining === 0) {
+                        trialBtn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${lang === 'ar' ? 'انتهت المحاولات المجانية' : 'Free trials expired'}`;
+                        trialBtn.classList.add('trial-warning');
+                        trialBtn.classList.remove('trial-danger');
+                    } else {
+                        trialBtn.innerHTML = `<i class="fas fa-lock"></i> ${lang === 'ar' ? 'مرخص' : 'Licensed'}`;
+                        trialBtn.classList.remove('trial-warning', 'trial-danger');
+                    }
+                }
+            } catch(e) {
+                console.log('خطأ في تحديث المحاولات:', e);
+            }
+        }
+    }
+    
+    // تحديث المحاولات كل 10 ثوانٍ (إذا كان الزر موجوداً)
+    if (document.getElementById('trialBtn')) {
+        setInterval(updateRemainingTrials, 10000);
     }
 
     // ============== Check for app updates ==============

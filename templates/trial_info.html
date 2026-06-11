@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}المحاولات المجانية{% endblock %}
+{% block page_title %}🎯 نظام المحاولات المجانية{% endblock %}
+
+{% block content %}
+<div class="card" style="text-align: center;">
+    <div style="font-size: 60px; margin-bottom: 20px;">🎁</div>
+    <h2>مرحباً بك في نظام حضور الطلاب</h2>
+    <p style="margin: 20px 0; color: #718096;">
+        يمكنك تجربة النظام <strong>3 مرات مجاناً</strong> قبل الحاجة إلى الترخيص.
+    </p>
+    
+    <div class="stats-grid" style="margin: 25px 0;">
+        <div class="stat-card">
+            <div style="font-size: 32px; color: #667eea;">🎯</div>
+            <h3>المحاولات المتبقية</h3>
+            <div class="stat-value" id="remainingTrials" style="font-size: 48px;">{{ remaining }}</div>
+        </div>
+        <div class="stat-card">
+            <div style="font-size: 32px; color: #48bb78;">✅</div>
+            <h3>الحد الأقصى</h3>
+            <div class="stat-value" style="font-size: 48px;">3</div>
+        </div>
+    </div>
+    
+    {% if remaining > 0 %}
+    <div class="alert alert-info" style="background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 12px;">
+        <i class="fas fa-info-circle"></i> لديك {{ remaining }} محاولة مجانية متبقية
+    </div>
+    <a href="/" class="nav-btn nav-btn-success" style="margin-top: 15px;">
+        <i class="fas fa-play"></i> ابدأ التجربة الآن
+    </a>
+    {% else %}
+    <div class="alert alert-warning" style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 12px;">
+        <i class="fas fa-exclamation-triangle"></i> لقد انتهت المحاولات المجانية
+    </div>
+    <a href="/request_activation" class="nav-btn nav-btn-primary" style="margin-top: 15px;">
+        <i class="fas fa-key"></i> طلب ترخيص
+    </a>
+    {% endif %}
+    
+    <hr style="margin: 25px 0;">
+    
+    <h3>📋 كيف تحصل على ترخيص؟</h3>
+    <ol style="text-align: right; max-width: 400px; margin: 15px auto;">
+        <li>اذهب إلى صفحة <a href="/request_activation">طلب التفعيل</a></li>
+        <li>انسخ رمز الجهاز الفريد</li>
+        <li>أرسله إلى مدير النظام</li>
+        <li>بعد استلام رمز التفعيل، أدخله في صفحة <a href="/activate_device">تفعيل الجهاز</a></li>
+    </ol>
+</div>
+
+<script>
+    // تحديث عدد المحاولات المتبقية ديناميكياً
+    async function updateRemainingTrials() {
+        try {
+            const response = await fetch('/api/remaining_trials');
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('remainingTrials').innerHTML = data.remaining;
+            }
+        } catch(e) {
+            console.log('خطأ في تحديث المحاولات:', e);
+        }
+    }
+    
+    // تحديث كل 10 ثوانٍ
+    setInterval(updateRemainingTrials, 10000);
+</script>
+{% endblock %}
