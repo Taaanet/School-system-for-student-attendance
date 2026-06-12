@@ -24,6 +24,7 @@ from Crypto.Util.Padding import pad, unpad
 load_dotenv()
 
 app = Flask(__name__)
+
 # ============== تمرير اللغة إلى جميع القوالب تلقائياً ==============
 @app.context_processor
 def inject_language():
@@ -31,7 +32,7 @@ def inject_language():
     lang = session.get('language', 'ar')
     return dict(lang=lang)
 
-# قاموس الترجمة الكامل
+# قاموس الترجمة الكامل (تم حذف ترجمة qr_codes)
 TRANSLATIONS = {
     # القائمة الرئيسية
     'home': {'ar': 'الرئيسية', 'en': 'Home'},
@@ -40,7 +41,7 @@ TRANSLATIONS = {
     'monthly_reports': {'ar': 'التقارير الشهرية', 'en': 'Monthly Reports'},
     'charts': {'ar': 'الرسوم البيانية', 'en': 'Charts'},
     'class_reports': {'ar': 'تقارير الصف والفصل', 'en': 'Class Reports'},
-    'qr_codes': {'ar': 'أكواد QR', 'en': 'QR Codes'},
+    # 'qr_codes' تم حذفه
     'manage_students': {'ar': 'إدارة الطلاب', 'en': 'Manage Students'},
     'backup': {'ar': 'نسخ احتياطي', 'en': 'Backup'},
     'users': {'ar': 'المستخدمين', 'en': 'Users'},
@@ -174,6 +175,23 @@ def set_language(lang):
     session['language'] = lang
 
 # ============== دوال قراءة البيانات من Supabase ==============
+def clean_student_id(student_id):
+    """تنظيف رقم الطالب من أي علامات تنصيص أو مسافات زائدة أو أحرف غير مرئية"""
+    if student_id is None:
+        return ""
+    
+    cleaned = str(student_id)
+    cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', cleaned)
+    cleaned = re.sub(r'\s+', '', cleaned)
+    cleaned = cleaned.replace('"', '').replace("'", '').replace('`', '').replace('"', '')
+    cleaned = cleaned.replace('-', '').replace('_', '').replace('\\', '').replace('/', '')
+    cleaned = cleaned.strip()
+    
+    if not cleaned:
+        cleaned = str(student_id).strip().replace('"', '').replace("'", '')
+    
+    return cleaned
+
 def get_live_students():
     try:
         response = supabase.table("students").select("*").execute()
@@ -384,10 +402,9 @@ def check_device_license():
     return False
 
 # ============== نظام المحاولات المجانية ==============
-FREE_TRIAL_LIMIT = 3  # عدد المحاولات المجانية
+FREE_TRIAL_LIMIT = 3
 
 def get_trial_attempts(hardware_id):
-    """الحصول على عدد المحاولات المجانية المستخدمة لجهاز معين"""
     try:
         result = supabase.table("trial_attempts").select("attempts").eq("hardware_id", hardware_id).execute()
         if result.data:
@@ -398,11 +415,9 @@ def get_trial_attempts(hardware_id):
         return 0
 
 def increment_trial_attempts(hardware_id):
-    """زيادة عدد المحاولات المجانية للجهاز"""
     try:
         current = get_trial_attempts(hardware_id)
         if current == 0:
-            # إدراج سجل جديد
             supabase.table("trial_attempts").insert({
                 "hardware_id": hardware_id,
                 "attempts": 1,
@@ -410,7 +425,6 @@ def increment_trial_attempts(hardware_id):
                 "last_attempt_at": datetime.now().isoformat()
             }).execute()
         else:
-            # تحديث السجل الموجود
             supabase.table("trial_attempts").update({
                 "attempts": current + 1,
                 "last_attempt_at": datetime.now().isoformat()
@@ -421,12 +435,10 @@ def increment_trial_attempts(hardware_id):
         return False
 
 def can_access_trial(hardware_id):
-    """التحقق مما إذا كان الجهاز لا يزال ضمن المحاولات المجانية"""
     attempts = get_trial_attempts(hardware_id)
     return attempts < FREE_TRIAL_LIMIT
 
 def get_remaining_trials(hardware_id):
-    """الحصول على عدد المحاولات المجانية المتبقية"""
     attempts = get_trial_attempts(hardware_id)
     remaining = FREE_TRIAL_LIMIT - attempts
     return remaining if remaining > 0 else 0
@@ -435,56 +447,34 @@ def license_required(f):
     """ديكورator لحماية الصفحات - يسمح بـ 3 محاولات مجانية ثم يطلب الترخيص"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # الصفحات المسموح بها دائماً (بدون أي قيود)
         allowed_paths = [
-            '/login', 
-            '/logout',
-            '/request_activation', 
-            '/activate_device',
-            '/admin',
-            '/api/admin',
-            '/static/',
-            '/test_supabase',
-            '/health',
-            '/trial_info',  # صفحة معلومات المحاولات المجانية
-            '/debug_student_ids',  # صفحة فحص البيانات
-            '/admin/clean_student_ids'  # صفحة تنظيف البيانات
+            '/login', '/logout', '/request_activation', '/activate_device',
+            '/admin', '/api/admin', '/static/', '/test_supabase', '/health',
+            '/trial_info', '/debug_student_ids', '/admin/clean_student_ids'
         ]
         
         for path in allowed_paths:
             if request.path.startswith(path):
                 return f(*args, **kwargs)
 
-        # إذا لم يكن المستخدم مسجلاً دخوله
         if 'logged_in' not in session:
             return redirect(url_for('login'))
 
         current_hardware_id = get_hardware_id()
-        
-        # التحقق من وجود ترخيص صالح
         is_licensed = check_device_license()
         
-        # إذا كان الجهاز مرخصاً، يسمح بالدخول مباشرة
         if is_licensed:
             return f(*args, **kwargs)
         
-        # إذا كان المستخدم مديراً، يسمح بالدخول حتى بدون ترخيص
         if session.get('role') == 'admin':
             return f(*args, **kwargs)
         
-        # التحقق من المحاولات المجانية
         if can_access_trial(current_hardware_id):
-            # زيادة عدد المحاولات
             increment_trial_attempts(current_hardware_id)
             remaining = get_remaining_trials(current_hardware_id)
-            
-            # تخزين عدد المحاولات المتبقية في الجلسة لعرضها للمستخدم
             session['remaining_trials'] = remaining
-            
-            # السماح بالدخول (محاولة مجانية)
             return f(*args, **kwargs)
         
-        # انتهت المحاولات المجانية وليس هناك ترخيص
         try:
             supabase.table("security_logs").insert({
                 "hardware_id": current_hardware_id,
@@ -594,7 +584,6 @@ def get_remaining_logins(username):
         return 0
 
 def create_user(username, password, role='user', max_logins=5):
-    """إنشاء مستخدم جديد مع صلاحيات"""
     users = load_users()
     
     if username in users:
@@ -616,7 +605,6 @@ def create_user(username, password, role='user', max_logins=5):
     return True, f"تم إنشاء المستخدم {username} كـ {role_names[role]}"
 
 def update_user(username, role=None, max_logins=None, password=None):
-    """تحديث بيانات المستخدم"""
     users = load_users()
     
     if username not in users:
@@ -642,7 +630,6 @@ def update_user(username, role=None, max_logins=None, password=None):
     return True, "تم تحديث المستخدم بنجاح"
 
 def delete_user(username):
-    """حذف مستخدم"""
     users = load_users()
     
     if username == 'Taha_Mohamed':
@@ -665,24 +652,13 @@ def login_required(f):
 
 # ============== إعداد سياسات RLS تلقائياً ==============
 def setup_rls_policies():
-    """إنشاء جدول device_licenses وتعطيل RLS تلقائياً لتجنب أخطاء 42501"""
     try:
-        # التحقق من وجود الجدول وإنشائه إذا لم يكن موجوداً
         print("🔧 جاري إعداد جدول التراخيص وسياسات الأمان...")
-        
-        # إنشاء الجدول إذا لم يكن موجوداً (باستخدام SQL مباشر عبر Supabase API)
         try:
-            # محاولة تعطيل RLS على الجدول
             supabase.table("device_licenses").select("*").limit(1).execute()
             print("✅ جدول device_licenses موجود مسبقاً")
         except Exception as e:
             print("⚠️ قد يكون الجدول غير موجود، سيتم إنشاؤه تلقائياً عند أول إدراج")
-        
-        # محاولة تعطيل RLS (هذا قد لا يعمل عبر API، نحتاج SQL مباشر)
-        # بدلاً من ذلك، سنقوم بإنشاء سياسة تسمح بكل العمليات
-        
-        # ملاحظة: بما أننا لا نستطيع تنفيذ SQL مباشر عبر API،
-        # سنقوم بعرض تعليمات للمطور لتنفيذها يدوياً مرة واحدة
         
         print("=" * 60)
         print("⚠️ مهم: لتجنب خطأ 42501، يرجى تنفيذ الأمر التالي في SQL Editor في Supabase:")
@@ -690,79 +666,11 @@ def setup_rls_policies():
         print("ALTER TABLE device_licenses DISABLE ROW LEVEL SECURITY;")
         print("-" * 60)
         print("أو قم بإنشاء السياسة:")
-        print("CREATE POLICY \"Allow all operations\" ON device_licenses USING (true) WITH CHECK (true);")
+        print('CREATE POLICY "Allow all operations" ON device_licenses USING (true) WITH CHECK (true);')
         print("=" * 60)
         
     except Exception as e:
         print(f"⚠️ خطأ في إعداد السياسات: {e}")
-
-# ============== تحسين دوال QR (النسخة المحسنة) ==============
-def clean_student_id(student_id):
-    """تنظيف رقم الطالب من أي علامات تنصيص أو مسافات زائدة أو أحرف غير مرئية - النسخة المحسنة"""
-    if student_id is None:
-        return ""
-    
-    # تحويل إلى نص
-    cleaned = str(student_id)
-    
-    # إزالة أحرف التحكم (control characters)
-    cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', cleaned)
-    # إزالة المسافات بجميع أنواعها
-    cleaned = re.sub(r'\s+', '', cleaned)
-    # إزالة علامات التنصيص
-    cleaned = cleaned.replace('"', '').replace("'", '').replace('`', '').replace('"', '')
-    # إزالة الشرطات والخطوط
-    cleaned = cleaned.replace('-', '').replace('_', '').replace('\\', '').replace('/', '')
-    # إزالة أي أحرف غير أرقام (إذا كان الرقم يجب أن يكون أرقام فقط - اختياري)
-    # cleaned = re.sub(r'[^0-9]', '', cleaned)
-    
-    # إزالة المسافات من البداية والنهاية
-    cleaned = cleaned.strip()
-    
-    # إذا أصبح فارغاً، أرجع المعرف الأصلي بعد تنظيف أساسي
-    if not cleaned:
-        cleaned = str(student_id).strip().replace('"', '').replace("'", '')
-    
-    return cleaned
-
-def generate_qr_code_improved(student_id, student_name, base_url=None):
-    """إنشاء كود QR محسن مع رابط نظيف وجودة عالية"""
-    if base_url is None:
-        base_url = "https://school-system-for-student-attendance.onrender.com"
-    
-    # تنظيف رقم الطالب بشكل كامل
-    clean_id = clean_student_id(student_id)
-    
-    # إنشاء رابط نظيف بدون أي رموز خاصة
-    attendance_url = f"{base_url}/scan?student_id={clean_id}"
-    
-    # طباعة مفصلة للمراقبة
-    print("=" * 50)
-    print(f"👨‍🎓 الطالب: {student_name}")
-    print(f"📝 الرقم الأصلي: '{student_id}' (length: {len(str(student_id))})")
-    print(f"✨ الرقم بعد التنظيف: '{clean_id}' (length: {len(clean_id)})")
-    print(f"🔗 الرابط: {attendance_url}")
-    print("=" * 50)
-    
-    # إنشاء QR بحجم أكبر وجودة أعلى
-    qr = qrcode.QRCode(
-        version=3,  # إصدار أعلى لمزيد من البيانات
-        error_correction=qrcode.constants.ERROR_CORRECT_H,  # تصحيح أخطاء عالي
-        box_size=8,  # حجم أكبر
-        border=3
-    )
-    qr.add_data(attendance_url)
-    qr.make(fit=True)
-    
-    # إنشاء صورة بتباين أفضل وجودة عالية
-    img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-    
-    # تحويل إلى Base64
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    
-    return f"data:image/png;base64,{img_str}"
 
 # ============== صفحات المصادقة ==============
 @app.route('/login', methods=['GET', 'POST'])
@@ -859,7 +767,6 @@ def create_license_api():
     activation_code = encrypt_activation_code(hardware_id, expiry_date)
 
     try:
-        # محاولة إدراج الترخيص مع معالجة خطأ RLS
         supabase.table("device_licenses").insert({
             "hardware_id": hardware_id,
             "activation_code": activation_code,
@@ -870,7 +777,6 @@ def create_license_api():
     except Exception as e:
         error_msg = str(e)
         if "row-level security policy" in error_msg:
-            # عرض رسالة مساعدة للمطور
             return f"""
             <html dir="rtl">
             <head><meta charset="UTF-8"><title>خطأ في الترخيص</title>
@@ -917,20 +823,16 @@ def check_license_api():
 @app.route('/debug_student_ids')
 @login_required
 def debug_student_ids():
-    """فحص أرقام الطلاب للتأكد من نظافتها"""
     if session.get('role') != 'admin':
         return jsonify({"error": "غير مصرح"}), 403
     
     students = get_live_students()
     results = []
     
-    for student in students[:50]:  # أول 50 طالب فقط
+    for student in students[:50]:
         original_id = student.get('student_id', '')
-        # عرض التمثيل الحرفي للرقم
         raw_repr = repr(original_id)
-        # طول الرقم
         length = len(original_id)
-        # بعد التنظيف
         cleaned = clean_student_id(original_id)
         
         results.append({
@@ -942,7 +844,6 @@ def debug_student_ids():
             'is_different': original_id != cleaned
         })
     
-    # إنشاء صفحة HTML لعرض النتائج
     html = """
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
@@ -952,17 +853,14 @@ def debug_student_ids():
         <style>
             body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
             h1 { color: #333; text-align: center; }
+            .summary { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
             th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
             th { background: #667eea; color: white; }
-            tr:nth-child(even) { background: #f9f9f9; }
             .different { background: #ffeb3b !important; }
-            .badge { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 12px; }
-            .badge-clean { background: #4caf50; color: white; }
-            .badge-dirty { background: #ff9800; color: white; }
-            .summary { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+            .badge-clean { background: #4caf50; color: white; padding: 3px 8px; border-radius: 5px; }
+            .badge-dirty { background: #ff9800; color: white; padding: 3px 8px; border-radius: 5px; }
             button { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; }
-            button:hover { background: #5a67d8; }
         </style>
     </head>
     <body>
@@ -972,25 +870,18 @@ def debug_student_ids():
             <p>عدد الطلاب المعروضين: """ + str(len(results)) + """</p>
             <p>عدد الأرقام غير النظيفة: """ + str(sum(1 for r in results if r['is_different'])) + """</p>
             <button onclick="window.location.href='/admin/clean_student_ids'">🧹 تنظيف البيانات الآن</button>
-            <button onclick="window.location.href='/qr_codes'">📱 العودة إلى QR Codes</button>
+            <button onclick="window.location.href='/'">🏠 العودة إلى الرئيسية</button>
         </div>
         <table>
             <thead>
-                <tr>
-                    <th>اسم الطالب</th>
-                    <th>الرقم الأصلي</th>
-                    <th>التمثيل الخام (raw)</th>
-                    <th>الطول</th>
-                    <th>بعد التنظيف</th>
-                    <th>الحالة</th>
-                </tr>
+                <tr><th>اسم الطالب</th><th>الرقم الأصلي</th><th>التمثيل الخام (raw)</th><th>الطول</th><th>بعد التنظيف</th><th>الحالة</th></tr>
             </thead>
             <tbody>
     """
     
     for r in results:
         row_class = 'class="different"' if r['is_different'] else ''
-        badge = '<span class="badge badge-dirty">🟠 غير نظيف</span>' if r['is_different'] else '<span class="badge badge-clean">✅ نظيف</span>'
+        badge = '<span class="badge-dirty">🟠 غير نظيف</span>' if r['is_different'] else '<span class="badge-clean">✅ نظيف</span>'
         html += f"""
         <tr {row_class}>
             <td>{r['name']}</td>
@@ -1015,7 +906,6 @@ def debug_student_ids():
 @app.route('/admin/clean_student_ids')
 @login_required
 def admin_clean_student_ids():
-    """صفحة لتنظيف أرقام الطلاب (للمدير فقط)"""
     if session.get('role') != 'admin':
         return jsonify({"error": "غير مصرح"}), 403
     
@@ -1028,7 +918,6 @@ def admin_clean_student_ids():
         new_id = clean_student_id(old_id)
         
         if old_id != new_id:
-            # تحديث في قاعدة البيانات
             try:
                 supabase.table("students").update({
                     "student_id": new_id
@@ -1043,7 +932,6 @@ def admin_clean_student_ids():
             except Exception as e:
                 print(f"❌ خطأ في تنظيف {student.get('name')}: {e}")
     
-    # إنشاء صفحة HTML لعرض النتائج
     html = f"""
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
@@ -1052,14 +940,11 @@ def admin_clean_student_ids():
         <title>تنظيف أرقام الطلاب</title>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; text-align: center; }}
-            h1 {{ color: #333; }}
             .success {{ background: #4caf50; color: white; padding: 20px; border-radius: 10px; margin: 20px; }}
-            .info {{ background: #2196f3; color: white; padding: 15px; border-radius: 10px; margin: 20px; }}
             table {{ width: 80%; margin: 20px auto; border-collapse: collapse; background: white; }}
-            th, td {{ border: 1px solid #ddd; padding: 10px; text-align: center; }}
+            th, td {{ border: 1px solid #ddd; padding: 10px; }}
             th {{ background: #667eea; color: white; }}
-            button {{ background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; font-size: 16px; }}
-            button:hover {{ background: #5a67d8; }}
+            button {{ background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px; }}
         </style>
     </head>
     <body>
@@ -1072,33 +957,18 @@ def admin_clean_student_ids():
     
     if changes:
         html += """
-        <div class="info">
-            <h3>📋 التغييرات التي تمت:</h3>
-        </div>
+        <h3>📋 التغييرات التي تمت:</h3>
         <table>
-            <thead>
-                <tr>
-                    <th>اسم الطالب</th>
-                    <th>الرقم القديم (raw)</th>
-                    <th>الرقم الجديد</th>
-                </tr>
-            </thead>
+            <thead><tr><th>اسم الطالب</th><th>الرقم القديم (raw)</th><th>الرقم الجديد</th></tr></thead>
             <tbody>
         """
         for change in changes[:50]:
-            html += f"""
-                <tr>
-                    <td>{change['name']}</td>
-                    <td><code>{change['old']}</code></td>
-                    <td>{change['new']}</td>
-                </tr>
-            """
+            html += f"<tr><td>{change['name']}</td><td><code>{change['old']}</code></td><td>{change['new']}</td></tr>"
         html += "</tbody></table>"
     
     html += """
         <button onclick="window.location.href='/debug_student_ids'">🔍 فحص النتائج</button>
-        <button onclick="window.location.href='/qr_codes'">📱 الذهاب إلى QR Codes</button>
-        <button onclick="window.location.href='/api/all_students_qr'">🔄 إعادة إنشاء QR Codes</button>
+        <button onclick="window.location.href='/'">🏠 العودة إلى الرئيسية</button>
     </body>
     </html>
     """
@@ -1277,7 +1147,6 @@ def api_create_student():
     if not student_id or not name:
         return jsonify({"success": False, "message": "الرجاء إدخال رقم الطالب واسمه"})
     
-    # تنظيف رقم الطالب قبل الحفظ
     student_id = clean_student_id(student_id)
     
     existing = supabase.table("students").select("*").eq("student_id", student_id).execute()
@@ -1371,7 +1240,6 @@ def charts_page():
 @license_required
 def class_reports():
     return render_template("class_reports.html")
-
 
 @app.route("/backup")
 @license_required
@@ -1476,94 +1344,6 @@ def register_attendance():
             return jsonify({"success": False, "message": "فشل حفظ البيانات"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
-
-# ============== API أكواد QR المحسنة ==============
-@app.route("/api/student_qr/<student_id>")
-@license_required
-def student_qr(student_id):
-    """إنشاء كود QR لطالب محدد"""
-    # تنظيف رقم الطالب المرسل
-    clean_id = clean_student_id(student_id)
-    
-    students = get_live_students()
-    student = None
-    for s in students:
-        # مقارنة بعد تنظيف كلا الرقمين
-        if clean_student_id(s.get('student_id')) == clean_id:
-            student = s
-            break
-    
-    if not student:
-        return jsonify({"success": False, "error": "الطالب غير موجود"})
-
-    qr_code = generate_qr_code_improved(
-        student.get('student_id'), 
-        student.get('name', '')
-    )
-
-    return jsonify({
-        "success": True,
-        "student_id": clean_student_id(student.get('student_id')),
-        "student_name": student.get('name'),
-        "grade": student.get('grade'),
-        "class": student.get('class'),
-        "qr_code": qr_code
-    })
-
-@app.route("/api/all_students_qr")
-@license_required
-def all_students_qr():
-    """إنشاء أكواد QR للطلاب مع إمكانية التصفية حسب الصف والفصل"""
-    # جلب معاملات التصفية من الطلب
-    grade_filter = request.args.get('grade', '').strip()
-    class_filter = request.args.get('class', '').strip()
-    
-    students = get_live_students()
-    
-    # تطبيق التصفية
-    filtered_students = []
-    for student in students:
-        # تنظيف رقم الطالب أولاً
-        student['clean_id'] = clean_student_id(student.get('student_id', ''))
-        
-        # تطبيق فلتر الصف
-        if grade_filter and grade_filter != 'all':
-            if student.get('grade', '') != grade_filter:
-                continue
-        
-        # تطبيق فلتر الشعبة/الفصل
-        if class_filter and class_filter != 'all':
-            if str(student.get('class', '')) != class_filter:
-                continue
-        
-        filtered_students.append(student)
-    
-    # إنشاء أكواد QR للطلاب المفلترين
-    qr_codes = []
-    for student in filtered_students:
-        qr_code = generate_qr_code_improved(
-            student.get('student_id'), 
-            student.get('name', '')
-        )
-        qr_codes.append({
-            'student_id': clean_student_id(student.get('student_id')),
-            'student_name': student.get('name'),
-            'grade': student.get('grade'),
-            'class': student.get('class'),
-            'qr_code': qr_code
-        })
-    
-    # إضافة معلومات التصفية للرد
-    return jsonify({
-        "success": True, 
-        "data": qr_codes,
-        "filters": {
-            "grade": grade_filter if grade_filter else "all",
-            "class": class_filter if class_filter else "all"
-        },
-        "total": len(qr_codes),
-        "message": f"تم إنشاء {len(qr_codes)} كود QR للطلاب"
-    })
 
 # ============== API النسخ الاحتياطي ==============
 @app.route("/api/create_backup")
@@ -2103,7 +1883,6 @@ def upload_local_students():
             df[col] = df[col].astype(str)
 
         df['student_id'] = df['student_id'].str.replace('.0', '', regex=False).str.strip()
-        # تنظيف جميع أرقام الطلاب قبل الرفع
         df['student_id'] = df['student_id'].apply(clean_student_id)
         records = df.to_dict("records")
 
@@ -2193,20 +1972,17 @@ def health():
 # ============== صفحة عدم الاتصال (PWA Offline) ==============
 @app.route('/offline')
 def offline_page():
-    """صفحة تظهر عند عدم وجود اتصال بالإنترنت"""
     return render_template('offline.html')
 
 # ============== نظام المحاولات المجانية - صفحات إضافية ==============
 @app.route('/trial_info')
 def trial_info():
-    """صفحة معلومات المحاولات المجانية"""
     hardware_id = get_hardware_id()
     remaining = get_remaining_trials(hardware_id)
     return render_template('trial_info.html', remaining=remaining)
 
 @app.route('/api/remaining_trials')
 def api_remaining_trials():
-    """API للحصول على عدد المحاولات المتبقية"""
     hardware_id = get_hardware_id()
     remaining = get_remaining_trials(hardware_id)
     return jsonify({"success": True, "remaining": remaining})
@@ -2237,7 +2013,6 @@ if __name__ == "__main__":
     print("   📅 التقارير الشهرية: /monthly_reports")
     print("   📈 الرسوم البيانية: /charts")
     print("   📋 تقارير الصف والفصل: /class_reports")
-    print("   📱 أكواد QR: /qr_codes")
     print("   💾 النسخ الاحتياطي: /backup")
     print("   👥 المستخدمين: /users_list")
     print("   📚 إدارة الطلاب: /manage_students")
