@@ -68,14 +68,13 @@
             font-size: 12px;
             text-align: center;
         }
-        .admin-card, .teacher-card {
+        .teacher-card {
             background: #f8f9fa;
             padding: 10px;
             border-radius: 10px;
             margin-top: 10px;
             text-align: {{ 'right' if lang == 'ar' else 'left' }};
         }
-        .admin-card { border-right: 4px solid #667eea; }
         .teacher-card { border-right: 4px solid #28a745; }
         code { background: #e9ecef; padding: 2px 5px; border-radius: 5px; }
         hr { margin: 10px 0; border: none; border-top: 1px solid #ddd; }
@@ -125,9 +124,9 @@
             <div class="note">
                 ℹ️ 
                 {% if lang == 'ar' %}
-                ملاحظة: يمكن للمعلم تسجيل الدخول 5 مرات فقط للنسخة التجريبية. بعد انتهاء المحاولات، يرجى التواصل مع مدير النظام على الرقم 0554289816.
+                ملاحظة: يمكن للمعلم تسجيل الدخول 3 مرات فقط للنسخة التجريبية. بعد انتهاء المحاولات، يرجى التواصل مع مدير النظام على الرقم 0554289816.
                 {% else %}
-                Note: Teachers can only log in 5 times for the trial version. After trials expire, please contact the system administrator at 0554289816.
+                Note: Teachers can only log in 3 times for the trial version. After trials expire, please contact the system administrator at 0554289816.
                 {% endif %}
             </div>
         </div>
