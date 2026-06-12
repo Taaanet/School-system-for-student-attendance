@@ -1,6 +1,5 @@
-{% load i18n %}
 <!DOCTYPE html>
-<html dir="{% if lang == 'ar' %}rtl{% else %}ltr{% endif %}">
+<html dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -74,7 +73,7 @@
             padding: 10px;
             border-radius: 10px;
             margin-top: 10px;
-            text-align: {% if lang == 'ar' %}right{% else %}left{% endif %};
+            text-align: {{ 'right' if lang == 'ar' else 'left' }};
         }
         .admin-card { border-right: 4px solid #667eea; }
         .teacher-card { border-right: 4px solid #28a745; }
@@ -118,13 +117,18 @@
         <div class="info">
             <strong>📋 {{ t('login_info') }}:</strong><br>
             <div class="teacher-card">
-                👨‍🏫 <strong>{% if lang == 'ar' %}معلم{% else %}Teacher{% endif %}</strong><br>
+                <strong>{% if lang == 'ar' %}👨‍🏫 معلم{% else %}👨‍🏫 Teacher{% endif %}</strong><br>
                 {{ t('username') }}: <code>admin</code><br>
                 {{ t('password') }}: <code>admin123</code>
             </div>
             <hr>
             <div class="note">
-                ℹ️ {% if lang == 'ar' %}ملاحظة: يمكن للمعلم تسجيل الدخول 5 مرات فقط للنسخة التجريبية بعد انتهاء المحاولات، يرجى التواصل مع مدير النظام.{% else %}Note: Teachers can only log in 5 times for the trial version. After trials expire, please contact the system administrator.{% endif %}
+                ℹ️ 
+                {% if lang == 'ar' %}
+                ملاحظة: يمكن للمعلم تسجيل الدخول 5 مرات فقط للنسخة التجريبية. بعد انتهاء المحاولات، يرجى التواصل مع مدير النظام على الرقم 0554289816.
+                {% else %}
+                Note: Teachers can only log in 5 times for the trial version. After trials expire, please contact the system administrator at 0554289816.
+                {% endif %}
             </div>
         </div>
     </div>
