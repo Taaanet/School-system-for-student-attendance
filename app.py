@@ -18,6 +18,7 @@ import hashlib
 import platform
 import subprocess
 import re
+import io
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
