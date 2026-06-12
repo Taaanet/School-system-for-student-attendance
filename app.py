@@ -127,6 +127,109 @@ TRANSLATIONS = {
     # PWA
     'install_app': {'ar': 'تثبيت التطبيق', 'en': 'Install App'},
     'install_app_desc': {'ar': 'ثبّت التطبيق على جهازك للوصول السريع', 'en': 'Install app on your device for quick access'},
+    
+    # الصفوف
+    'first_secondary': {'ar': 'الأول الثانوي', 'en': 'First Secondary'},
+    'second_secondary': {'ar': 'الثاني الثانوي', 'en': 'Second Secondary'},
+    'third_secondary': {'ar': 'الثالث الثانوي', 'en': 'Third Secondary'},
+    'all_grades': {'ar': 'جميع الصفوف', 'en': 'All Grades'},
+    'all_classes': {'ar': 'جميع الشعب', 'en': 'All Classes'},
+    
+    # المحاولات المجانية
+    'trial_info': {'ar': 'المحاولات المجانية', 'en': 'Free Trials'},
+    'trial_system': {'ar': 'نظام المحاولات المجانية', 'en': 'Free Trial System'},
+    'welcome_trial': {'ar': 'مرحباً بك في نظام حضور الطلاب', 'en': 'Welcome to Student Attendance System'},
+    'trial_description': {'ar': 'يمكنك تجربة النظام 3 مرات مجاناً قبل الحاجة إلى الترخيص.', 'en': 'You can try the system 3 times for free before needing a license.'},
+    'remaining_trials': {'ar': 'المحاولات المتبقية', 'en': 'Remaining Trials'},
+    'max_trials': {'ar': 'الحد الأقصى', 'en': 'Maximum'},
+    'trials_left_message': {'ar': 'لديك', 'en': 'You have'},
+    'trials': {'ar': 'محاولات مجانية متبقية', 'en': 'free trials remaining'},
+    'start_trial': {'ar': 'ابدأ التجربة الآن', 'en': 'Start Trial Now'},
+    'trials_expired': {'ar': 'لقد انتهت المحاولات المجانية', 'en': 'Free trials have expired'},
+    'request_license': {'ar': 'طلب ترخيص', 'en': 'Request License'},
+    'how_to_get_license': {'ar': 'كيف تحصل على ترخيص؟', 'en': 'How to get a license?'},
+    'go_to_activation_request': {'ar': 'اذهب إلى صفحة طلب التفعيل', 'en': 'Go to activation request page'},
+    'copy_device_id': {'ar': 'انسخ رمز الجهاز الفريد', 'en': 'Copy the unique device ID'},
+    'send_to_admin': {'ar': 'أرسله إلى مدير النظام', 'en': 'Send it to the system administrator'},
+    'enter_activation_code': {'ar': 'بعد استلام رمز التفعيل، أدخله في صفحة تفعيل الجهاز', 'en': 'After receiving the activation code, enter it on the device activation page'},
+    
+    # التفعيل
+    'activation_required': {'ar': 'تفعيل الجهاز مطلوب', 'en': 'Activation Required'},
+    'trials_expired_title': {'ar': 'انتهت المحاولات المجانية لهذا الجهاز', 'en': 'Free trials for this device have expired'},
+    'activation_required_message': {'ar': 'لقد استنفدت المحاولات المجانية الثلاث. يرجى الحصول على ترخيص للاستمرار:', 'en': 'You have exhausted the three free trials. Please obtain a license to continue:'},
+    'activation_step1': {'ar': 'اذهب إلى صفحة', 'en': 'Go to the'},
+    'activation_request': {'ar': 'طلب التفعيل', 'en': 'activation request page'},
+    'activation_step2': {'ar': 'انسخ رمز الطلب المُولّد وأرسله إلى مدير النظام.', 'en': 'Copy the generated request code and send it to the system administrator.'},
+    'activation_step3': {'ar': 'بعد استلام رمز التفعيل، أدخله في صفحة', 'en': 'After receiving the activation code, enter it on the'},
+    'activate_device': {'ar': 'تفعيل الجهاز', 'en': 'device activation page'},
+    'device_id': {'ar': 'معرف الجهاز', 'en': 'Device ID'},
+    'request_new_license': {'ar': 'طلب ترخيص جديد', 'en': 'Request New License'},
+    'activation_code': {'ar': 'رمز التفعيل', 'en': 'Activation Code'},
+    'activate': {'ar': 'تفعيل الجهاز', 'en': 'Activate Device'},
+    'device_unique_id': {'ar': 'معرف الجهاز الفريد', 'en': 'Unique Device ID'},
+    'request_instruction': {'ar': 'قم بنسخ الرقم أدناه وإرساله إلى مدير النظام لإنشاء رمز تفعيل لك.', 'en': 'Copy the code below and send it to the system administrator to generate an activation code for you.'},
+    'copy_id': {'ar': 'نسخ الرقم', 'en': 'Copy ID'},
+    'page_refresh': {'ar': 'سيتم تحديث الصفحة...', 'en': 'Page will refresh...'},
+    'activation_instruction': {'ar': 'قم بإدخال رمز التفعيل الذي استلمته من مدير النظام.', 'en': 'Enter the activation code you received from the system administrator.'},
+    
+    # وضع عدم الاتصال
+    'offline': {'ar': 'غير متصل', 'en': 'Offline'},
+    'offline_title': {'ar': 'أنت حالياً غير متصل بالإنترنت', 'en': 'You are currently offline'},
+    'offline_message': {'ar': 'يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى. بعض البيانات المخزنة محلياً قد تكون متاحة حالياً.', 'en': 'Please check your internet connection and try again. Some cached data may be available.'},
+    'last_update': {'ar': 'آخر تحديث', 'en': 'Last Update'},
+    'retry': {'ar': 'إعادة المحاولة', 'en': 'Retry'},
+    
+    # الصفحة الرئيسية
+    'daily_report': {'ar': 'التقرير اليومي', 'en': 'Daily Report'},
+    'specific_date': {'ar': 'تقرير بتاريخ محدد', 'en': 'Specific Date Report'},
+    'student_report': {'ar': 'تقرير طالب محدد', 'en': 'Student Report'},
+    'attendance_details': {'ar': 'تفاصيل الحضور', 'en': 'Attendance Details'},
+    'select_date': {'ar': 'اختر تاريخ ثم اضغط عرض', 'en': 'Select date and click Show'},
+    'select_month': {'ar': 'اختر السنة والشهر ثم اضغط عرض', 'en': 'Select year and month then click Show'},
+    'select_class_date': {'ar': 'اختر الصف والفصل والتاريخ ثم اضغط عرض', 'en': 'Select grade, class and date then click Show'},
+    'attendance_trend': {'ar': 'اتجاه الحضور الشهري', 'en': 'Monthly Attendance Trend'},
+    'attendance_distribution': {'ar': 'توزيع الحضور اليومي', 'en': 'Daily Attendance Distribution'},
+    'weekly_attendance': {'ar': 'نسبة الحضور حسب أيام الأسبوع', 'en': 'Weekly Attendance Rate'},
+    'top_students': {'ar': 'أفضل 10 طلاب حضوراً', 'en': 'Top 10 Students'},
+    'recent_attendance': {'ar': 'آخر تسجيلات الحضور', 'en': 'Recent Attendance Records'},
+    
+    # الكاميرا والمسح
+    'start_camera': {'ar': 'تشغيل الكاميرا', 'en': 'Start Camera'},
+    'stop_camera': {'ar': 'إيقاف الكاميرا', 'en': 'Stop Camera'},
+    'scan_qr': {'ar': 'مسح QR Code', 'en': 'Scan QR Code'},
+    'manual_entry': {'ar': 'إدخال رقم الطالب يدوياً', 'en': 'Manual Entry'},
+    'enter_student_id': {'ar': 'أدخل رقم الطالب', 'en': 'Enter student ID'},
+    'register_attendance': {'ar': 'تسجيل الحضور', 'en': 'Register Attendance'},
+    
+    # رفع الملفات
+    'upload_file': {'ar': 'رفع الملف', 'en': 'Upload File'},
+    'preview_data': {'ar': 'معاينة البيانات', 'en': 'Preview Data'},
+    'upload_complete': {'ar': 'اكتمال الرفع', 'en': 'Upload Complete'},
+    'upload_another': {'ar': 'رفع ملف آخر', 'en': 'Upload Another'},
+    'upload_success': {'ar': 'تم الرفع بنجاح!', 'en': 'Upload Successful!'},
+    'uploaded_students': {'ar': 'تم رفع', 'en': 'Uploaded'},
+    'from_file': {'ar': 'طالب من ملف', 'en': 'students from file'},
+    'data_preview': {'ar': 'معاينة البيانات', 'en': 'Data Preview'},
+    'confirm_upload': {'ar': 'تأكيد الرفع والحذف', 'en': 'Confirm Upload and Delete'},
+    'download_template': {'ar': 'تحميل ملف الطلاب الحالي (نموذج)', 'en': 'Download Current Students (Template)'},
+    'upload_students_file': {'ar': 'رفع ملف الطلاب', 'en': 'Upload Students File'},
+    'click_to_select': {'ar': 'اضغط هنا لاختيار ملف Excel أو CSV', 'en': 'Click here to select Excel or CSV file'},
+    'supported_files': {'ar': 'الملفات المدعومة: .xlsx, .xls, .csv', 'en': 'Supported files: .xlsx, .xls, .csv'},
+    'instructions': {'ar': 'تعليمات', 'en': 'Instructions'},
+    'excel_csv_supported': {'ar': 'يمكنك رفع ملف Excel (.xlsx, .xls) أو CSV يحتوي على بيانات الطلاب', 'en': 'You can upload Excel (.xlsx, .xls) or CSV file containing student data'},
+    'optional_columns': {'ar': 'الأعمدة الإضافية (اختيارية)', 'en': 'Additional columns (optional)'},
+    'student_phone': {'ar': 'هاتف الطالب', 'en': 'Student Phone'},
+    'parent_phone': {'ar': 'هاتف ولي الأمر', 'en': 'Parent Phone'},
+    'delete_warning_short': {'ar': 'سيتم حذف جميع بيانات الطلاب الحالية واستبدالها بالبيانات الجديدة', 'en': 'All current student data will be deleted and replaced with new data'},
+    'delete_warning': {'ar': 'سيتم حذف جميع الطلاب الحاليين', 'en': 'All current students will be deleted'},
+    'all_current_students': {'ar': 'جميع الطلاب الحاليين', 'en': 'all current students'},
+    'replace_with': {'ar': 'واستبدالهم بـ', 'en': 'and replaced with'},
+    'warning': {'ar': 'تنبيه هام', 'en': 'Important Warning'},
+    'warnings': {'ar': 'تحذيرات', 'en': 'Warnings'},
+    'found_columns': {'ar': 'الأعمدة الموجودة في الملف', 'en': 'Columns found in file'},
+    'required_columns': {'ar': 'الأعمدة المطلوبة', 'en': 'Required columns'},
+    'and_more': {'ar': 'و أكثر', 'en': 'and more'},
+    'and_more_count': {'ar': '... و', 'en': '... and'},
 }
 
 def t(key):
@@ -1212,7 +1315,7 @@ def debug_student_ids():
             <td>{r['length']}</td>
             <td>{r['cleaned']}</td>
             <td>{badge}</td>
-        </tr>
+        <tr>
         """
     
     html += """
