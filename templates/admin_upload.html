@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}رفع بيانات الطلاب{% endblock %}
+{% block page_title %}<i class="fas fa-upload"></i> رفع بيانات الطلاب{% endblock %}
+
+{% block content %}
+<style>
+    .upload-area {
+        border: 2px dashed #cbd5e0;
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        background: #f7fafc;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .upload-area:hover {
+        border-color: #667eea;
+        background: #edf2f7;
+    }
+    .upload-area.dragover {
+        border-color: #48bb78;
+        background: #f0fff4;
+    }
+    .preview-table {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+    .badge-success { background: #48bb78; color: white; padding: 4px 8px; border-radius: 10px; font-size: 12px; }
+    .badge-warning { background: #ed8936; color: white; padding: 4px 8px; border-radius: 10px; font-size: 12px; }
+    .badge-error { background: #e53e3e; color: white; padding: 4px 8px; border-radius: 10px; font-size: 12px; }
+    .text-danger { color: #e53e3e; }
+    .text-success { color: #48bb78; }
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+    }
+    .step {
+        text-align: center;
+        flex: 1;
+        position: relative;
+    }
+    .step .circle {
+        width: 40px;
+        height: 40px;
+        background: #e2e8f0;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #718096;
+    }
+    .step.active .circle {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+    .step.completed .circle {
+        background: #48bb78;
+        color: white;
+    }
+    .step .label {
+        font-size: 12px;
+        margin-top: 8px;
+        color: #718096;
+    }
+    .step.active .label {
+        color: #667eea;
+        font-weight: bold;
+    }
+    .step:not(:last-child):before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        right: -50%;
+        width: 100%;
+        height: 2px;
+        background: #e2e8f0;
+        z-index: 0;
+    }
+    .step.completed:not(:last-child):before {
+        background: #48bb78;
+    }
+</style>
+
+<div class="step-indicator">
+    <div class="step {% if not confirm_required and not success %}active{% elif confirm_required or success %}completed{% endif %}">
+        <div class="circle">1</div>
+        <div class="label">رفع الملف</div>
+    </div>
+    <div class="step {% if confirm_required %}active{% elif success %}completed{% endif %}">
+        <div class="circle">2</div>
+        <div class="label">معاينة البيانات</div>
+    </div>
+    <div class="step {% if success %}active{% endif %}">
+        <div class="circle">3</div>
+        <div class="label">اكتمال الرفع</div>
+    </div>
+</div>
+
+{% if error %}
+<div class="card" style="background: #fff5f5; border: 1px solid #fc8181;">
+    <h3 style="color: #e53e3e;"><i class="fas fa-exclamation-triangle"></i> خطأ</h3>
+    <p>{{ error }}</p>
+    {% if found_columns %}
+    <div style="margin-top: 15px;">
+        <p><strong>📋 الأعمدة الموجودة في الملف:</strong></p>
+        <div style="background: #f7fafc; padding: 10px; border-radius: 10px;">
+            {% for col in found_columns %}
+            <code style="display: inline-block; margin: 3px; padding: 4px 8px; background: #e2e8f0; border-radius: 5px;">{{ col }}</code>
+            {% endfor %}
+        </div>
+        <p style="margin-top: 10px;"><strong>📌 الأعمدة المطلوبة:</strong> student_id (رقم الطالب), name (اسم الطالب)</p>
+        <p>يمكنك تحميل ملف نموذجي بالضغط على الزر أدناه للتعرف على التنسيق المطلوب.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if success %}
+<div class="card" style="background: #f0fff4; border: 1px solid #48bb78; text-align: center;">
+    <div style="font-size: 60px; margin-bottom: 20px;">🎉</div>
+    <h3 style="color: #38a169;"><i class="fas fa-check-circle"></i> تم الرفع بنجاح!</h3>
+    <p style="font-size: 18px; margin: 20px 0;">تم رفع <strong>{{ total_uploaded }}</strong> طالب من ملف <strong>{{ filename }}</strong></p>
+    <p>تم تحديث قاعدة البيانات بنجاح. يمكنك الآن استخدام التطبيق بالبيانات الجديدة.</p>
+    <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        <a href="/manage_students" class="nav-btn nav-btn-primary"><i class="fas fa-user-graduate"></i> إدارة الطلاب</a>
+        <a href="/admin/upload_students" class="nav-btn nav-btn-success"><i class="fas fa-file-excel"></i> رفع ملف آخر</a>
+        <a href="/" class="nav-btn nav-btn-info"><i class="fas fa-home"></i> العودة للرئيسية</a>
+    </div>
+</div>
+{% endif %}
+
+{% if confirm_required %}
+<div class="card">
+    <h3 class="card-title"><i class="fas fa-eye"></i> معاينة البيانات</h3>
+    
+    <div style="background: #fef5e7; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <p><strong>⚠️ تنبيه هام:</strong></p>
+        <p>سيتم <strong class="text-danger">حذف جميع الطلاب الحاليين</strong> ({{ old_count }} طالب) واستبدالهم بـ <strong class="text-success">{{ total_students }} طالب</strong> من الملف.</p>
+        <p>هذا الإجراء <strong>لا يمكن التراجع عنه</strong>. يرجى التأكد من صحة البيانات قبل المتابعة.</p>
+    </div>
+    
+    {% if errors %}
+    <div style="background: #fff5f5; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <h4 style="color: #e53e3e;"><i class="fas fa-exclamation-triangle"></i> تحذيرات ({{ errors|length }})</h4>
+        <ul style="max-height: 150px; overflow-y: auto; margin-top: 10px;">
+            {% for err in errors[:20] %}
+            <li style="color: #c53030;">{{ err }}</li>
+            {% endfor %}
+            {% if errors|length > 20 %}
+            <li style="color: #c53030;">... و {{ errors|length - 20 }} تحذير آخر</li>
+            {% endif %}
+        </ul>
+        <p class="text-danger" style="margin-top: 10px;">سيتم تخطي هذه الصفوف وعدم إضافتها.</p>
+    </div>
+    {% endif %}
+    
+    <div class="preview-table">
+        <table style="min-width: 600px;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>رقم الطالب</th>
+                    <th>اسم الطالب</th>
+                    <th>الصف</th>
+                    <th>الشعبة</th>
+                    <th>هاتف الطالب</th>
+                 </tr>
+            </thead>
+            <tbody>
+                {% for student in preview %}
+                <tr>
+                    <td>{{ loop.index }} </td>
+                    <td><code>{{ student.student_id }}</code></td>
+                    <td>{{ student.name }}</td>
+                    <td>{{ student.grade }}</td>
+                    <td>{{ student.class }}</td>
+                    <td>{{ student.phone if student.phone else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if total_students > preview|length %}
+        <p style="text-align: center; padding: 10px; background: #f7fafc; margin: 0;">
+            ... و {{ total_students - preview|length }} طالب آخر
+        </p>
+        {% endif %}
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data" style="margin-top: 25px;">
+        <input type="hidden" name="confirm" value="yes">
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+            <button type="submit" class="nav-btn nav-btn-danger" onclick="showLoading()">
+                <i class="fas fa-check-circle"></i> تأكيد الرفع والحذف
+            </button>
+            <a href="/admin/upload_students" class="nav-btn nav-btn-secondary">
+                <i class="fas fa-times"></i> إلغاء
+            </a>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if not success and not confirm_required and not error %}
+<div class="card">
+    <h3 class="card-title"><i class="fas fa-upload"></i> رفع ملف الطلاب</h3>
+    
+    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+        <i class="fas fa-cloud-upload-alt" style="font-size: 60px; color: #667eea;"></i>
+        <p style="margin-top: 15px; font-size: 18px; color: #4a5568;">اضغط هنا لاختيار ملف Excel أو CSV</p>
+        <p style="font-size: 14px; color: #718096;">الملفات المدعومة: .xlsx, .xls, .csv</p>
+        <p style="font-size: 12px; color: #a0aec0; margin-top: 10px;">يمكنك سحب وإسقاط الملف هنا أيضاً</p>
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+        <input type="file" name="file" id="fileInput" style="display: none;" accept=".xlsx,.xls,.csv" onchange="document.getElementById('uploadForm').submit()">
+    </form>
+    
+    <hr style="margin: 25px 0;">
+    
+    <div>
+        <h4><i class="fas fa-info-circle"></i> تعليمات:</h4>
+        <ul style="margin-top: 10px; margin-right: 20px; line-height: 1.8;">
+            <li>يمكنك رفع ملف Excel (.xlsx, .xls) أو CSV يحتوي على بيانات الطلاب</li>
+            <li><strong>الأعمدة المطلوبة:</strong> <code>student_id</code> (رقم الطالب) و <code>name</code> (اسم الطالب)</li>
+            <li><strong>الأعمدة الإضافية (اختيارية):</strong> <code>grade</code> (الصف), <code>class</code> (الشعبة), <code>phone</code> (هاتف الطالب), <code>parent_phone</code> (هاتف ولي الأمر)</li>
+            <li>سيتم <strong class="text-danger">حذف جميع بيانات الطلاب الحالية</strong> واستبدالها بالبيانات الجديدة</li>
+            <li>يمكنك تحميل ملف نموذجي بالضغط على الزر أدناه لمعرفة التنسيق المطلوب</li>
+        </ul>
+    </div>
+    
+    <div style="margin-top: 25px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        <a href="/api/admin/export_current_students" class="nav-btn nav-btn-info">
+            <i class="fas fa-download"></i> تحميل ملف الطلاب الحالي (نموذج)
+        </a>
+        <a href="/manage_students" class="nav-btn nav-btn-primary">
+            <i class="fas fa-user-graduate"></i> إدارة الطلاب
+        </a>
+    </div>
+</div>
+
+<script>
+    // Drag and drop functionality
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        uploadArea.classList.add('dragover');
+    }
+    
+    function unhighlight() {
+        uploadArea.classList.remove('dragover');
+    }
+    
+    uploadArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            document.getElementById('uploadForm').submit();
+        }
+    }
+    
+    function showLoading() {
+        if (typeof showLoadingOverlay === 'function') {
+            showLoadingOverlay();
+        }
+    }
+</script>
+{% endif %}
+
+{% endblock %}
