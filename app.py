@@ -33,7 +33,7 @@ def inject_language():
     lang = session.get('language', 'ar')
     return dict(lang=lang)
 
-# قاموس الترجمة الكامل (تم حذف ترجمة qr_codes)
+# قاموس الترجمة الكامل
 TRANSLATIONS = {
     # القائمة الرئيسية
     'home': {'ar': 'الرئيسية', 'en': 'Home'},
@@ -339,7 +339,6 @@ SECRET_KEY_FOR_LICENSES = hashlib.sha256(b"Your-Super-Secret-Key-For-Licensing-2
 
 def get_hardware_id():
     """يُولد مُعرّفاً فريداً للجهاز مع تخزين محلي لضمان الثبات"""
-    # محاولة جلب معرف مخزن محلياً (للباك اند)
     stored_id = None
     try:
         import tempfile
@@ -347,7 +346,7 @@ def get_hardware_id():
         if os.path.exists(id_file):
             with open(id_file, 'r') as f:
                 stored_id = f.read().strip()
-                if stored_id and len(stored_id) == 64:  # التحقق من صحة المعرف
+                if stored_id and len(stored_id) == 64:
                     return stored_id
     except:
         pass
@@ -371,7 +370,6 @@ def get_hardware_id():
     combined_string = "|".join(unique_id_parts)
     hardware_hash = hashlib.sha256(combined_string.encode()).hexdigest()
     
-    # حفظ المعرف لاستخدامه لاحقاً
     try:
         import tempfile
         id_file = os.path.join(tempfile.gettempdir(), 'app_hardware_id.txt')
@@ -406,7 +404,7 @@ def decrypt_activation_code(activation_code):
         return None, None
 
 def check_device_license():
-    """تتحقق مما إذا كان الجهاز الحالي مرخصاً لاستخدام التطبيق (نسخة محسنة)"""
+    """تتحقق مما إذا كان الجهاز الحالي مرخصاً لاستخدام التطبيق"""
     current_hardware_id = get_hardware_id()
     if not current_hardware_id:
         print("⚠️ لا يمكن تحديد معرف الجهاز")
@@ -765,13 +763,11 @@ def activate_device_page():
             return render_template('activate_device.html', error="هذا الرمز منتهي الصلاحية.")
 
         try:
-            # استخدام upsert مع بيانات إضافية للتأكد من التحديث
+            # استخدام upsert مع الحقول الأساسية فقط (بدون activated_at)
             result = supabase.table("device_licenses").upsert({
                 "hardware_id": hardware_id,
                 "activation_code": activation_code,
-                "expires_at": expiry_date.isoformat(),
-                "activated_at": datetime.now().isoformat(),
-                "last_verified_at": datetime.now().isoformat()
+                "expires_at": expiry_date.isoformat()
             }, on_conflict="hardware_id").execute()
             
             print(f"✅ تم تفعيل الجهاز: {hardware_id[:20]}... ينتهي في {expiry_date}")
@@ -811,13 +807,12 @@ def create_license_api():
     activation_code = encrypt_activation_code(hardware_id, expiry_date)
 
     try:
-        supabase.table("device_licenses").insert({
+        # إدراج الترخيص بدون الحقول الإضافية
+        result = supabase.table("device_licenses").insert({
             "hardware_id": hardware_id,
             "activation_code": activation_code,
             "expires_at": expiry_date.isoformat(),
-            "created_by": session.get('username'),
-            "activated_at": None,
-            "last_verified_at": None
+            "created_by": session.get('username')
         }).execute()
         return render_template('admin_licenses_result.html', activation_code=activation_code, hardware_id=hardware_id, expiry_date=expiry_date)
     except Exception as e:
@@ -887,9 +882,7 @@ def device_status_api():
                 "is_licensed": is_valid,
                 "expires_at": license_data['expires_at'],
                 "days_remaining": (expiry_date - datetime.now()).days if is_valid else 0,
-                "hardware_id": hardware_id,
-                "activated_at": license_data.get('activated_at'),
-                "last_verified_at": license_data.get('last_verified_at')
+                "hardware_id": hardware_id
             })
         else:
             return jsonify({
@@ -1096,30 +1089,58 @@ def export_current_students():
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"}), 403
     
-    students = get_live_students()
-    
-    # تحويل إلى DataFrame
-    df = pd.DataFrame(students)
-    
-    # ترتيب الأعمدة
-    columns_order = ['student_id', 'name', 'grade', 'class', 'phone', 'parent_phone']
-    existing_columns = [col for col in columns_order if col in df.columns]
-    df = df[existing_columns]
-    
-    # إنشاء ملف Excel
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Students')
-    
-    output.seek(0)
-    
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name=f'students_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    )
+    try:
+        students = get_live_students()
+        
+        if not students:
+            return jsonify({"success": False, "message": "لا توجد بيانات للتصدير"}), 404
+        
+        # تحويل إلى DataFrame
+        df = pd.DataFrame(students)
+        
+        # ترتيب الأعمدة
+        columns_order = ['student_id', 'name', 'grade', 'class', 'phone', 'parent_phone']
+        existing_columns = [col for col in columns_order if col in df.columns]
+        df = df[existing_columns]
+        
+        # إعادة تسمية الأعمدة للعربية (للتسهيل)
+        column_names_ar = {
+            'student_id': 'رقم الطالب',
+            'name': 'اسم الطالب',
+            'grade': 'الصف',
+            'class': 'الشعبة',
+            'phone': 'هاتف الطالب',
+            'parent_phone': 'هاتف ولي الأمر'
+        }
+        
+        # إعادة تسمية الأعمدة الموجودة فقط
+        rename_dict = {col: column_names_ar[col] for col in existing_columns if col in column_names_ar}
+        df = df.rename(columns=rename_dict)
+        
+        # إنشاء ملف Excel في الذاكرة
+        output = io.BytesIO()
+        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Students')
+        
+        output.seek(0)
+        
+        filename = f'students_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"❌ خطأ في تصدير البيانات: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
 
+# ============== باقي المسارات (API التقارير، إلخ) ==============
 # ============== صفحات فحص وتنظيف البيانات ==============
 @app.route('/debug_student_ids')
 @login_required
