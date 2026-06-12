@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html dir="rtl">
+<html dir="{% if lang == 'ar' %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - نظام حضور الطلاب</title>
+    <title>{{ t('login') }} - {{ t('smart_attendance_system') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -73,41 +74,57 @@
             padding: 10px;
             border-radius: 10px;
             margin-top: 10px;
-            text-align: right;
+            text-align: {% if lang == 'ar' %}right{% else %}left{% endif %};
         }
         .admin-card { border-right: 4px solid #667eea; }
         .teacher-card { border-right: 4px solid #28a745; }
         code { background: #e9ecef; padding: 2px 5px; border-radius: 5px; }
         hr { margin: 10px 0; border: none; border-top: 1px solid #ddd; }
         .note { color: #666; font-size: 11px; margin-top: 10px; }
+        .language-switch { margin-bottom: 20px; text-align: center; }
+        .lang-btn {
+            display: inline-block;
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 5px 12px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 5px;
+        }
+        .lang-btn:hover { background: #cbd5e0; }
     </style>
 </head>
 <body>
     <div class="login-container">
+        <div class="language-switch">
+            <a href="/api/set_language/ar" class="lang-btn">🇸🇦 عربي</a>
+            <a href="/api/set_language/en" class="lang-btn">🇬🇧 English</a>
+        </div>
         <div class="logo">🏫</div>
-        <h1>نظام حضور الطلاب</h1>
-        <p class="subtitle">الرجاء تسجيل الدخول للمتابعة</p>
+        <h1>{{ t('smart_attendance_system') }}</h1>
+        <p class="subtitle">{{ t('please_login') }}</p>
         
         {% if error %}
         <div class="error">{{ error }}</div>
         {% endif %}
         
         <form method="POST">
-            <input type="text" name="username" placeholder="اسم المستخدم" required>
-            <input type="password" name="password" placeholder="كلمة المرور" required>
-            <button type="submit">دخول</button>
+            <input type="text" name="username" placeholder="{{ t('username') }}" required>
+            <input type="password" name="password" placeholder="{{ t('password') }}" required>
+            <button type="submit">{{ t('login') }}</button>
         </form>
         
         <div class="info">
-            <strong>📋 معلومات الدخول:</strong><br>
+            <strong>📋 {{ t('login_info') }}:</strong><br>
             <div class="teacher-card">
-                👨‍🏫 <strong>معلم </strong><br>
-                اسم المستخدم: <code>admin</code><br>
-                كلمة المرور: <code>admin123</code>
+                👨‍🏫 <strong>{% if lang == 'ar' %}معلم{% else %}Teacher{% endif %}</strong><br>
+                {{ t('username') }}: <code>admin</code><br>
+                {{ t('password') }}: <code>admin123</code>
             </div>
             <hr>
             <div class="note">
-                ℹ️ ملاحظة: يمكن للمعلم تسجيل الدخول 5 مرات فقط للنسخة التجريبية بعد انتهاء المحاولات، يرجى التواصل مع مدير النظام.0554289816
+                ℹ️ {% if lang == 'ar' %}ملاحظة: يمكن للمعلم تسجيل الدخول 5 مرات فقط للنسخة التجريبية بعد انتهاء المحاولات، يرجى التواصل مع مدير النظام.{% else %}Note: Teachers can only log in 5 times for the trial version. After trials expire, please contact the system administrator.{% endif %}
             </div>
         </div>
     </div>

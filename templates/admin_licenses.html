@@ -1,35 +1,41 @@
 {% extends "base.html" %}
-{% block title %}إدارة التراخيص{% endblock %}
-{% block page_title %}👑 لوحة تحكم التراخيص{% endblock %}
+{% block title %}{{ t('licenses') }}{% endblock %}
+{% block page_title %}👑 {{ t('license_management') }}{% endblock %}
 
 {% block content %}
 <div class="card">
-    <h3>➕ إنشاء ترخيص جديد</h3>
+    <h3>➕ {{ t('create_new_license') }}</h3>
     <form method="POST" action="/api/admin/create_license">
-        <div class="form-group">
-            <input type="text" name="hardware_id" placeholder="معرف الجهاز (من طلب التفعيل)" required style="flex: 2;">
-            <input type="number" name="validity_days" placeholder="عدد أيام الصلاحية" value="365" required style="flex: 1;">
-            <button type="submit" class="action-btn action-btn-excel">🔑 إنشاء رمز التفعيل</button>
+        <div class="form-group" style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <input type="text" name="hardware_id" placeholder="{{ t('device_id_from_request') }}" required style="flex: 2; padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
+            <input type="number" name="validity_days" placeholder="{{ t('validity_days') }}" value="365" required style="flex: 1; padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
+            <button type="submit" class="action-btn action-btn-excel">🔑 {{ t('create_activation_code') }}</button>
         </div>
     </form>
 </div>
 
 <div class="card">
-    <h3>📋 التراخيص النشطة</h3>
+    <h3>📋 {{ t('active_licenses') }}</h3>
     <div class="table-wrapper">
-        <table>
+        <table style="width:100%; border-collapse: collapse;">
             <thead>
-                <tr><th>معرف الجهاز</th><th>تاريخ الانتهاء</th><th>تاريخ الإنشاء</th><th>تم الإنشاء بواسطة</th><th>الإجراءات</th></tr>
+                <tr>
+                    <th>{{ t('device_id') }}</th>
+                    <th>{{ t('expiry_date') }}</th>
+                    <th>{{ t('creation_date') }}</th>
+                    <th>{{ t('created_by') }}</th>
+                    <th>{{ t('actions') }}</th>
+                </tr>
             </thead>
             <tbody>
                 {% for license in licenses %}
                 <tr>
-                    <td><code style="font-size: 12px;">{{ license.hardware_id }}</code></td>
-                    <td>{{ license.expires_at }}</td>
-                    <td>{{ license.created_at }}</td>
+                    <td><code style="font-size: 12px; word-break: break-all;">{{ license.hardware_id[:30] }}...</code></td>
+                    <td>{{ license.expires_at[:10] if license.expires_at else '-' }}</td>
+                    <td>{{ license.created_at[:10] if license.created_at else '-' }}</td>
                     <td>{{ license.created_by or 'admin' }}</td>
                     <td>
-                        <a href="/api/admin/revoke_license/{{ license.id }}" onclick="return confirm('هل أنت متأكد من إلغاء هذا الترخيص؟')" style="color: #e53e3e;">🗑️ إلغاء</a>
+                        <a href="/api/admin/revoke_license/{{ license.id }}" onclick="return confirm('{{ t('confirm_revoke') }}')" style="color: #e53e3e;">🗑️ {{ t('revoke') }}</a>
                     </td>
                 </tr>
                 {% endfor %}
