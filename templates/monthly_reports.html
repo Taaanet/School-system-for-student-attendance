@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}التقارير الشهرية المتقدمة{% endblock %}
-{% block page_title %}<i class="fas fa-calendar-alt"></i> التقارير الشهرية المتقدمة{% endblock %}
+{% block title %}{{ t('monthly_reports') }}{% endblock %}
+{% block page_title %}<i class="fas fa-calendar-alt"></i> {{ t('monthly_reports') }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -17,8 +17,19 @@
         text-align: center;
         box-shadow: 0 5px 20px rgba(0,0,0,0.08);
     }
-    .monthly-card .value { font-size: 32px; font-weight: bold; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .monthly-card .label { color: #718096; font-size: 14px; margin-top: 8px; }
+    .monthly-card .value {
+        font-size: 32px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .monthly-card .label {
+        color: #718096;
+        font-size: 14px;
+        margin-top: 8px;
+    }
     .best-worst {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -33,44 +44,71 @@
     }
     .best-card { border-right: 4px solid #48bb78; }
     .worst-card { border-right: 4px solid #fc8181; }
+    .progress-bar-bg {
+        background: #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        height: 8px;
+        margin-top: 10px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="action-buttons">
-    <button class="action-btn action-btn-pdf" onclick="window.print()"><i class="fas fa-file-pdf"></i> طباعة PDF</button>
-    <button class="action-btn action-btn-excel" id="exportExcelBtn"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+    <button class="action-btn action-btn-pdf" onclick="window.print()"><i class="fas fa-file-pdf"></i> {{ t('print_pdf') }}</button>
+    <button class="action-btn action-btn-excel" id="exportExcelBtn"><i class="fas fa-file-excel"></i> {{ t('export_excel') }}</button>
 </div>
 
 <div class="card">
     <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 25px; align-items: flex-end;">
-        <div><label style="display:block;font-size:12px;color:#718096;"><i class="fas fa-calendar"></i> السنة</label>
-        <select id="yearSelect" style="padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
-            <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
-        </select></div>
-        <div><label style="display:block;font-size:12px;color:#718096;"><i class="fas fa-calendar-week"></i> الشهر</label>
-        <select id="monthSelect" style="padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
-            <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
-            <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
-            <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
-            <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
-        </select></div>
-        <button id="loadReportBtn" style="padding: 12px 30px; background: linear-gradient(135deg,#667eea,#764ba2); color: white; border: none; border-radius: 12px; cursor: pointer;"><i class="fas fa-chart-line"></i> عرض التقرير</button>
+        <div>
+            <label style="display:block;font-size:12px;color:#718096;"><i class="fas fa-calendar"></i> {{ t('year') }}</label>
+            <select id="yearSelect" style="padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
+                <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+            </select>
+        </div>
+        <div>
+            <label style="display:block;font-size:12px;color:#718096;"><i class="fas fa-calendar-week"></i> {{ t('month') }}</label>
+            <select id="monthSelect" style="padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
+                <option value="1">{{ t('january') }}</option><option value="2">{{ t('february') }}</option><option value="3">{{ t('march') }}</option>
+                <option value="4">{{ t('april') }}</option><option value="5">{{ t('may') }}</option><option value="6">{{ t('june') }}</option>
+                <option value="7">{{ t('july') }}</option><option value="8">{{ t('august') }}</option><option value="9">{{ t('september') }}</option>
+                <option value="10">{{ t('october') }}</option><option value="11">{{ t('november') }}</option><option value="12">{{ t('december') }}</option>
+            </select>
+        </div>
+        <button id="loadReportBtn" style="padding: 12px 30px; background: linear-gradient(135deg,#667eea,#764ba2); color: white; border: none; border-radius: 12px; cursor: pointer;">
+            <i class="fas fa-chart-line"></i> {{ t('show') }}
+        </button>
     </div>
 
     <div id="monthlySummary"></div>
     <div id="bestWorstDays"></div>
     <div class="table-wrapper">
-        <div id="monthlyTable">اختر السنة والشهر ثم اضغط عرض</div>
+        <div id="monthlyTable">{{ t('select_month') }}</div>
     </div>
 </div>
 
 <script>
+    const lang = '{{ lang }}';
+    
+    function getMonthName(month) {
+        const months = {
+            1: lang === 'ar' ? 'يناير' : 'January', 2: lang === 'ar' ? 'فبراير' : 'February',
+            3: lang === 'ar' ? 'مارس' : 'March', 4: lang === 'ar' ? 'أبريل' : 'April',
+            5: lang === 'ar' ? 'مايو' : 'May', 6: lang === 'ar' ? 'يونيو' : 'June',
+            7: lang === 'ar' ? 'يوليو' : 'July', 8: lang === 'ar' ? 'أغسطس' : 'August',
+            9: lang === 'ar' ? 'سبتمبر' : 'September', 10: lang === 'ar' ? 'أكتوبر' : 'October',
+            11: lang === 'ar' ? 'نوفمبر' : 'November', 12: lang === 'ar' ? 'ديسمبر' : 'December'
+        };
+        return months[month] || month;
+    }
+
     async function loadMonthlyReport() {
         const year = document.getElementById('yearSelect').value;
         const month = document.getElementById('monthSelect').value;
         
-        document.getElementById('monthlySummary').innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-pulse"></i> جاري التحميل...</div>';
+        document.getElementById('monthlySummary').innerHTML = `<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-pulse"></i> ${lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</div>`;
         
         const res = await fetch(`/api/monthly_report?year=${year}&month=${month}`);
         const data = await res.json();
@@ -79,26 +117,55 @@
             const summary = data.summary;
             document.getElementById('monthlySummary').innerHTML = `
                 <div class="monthly-summary">
-                    <div class="monthly-card"><div class="value">${summary.total_present + summary.total_late}</div><div class="label"><i class="fas fa-user-check"></i> إجمالي الحضور</div><div style="font-size:12px;">حاضر: ${summary.total_present} | متأخر: ${summary.total_late}</div></div>
-                    <div class="monthly-card"><div class="value">${summary.avg_attendance_rate}%</div><div class="label"><i class="fas fa-chart-line"></i> نسبة الحضور</div><div class="progress-bar" style="margin-top:10px;"><div style="width:${summary.avg_attendance_rate}%;height:6px;background:#48bb78;border-radius:3px;"></div></div></div>
-                    <div class="monthly-card"><div class="value">${summary.total_absent}</div><div class="label"><i class="fas fa-user-times"></i> إجمالي الغياب</div></div>
-                    <div class="monthly-card"><div class="value">${data.days_in_month}</div><div class="label"><i class="fas fa-calendar"></i> أيام الشهر</div><div style="font-size:12px;">أيام تسجيل: ${summary.days_with_attendance}</div></div>
+                    <div class="monthly-card"><div class="value">${summary.total_present + summary.total_late}</div>
+                        <div class="label"><i class="fas fa-user-check"></i> ${lang === 'ar' ? 'إجمالي الحضور' : 'Total Attendance'}</div>
+                        <div style="font-size:12px;">${lang === 'ar' ? 'حاضر' : 'Present'}: ${summary.total_present} | ${lang === 'ar' ? 'متأخر' : 'Late'}: ${summary.total_late}</div>
+                    </div>
+                    <div class="monthly-card"><div class="value">${summary.avg_attendance_rate}%</div>
+                        <div class="label"><i class="fas fa-chart-line"></i> ${lang === 'ar' ? 'نسبة الحضور' : 'Attendance Rate'}</div>
+                        <div class="progress-bar-bg"><div style="width:${summary.avg_attendance_rate}%; height:8px; background:#48bb78; border-radius:10px;"></div></div>
+                    </div>
+                    <div class="monthly-card"><div class="value">${summary.total_absent}</div>
+                        <div class="label"><i class="fas fa-user-times"></i> ${lang === 'ar' ? 'إجمالي الغياب' : 'Total Absence'}</div>
+                    </div>
+                    <div class="monthly-card"><div class="value">${data.days_in_month}</div>
+                        <div class="label"><i class="fas fa-calendar"></i> ${lang === 'ar' ? 'أيام الشهر' : 'Days in Month'}</div>
+                        <div style="font-size:12px;">${lang === 'ar' ? 'أيام تسجيل' : 'Recording Days'}: ${summary.days_with_attendance}</div>
+                    </div>
                 </div>
             `;
             
             if (summary.best_day) {
                 document.getElementById('bestWorstDays').innerHTML = `
                     <div class="best-worst">
-                        <div class="best-card"><i class="fas fa-trophy" style="color:#48bb78;font-size:24px;"></i><h3 style="margin:10px 0;">🏆 أفضل يوم</h3><div class="value">يوم ${summary.best_day.day}</div><div>حضور: ${summary.best_day.present + summary.best_day.late} طالب</div><div>النسبة: ${summary.best_day.percentage}%</div></div>
-                        <div class="worst-card"><i class="fas fa-chart-line" style="color:#fc8181;font-size:24px;"></i><h3 style="margin:10px 0;">📉 أسوأ يوم</h3><div class="value">يوم ${summary.worst_day.day}</div><div>حضور: ${summary.worst_day.present + summary.worst_day.late} طالب</div><div>النسبة: ${summary.worst_day.percentage}%</div></div>
+                        <div class="best-card"><i class="fas fa-trophy" style="color:#48bb78;font-size:24px;"></i>
+                            <h3 style="margin:10px 0;">🏆 ${lang === 'ar' ? 'أفضل يوم' : 'Best Day'}</h3>
+                            <div class="value">${lang === 'ar' ? 'يوم' : 'Day'} ${summary.best_day.day}</div>
+                            <div>${lang === 'ar' ? 'حضور' : 'Attendance'}: ${summary.best_day.present + summary.best_day.late} ${lang === 'ar' ? 'طالب' : 'students'}</div>
+                            <div>${lang === 'ar' ? 'النسبة' : 'Rate'}: ${summary.best_day.percentage}%</div>
+                        </div>
+                        <div class="worst-card"><i class="fas fa-chart-line" style="color:#fc8181;font-size:24px;"></i>
+                            <h3 style="margin:10px 0;">📉 ${lang === 'ar' ? 'أسوأ يوم' : 'Worst Day'}</h3>
+                            <div class="value">${lang === 'ar' ? 'يوم' : 'Day'} ${summary.worst_day.day}</div>
+                            <div>${lang === 'ar' ? 'حضور' : 'Attendance'}: ${summary.worst_day.present + summary.worst_day.late} ${lang === 'ar' ? 'طالب' : 'students'}</div>
+                            <div>${lang === 'ar' ? 'النسبة' : 'Rate'}: ${summary.worst_day.percentage}%</div>
+                        </div>
                     </div>
                 `;
             }
             
-            let html = `<table><thead><th>#</th><th>التاريخ</th><th>✅ حاضر</th><th>⏰ متأخر</th><th>❌ غائب</th><th>📊 النسبة</th></thead><tbody>`;
+            let html = `<table class="report-table"><thead><tr><th>#</th><th>${lang === 'ar' ? 'التاريخ' : 'Date'}</th><th>✅ ${lang === 'ar' ? 'حاضر' : 'Present'}</th><th>⏰ ${lang === 'ar' ? 'متأخر' : 'Late'}</th><th>❌ ${lang === 'ar' ? 'غائب' : 'Absent'}</th><th>📊 ${lang === 'ar' ? 'النسبة' : 'Rate'}</th></tr></thead><tbody>`;
+            
             data.daily_stats.forEach(day => {
                 let barColor = day.percentage >= 80 ? '#48bb78' : (day.percentage >= 50 ? '#ed8936' : '#fc8181');
-                html += `<tr><td class="present">${day.day}</td><td>${day.date}</td><td class="present">${day.present}</td><td class="late">${day.late}</td><td class="absent">${day.absent}</td><td><div style="background:#e2e8f0;border-radius:10px;overflow:hidden;"><div style="width:${day.percentage}%;height:6px;background:${barColor};border-radius:10px;"></div></div>${day.percentage}%</td></tr>`;
+                html += `<tr>
+                    <td class="present">${day.day}</td>
+                    <td>${day.date}</td>
+                    <td class="present">${day.present}</td>
+                    <td class="late">${day.late}</td>
+                    <td class="absent">${day.absent}</td>
+                    <td><div class="progress-bar-bg"><div style="width:${day.percentage}%; height:6px; background:${barColor}; border-radius:10px;"></div></div>${day.percentage}%</td>
+                </tr>`;
             });
             html += '</tbody></table>';
             document.getElementById('monthlyTable').innerHTML = html;

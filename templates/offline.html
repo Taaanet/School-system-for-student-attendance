@@ -1,47 +1,46 @@
 {% extends "base.html" %}
-{% block title %}غير متصل{% endblock %}
-{% block page_title %}📡 لا يوجد اتصال بالإنترنت{% endblock %}
+{% block title %}{{ t('offline') }}{% endblock %}
+{% block page_title %}📡 {{ t('no_internet') }}{% endblock %}
 
 {% block content %}
 <div class="card" style="text-align: center;">
     <div style="font-size: 80px; margin-bottom: 20px;">
         <i class="fas fa-wifi-slash" style="color: #e53e3e;"></i>
     </div>
-    <h2>أنت حالياً غير متصل بالإنترنت</h2>
+    <h2>{{ t('offline_title') }}</h2>
     <p style="margin: 20px 0; color: #718096;">
-        يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.<br>
-        بعض البيانات المخزنة محلياً قد تكون متاحة حالياً.
+        {{ t('offline_message') }}
     </p>
     <div class="stats-grid" style="margin-top: 20px;">
         <div class="stat-card">
             <i class="fas fa-database" style="font-size: 32px; color: #667eea;"></i>
-            <h3>البيانات المخزنة</h3>
+            <h3>{{ t('cached_data') }}</h3>
             <div class="stat-value" id="cachedCount">-</div>
         </div>
         <div class="stat-card">
             <i class="fas fa-sync-alt" style="font-size: 32px; color: #48bb78;"></i>
-            <h3>آخر تحديث</h3>
+            <h3>{{ t('last_update') }}</h3>
             <div class="stat-value" id="lastUpdate" style="font-size: 16px;">-</div>
         </div>
     </div>
     <button onclick="window.location.reload()" class="action-btn action-btn-excel" style="margin-top: 20px;">
-        <i class="fas fa-sync-alt"></i> إعادة المحاولة
+        <i class="fas fa-sync-alt"></i> {{ t('retry') }}
     </button>
 </div>
 
 <script>
     async function getCacheInfo() {
         if ('caches' in window) {
-            const cache = await caches.open('attendance-api-v1');
+            const cache = await caches.open('attendance-data-v1');
             const keys = await cache.keys();
             document.getElementById('cachedCount').innerHTML = keys.length;
-            
             const lastUpdateCache = localStorage.getItem('lastDataUpdate');
             if (lastUpdateCache) {
                 const date = new Date(parseInt(lastUpdateCache));
-                document.getElementById('lastUpdate').innerHTML = date.toLocaleString('ar-SA');
+                const lang = '{{ lang }}';
+                document.getElementById('lastUpdate').innerHTML = date.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US');
             } else {
-                document.getElementById('lastUpdate').innerHTML = 'غير معروف';
+                document.getElementById('lastUpdate').innerHTML = lang === 'ar' ? 'غير معروف' : 'Unknown';
             }
         }
     }

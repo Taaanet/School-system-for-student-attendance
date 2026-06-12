@@ -1,29 +1,29 @@
 {% extends "base.html" %}
-{% block title %}تفعيل الجهاز مطلوب{% endblock %}
-{% block page_title %}⚠️ انتهت المحاولات المجانية{% endblock %}
+{% block title %}{{ t('activation_required') }}{% endblock %}
+{% block page_title %}⚠️ {{ t('trials_expired') }}{% endblock %}
 
 {% block content %}
 <div class="card" style="text-align: center;">
     <div style="font-size: 60px; margin-bottom: 20px;">🔒</div>
-    <h2>انتهت المحاولات المجانية لهذا الجهاز</h2>
-    <p style="margin: 20px 0;">لقد استنفدت المحاولات المجانية الثلاث. يرجى الحصول على ترخيص للاستمرار:</p>
+    <h2>{{ t('trials_expired_title') }}</h2>
+    <p style="margin: 20px 0;">{{ t('activation_required_message') }}</p>
     
     <div style="text-align: right; max-width: 400px; margin: 20px auto;">
         <ol>
-            <li>اذهب إلى صفحة <a href="/request_activation">طلب التفعيل</a>.</li>
-            <li>انسخ رمز الطلب المُولّد وأرسله إلى مدير النظام.</li>
-            <li>بعد استلام رمز التفعيل، أدخله في صفحة <a href="/activate_device">تفعيل الجهاز</a>.</li>
+            <li>{{ t('activation_step1') }} <a href="/request_activation">{{ t('activation_request') }}</a>.</li>
+            <li>{{ t('activation_step2') }}</li>
+            <li>{{ t('activation_step3') }} <a href="/activate_device">{{ t('activate_device') }}</a>.</li>
         </ol>
     </div>
     
     <div class="stats-grid" style="margin-top: 20px;">
         <div class="stat-card">
-            <h3>📱 معرف الجهاز</h3>
+            <h3>📱 {{ t('device_id') }}</h3>
             <code style="font-size: 12px; word-break: break-all;">{{ hardware_id }}</code>
         </div>
     </div>
     
-    <a href="/request_activation" class="nav-btn nav-btn-info">📋 طلب ترخيص جديد</a>
-    <a href="/activate_device" class="nav-btn nav-btn-success" style="margin-right: 10px;">🔓 إدخال رمز التفعيل</a>
+    <a href="/request_activation" class="nav-btn nav-btn-info">📋 {{ t('request_new_license') }}</a>
+    <a href="/activate_device" class="nav-btn nav-btn-success" style="margin-right: 10px;">🔓 {{ t('enter_activation_code') }}</a>
 </div>
 {% endblock %}

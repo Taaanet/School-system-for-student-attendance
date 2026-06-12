@@ -1,30 +1,30 @@
 {% extends "base.html" %}
-{% block title %}الرئيسية{% endblock %}
-{% block page_title %}<i class="fas fa-home"></i> الرئيسية{% endblock %}
+{% block title %}{{ t('home') }}{% endblock %}
+{% block page_title %}<i class="fas fa-home"></i> {{ t('home') }}{% endblock %}
 
 {% block content %}
 <!-- أزرار الإجراءات السريعة -->
 <div class="action-buttons">
-    <button class="action-btn action-btn-pdf" onclick="window.print()"><i class="fas fa-file-pdf"></i> طباعة الصفحة</button>
-    <button class="action-btn action-btn-excel" id="exportExcelBtn"><i class="fas fa-file-excel"></i> تصدير تقرير اليوم (Excel)</button>
+    <button class="action-btn action-btn-pdf" onclick="window.print()"><i class="fas fa-file-pdf"></i> {{ t('print_pdf') }}</button>
+    <button class="action-btn action-btn-excel" id="exportExcelBtn"><i class="fas fa-file-excel"></i> {{ t('export_excel') }} {{ t('attendance_summary') }}</button>
 </div>
 
 <!-- إحصائيات سريعة -->
 <div class="stats-grid">
     <div class="stat-card">
-        <h3><i class="fas fa-user-check"></i> ✅ حاضر في الوقت</h3>
+        <h3><i class="fas fa-user-check"></i> {{ t('present_on_time') }}</h3>
         <div class="stat-value" id="presentCount" style="color:#48bb78;">0</div>
     </div>
     <div class="stat-card">
-        <h3><i class="fas fa-clock"></i> ⏰ متأخر</h3>
+        <h3><i class="fas fa-clock"></i> {{ t('late') }}</h3>
         <div class="stat-value" id="lateCount" style="color:#ed8936;">0</div>
     </div>
     <div class="stat-card">
-        <h3><i class="fas fa-user-times"></i> ❌ غائب</h3>
+        <h3><i class="fas fa-user-times"></i> {{ t('absent') }}</h3>
         <div class="stat-value" id="absentCount" style="color:#fc8181;">0</div>
     </div>
     <div class="stat-card">
-        <h3><i class="fas fa-users"></i> 👨‍🎓 إجمالي الطلاب</h3>
+        <h3><i class="fas fa-users"></i> {{ t('total_students') }}</h3>
         <div class="stat-value" id="totalCount" style="color:#4299e1;">0</div>
     </div>
 </div>
@@ -32,19 +32,19 @@
 <!-- إحصائيات إضافية -->
 <div class="stats-grid">
     <div class="stat-card">
-        <h3><i class="fas fa-chart-line"></i> نسبة الحضور اليوم</h3>
+        <h3><i class="fas fa-chart-line"></i> {{ t('attendance_percentage') }}</h3>
         <div class="stat-value" id="percentageToday" style="color:#667eea;">0%</div>
     </div>
     <div class="stat-card">
-        <h3><i class="fas fa-database"></i> إجمالي سجلات الحضور</h3>
+        <h3><i class="fas fa-database"></i> {{ t('total_records') }}</h3>
         <div class="stat-value" id="totalRecords" style="color:#667eea;">0</div>
     </div>
     <div class="stat-card">
-        <h3><i class="fas fa-trophy"></i> أفضل يوم في الشهر</h3>
+        <h3><i class="fas fa-trophy"></i> {{ t('best_day') }}</h3>
         <div class="stat-value" id="bestDay" style="font-size:20px; color:#ed8936;">-</div>
     </div>
     <div class="stat-card">
-        <h3><i class="fas fa-chart-simple"></i> إجمالي الحضور</h3>
+        <h3><i class="fas fa-chart-simple"></i> {{ t('total_attendance') }}</h3>
         <div class="stat-value" id="totalAttendance" style="color:#48bb78;">0</div>
     </div>
 </div>
@@ -53,46 +53,46 @@
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px;">
     <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/general_reports'">
         <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
-        <h3>التقارير العامة</h3>
-        <p style="color: #718096; font-size: 14px;">تقرير يومي - بتاريخ محدد - تقرير طالب</p>
+        <h3>{{ t('general_reports') }}</h3>
+        <p style="color: #718096; font-size: 14px;">{{ t('quick_reports') }}</p>
     </div>
     <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/monthly_reports'">
         <div style="font-size: 48px; margin-bottom: 15px;">📅</div>
-        <h3>التقارير الشهرية</h3>
-        <p style="color: #718096; font-size: 14px;">تحليل متقدم للحضور شهرياً وسنوياً</p>
+        <h3>{{ t('monthly_reports') }}</h3>
+        <p style="color: #718096; font-size: 14px;">{{ t('advanced_statistics') }}</p>
     </div>
     <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/charts'">
         <div style="font-size: 48px; margin-bottom: 15px;">📈</div>
-        <h3>الرسوم البيانية</h3>
-        <p style="color: #718096; font-size: 14px;">إحصائيات متقدمة ورسوم بيانية تفاعلية</p>
+        <h3>{{ t('charts') }}</h3>
+        <p style="color: #718096; font-size: 14px;">{{ t('advanced_statistics') }}</p>
     </div>
     <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/class_reports'">
         <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
-        <h3>تقارير الصفوف والفصول</h3>
-        <p style="color: #718096; font-size: 14px;">تحليل متقدم للحضور للصفوف والشعب</p>
+        <h3>{{ t('class_reports') }}</h3>
+        <p style="color: #718096; font-size: 14px;">{{ t('advanced_statistics') }}</p>
     </div>
     <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/manage_students'">
         <div style="font-size: 48px; margin-bottom: 15px;">📚</div>
-        <h3>إدارة الطلاب</h3>
-        <p style="color: #718096; font-size: 14px;">إضافة - تعديل - حذف بيانات الطلاب</p>
+        <h3>{{ t('manage_students') }}</h3>
+        <p style="color: #718096; font-size: 14px;">{{ t('student_management') }}</p>
     </div>
     <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/scan'">
         <div style="font-size: 48px; margin-bottom: 15px;">📱</div>
-        <h3>تسجيل الحضور</h3>
-        <p style="color: #718096; font-size: 14px;">مسح الباركود أو إدخال رقم الطالب يدوياً</p>
+        <h3>{{ t('scan') }}</h3>
+        <p style="color: #718096; font-size: 14px;">{{ t('attendance_recording') }}</p>
     </div>
 </div>
 
 <!-- أفضل 5 طلاب -->
 <div class="card">
-    <h3 class="card-title"><i class="fas fa-trophy"></i> 🏆 أفضل 5 طلاب حضوراً</h3>
-    <div id="topStudentsList" style="text-align: center;">جاري التحميل...</div>
+    <h3 class="card-title"><i class="fas fa-trophy"></i> 🏆 {{ t('top_students') }}</h3>
+    <div id="topStudentsList" style="text-align: center;">{{ t('loading') }}</div>
 </div>
 
 <!-- آخر تسجيلات الحضور -->
 <div class="card">
-    <h3 class="card-title"><i class="fas fa-history"></i> 🕒 آخر تسجيلات الحضور</h3>
-    <div id="activityList" style="max-height: 400px; overflow-y: auto;">جاري التحميل...</div>
+    <h3 class="card-title"><i class="fas fa-history"></i> 🕒 {{ t('recent_attendance') }}</h3>
+    <div id="activityList" style="max-height: 400px; overflow-y: auto;">{{ t('loading') }}</div>
 </div>
 
 <script>
@@ -118,6 +118,7 @@
         try {
             const res = await fetch('/api/top_students');
             const data = await res.json();
+            const lang = '{{ lang }}';
             if (data.success && data.data && data.data.length > 0) {
                 const container = document.getElementById('topStudentsList');
                 container.innerHTML = data.data.slice(0, 5).map((student, index) => `
@@ -126,11 +127,11 @@
                             <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${index + 1}</div>
                             <div><strong>${student.name}</strong></div>
                         </div>
-                        <div style="color: #48bb78; font-weight: bold;"><i class="fas fa-calendar-check"></i> ${student.count} يوم</div>
+                        <div style="color: #48bb78; font-weight: bold;"><i class="fas fa-calendar-check"></i> ${student.count} ${lang === 'ar' ? 'يوم' : 'days'}</div>
                     </div>
                 `).join('');
             } else {
-                document.getElementById('topStudentsList').innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ لا توجد بيانات كافية</div>';
+                document.getElementById('topStudentsList').innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ ' + (lang === 'ar' ? 'لا توجد بيانات كافية' : 'No data available') + '</div>';
             }
         } catch(e) { console.error('خطأ في جلب أفضل الطلاب:', e); }
     }
@@ -141,10 +142,11 @@
             const now = new Date();
             const res = await fetch(`/api/monthly_report?year=${now.getFullYear()}&month=${now.getMonth() + 1}`);
             const data = await res.json();
+            const lang = '{{ lang }}';
             if (data.success && data.summary && data.summary.best_day) {
-                document.getElementById('bestDay').innerHTML = `يوم ${data.summary.best_day.day}<br><small style="font-size:12px;">نسبة الحضور: ${data.summary.best_day.percentage}%</small>`;
+                document.getElementById('bestDay').innerHTML = `${lang === 'ar' ? 'يوم' : 'Day'} ${data.summary.best_day.day}<br><small style="font-size:12px;">${lang === 'ar' ? 'نسبة الحضور' : 'Rate'}: ${data.summary.best_day.percentage}%</small>`;
             } else {
-                document.getElementById('bestDay').innerHTML = 'لا توجد بيانات';
+                document.getElementById('bestDay').innerHTML = lang === 'ar' ? 'لا توجد بيانات' : 'No data';
             }
         } catch(e) { console.error('خطأ في جلب أفضل يوم:', e); }
     }
@@ -156,11 +158,12 @@
             const res = await fetch(`/api/attendance_details/${today}`);
             const data = await res.json();
             const container = document.getElementById('activityList');
+            const lang = '{{ lang }}';
             
             if (data.success && data.data) {
                 const presentStudents = data.data.filter(s => s.status !== 'غائب').slice(0, 10);
                 if (presentStudents.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ لا توجد تسجيلات حضور اليوم</div>';
+                    container.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ ' + (lang === 'ar' ? 'لا توجد تسجيلات حضور اليوم' : 'No attendance records today') + '</div>';
                     return;
                 }
                 container.innerHTML = presentStudents.map(student => `
@@ -168,15 +171,15 @@
                         <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;"><i class="fas fa-user-graduate"></i></div>
                         <div style="flex: 1;">
                             <div><strong>${student.student_name}</strong></div>
-                            <div style="font-size: 12px; color: #718096;"><i class="fas fa-graduation-cap"></i> ${student.class} - ${student.grade}</div>
+                            <div style="font-size: 12px; color: #718096;"><i class="fas fa-graduation-cap"></i> ${lang === 'ar' ? 'شعبة' : 'Class'} ${student.class} - ${student.grade}</div>
                         </div>
                         <div style="background: ${student.status === 'حاضر في الوقت' ? '#c6f6d5' : '#feebc8'}; padding: 8px 15px; border-radius: 25px; font-size: 13px; font-weight: bold;">
-                            ${student.status === 'حاضر في الوقت' ? '<i class="fas fa-check-circle"></i> حاضر' : '<i class="fas fa-clock"></i> متأخر'} ${student.time}
+                            ${student.status === 'حاضر في الوقت' ? '<i class="fas fa-check-circle"></i> ' + (lang === 'ar' ? 'حاضر' : 'Present') : '<i class="fas fa-clock"></i> ' + (lang === 'ar' ? 'متأخر' : 'Late')} ${student.time}
                         </div>
                     </div>
                 `).join('');
             } else {
-                container.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ لا توجد بيانات</div>';
+                container.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ ' + (lang === 'ar' ? 'لا توجد بيانات' : 'No data') + '</div>';
             }
         } catch(e) { console.error('خطأ في جلب النشاطات:', e); }
     }

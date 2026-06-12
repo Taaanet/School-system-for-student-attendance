@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}تفعيل الجهاز{% endblock %}
-{% block page_title %}🔓 تفعيل الجهاز{% endblock %}
+{% block title %}{{ t('activate_device') }}{% endblock %}
+{% block page_title %}🔓 {{ t('activate_device') }}{% endblock %}
 
 {% block content %}
 <div class="card">
-    <h3><i class="fas fa-key"></i> أدخل رمز التفعيل</h3>
-    <p>قم بإدخال رمز التفعيل الذي استلمته من مدير النظام.</p>
+    <h3><i class="fas fa-key"></i> {{ t('enter_activation_code') }}</h3>
+    <p>{{ t('activation_instruction') }}</p>
     <form method="POST">
-        <div class="form-group" style="margin-top: 20px;">
-            <input type="text" name="activation_code" placeholder="رمز التفعيل" required style="flex: 3;">
-            <button type="submit" class="action-btn action-btn-excel" style="background:#48bb78;">🔓 تفعيل الجهاز</button>
+        <div class="form-group" style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" name="activation_code" placeholder="{{ t('activation_code') }}" required style="flex: 3; padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0;">
+            <button type="submit" class="action-btn action-btn-excel" style="background:#48bb78;">🔓 {{ t('activate') }}</button>
         </div>
     </form>
 </div>
@@ -20,7 +20,7 @@
 {% endif %}
 {% if success %}
 <div class="alert alert-success" style="display: block; background: #c6f6d5; color: #22543d; padding: 12px; border-radius: 12px; margin-top: 15px;">
-    ✅ {{ success }} سيتم تحديث الصفحة...
+    ✅ {{ success }} {{ t('page_refresh') }}
 </div>
 <script>
     setTimeout(() => { window.location.href = '/'; }, 3000);
