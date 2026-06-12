@@ -230,6 +230,65 @@ TRANSLATIONS = {
     'required_columns': {'ar': 'الأعمدة المطلوبة', 'en': 'Required columns'},
     'and_more': {'ar': 'و أكثر', 'en': 'and more'},
     'and_more_count': {'ar': '... و', 'en': '... and'},
+    
+    # إدارة الطلاب (جديد)
+    'class': {'ar': 'الشعبة', 'en': 'Class'},
+    'phone': {'ar': 'الجوال', 'en': 'Phone'},
+    'parent_phone': {'ar': 'ولي الأمر', 'en': 'Parent Phone'},
+    'actions': {'ar': 'الإجراءات', 'en': 'Actions'},
+    'students': {'ar': 'طالب', 'en': 'Students'},
+    'grade': {'ar': 'الصف', 'en': 'Grade'},
+    'student_id': {'ar': 'رقم الطالب', 'en': 'Student ID'},
+    'student_name': {'ar': 'اسم الطالب', 'en': 'Student Name'},
+    'edit_student': {'ar': 'تعديل بيانات الطالب', 'en': 'Edit Student Data'},
+    'add_new_student': {'ar': 'إضافة طالب جديد', 'en': 'Add New Student'},
+    'phone_optional': {'ar': 'رقم الجوال (اختياري)', 'en': 'Phone (optional)'},
+    'parent_phone_optional': {'ar': 'رقم ولي الأمر (اختياري)', 'en': 'Parent Phone (optional)'},
+    'add_student': {'ar': 'إضافة طالب', 'en': 'Add Student'},
+    'search_by_name_id': {'ar': 'بحث بالاسم أو رقم الطالب', 'en': 'Search by name or student ID'},
+    
+    # إدارة المستخدمين (جديد)
+    'add_new_user': {'ar': 'إضافة مستخدم جديد', 'en': 'Add New User'},
+    'teacher_readonly': {'ar': 'معلم (قراءة فقط)', 'en': 'Teacher (Read Only)'},
+    'editor_add_edit': {'ar': 'محرر (إضافة وتعديل)', 'en': 'Editor (Add & Edit)'},
+    'admin_full': {'ar': 'مدير (كامل الصلاحيات)', 'en': 'Admin (Full Access)'},
+    'add_user': {'ar': 'إضافة مستخدم', 'en': 'Add User'},
+    'permissions_explanation': {'ar': 'شرح الصلاحيات', 'en': 'Permissions Explanation'},
+    'teacher_readonly_desc': {'ar': 'معلم: قراءة فقط', 'en': 'Teacher: Read Only'},
+    'editor_desc': {'ar': 'محرر: قراءة + إضافة + تعديل', 'en': 'Editor: Read + Add + Edit'},
+    'admin_desc': {'ar': 'مدير: صلاحيات كاملة (قراءة + إضافة + تعديل + حذف)', 'en': 'Admin: Full access (Read + Add + Edit + Delete)'},
+    'role': {'ar': 'الدور', 'en': 'Role'},
+    'permissions': {'ar': 'الصلاحيات', 'en': 'Permissions'},
+    'login_count': {'ar': 'عدد مرات الدخول', 'en': 'Login Count'},
+    'max_logins': {'ar': 'الحد الأقصى', 'en': 'Maximum'},
+    'remaining': {'ar': 'المتبقي', 'en': 'Remaining'},
+    'edit_user': {'ar': 'تعديل المستخدم', 'en': 'Edit User'},
+    'new_password_optional': {'ar': 'كلمة مرور جديدة (اختياري)', 'en': 'New password (optional)'},
+    
+    # صفحة تسجيل الدخول
+    'please_login': {'ar': 'الرجاء تسجيل الدخول للمتابعة', 'en': 'Please login to continue'},
+    'login_info': {'ar': 'معلومات الدخول', 'en': 'Login Information'},
+    'username': {'ar': 'اسم المستخدم', 'en': 'Username'},
+    'password': {'ar': 'كلمة المرور', 'en': 'Password'},
+    'login': {'ar': 'دخول', 'en': 'Login'},
+    
+    # التراخيص
+    'create_new_license': {'ar': 'إنشاء ترخيص جديد', 'en': 'Create New License'},
+    'device_id_from_request': {'ar': 'معرف الجهاز (من طلب التفعيل)', 'en': 'Device ID (from activation request)'},
+    'validity_days': {'ar': 'عدد أيام الصلاحية', 'en': 'Validity days'},
+    'create_activation_code': {'ar': 'إنشاء رمز التفعيل', 'en': 'Create Activation Code'},
+    'active_licenses': {'ar': 'التراخيص النشطة', 'en': 'Active Licenses'},
+    'expiry_date': {'ar': 'تاريخ الانتهاء', 'en': 'Expiry Date'},
+    'creation_date': {'ar': 'تاريخ الإنشاء', 'en': 'Creation Date'},
+    'created_by': {'ar': 'تم الإنشاء بواسطة', 'en': 'Created By'},
+    'revoke': {'ar': 'إلغاء', 'en': 'Revoke'},
+    'confirm_revoke': {'ar': 'هل أنت متأكد من إلغاء هذا الترخيص؟', 'en': 'Are you sure you want to revoke this license?'},
+    'license_created': {'ar': 'تم إنشاء الترخيص', 'en': 'License Created'},
+    'activation_code_created': {'ar': 'تم إنشاء رمز التفعيل', 'en': 'Activation Code Created'},
+    'activation_code_created_success': {'ar': 'تم إنشاء رمز التفعيل بنجاح', 'en': 'Activation code created successfully'},
+    'copy_code_send_user': {'ar': 'انسخ هذا الرمز وأرسله إلى المستخدم لتفعيل جهازه.', 'en': 'Copy this code and send it to the user to activate their device.'},
+    'copy_code': {'ar': 'نسخ الرمز', 'en': 'Copy Code'},
+    'back_to_control_panel': {'ar': 'العودة إلى لوحة التحكم', 'en': 'Back to Control Panel'},
 }
 
 def t(key):
@@ -1315,7 +1374,7 @@ def debug_student_ids():
             <td>{r['length']}</td>
             <td>{r['cleaned']}</td>
             <td>{badge}</td>
-        <tr>
+        </tr>
         """
     
     html += """
@@ -1388,7 +1447,7 @@ def admin_clean_student_ids():
             <tbody>
         """
         for change in changes[:50]:
-            html += f"<tr><td>{change['name']}</td><td><code>{change['old']}</code></td><td>{change['new']}</td></tr>"
+            html += f"<td><td>{change['name']}</td><td><code>{change['old']}</code></td><td>{change['new']}</td></tr>"
         html += "</tbody></table>"
     
     html += """
