@@ -45,6 +45,7 @@ TRANSLATIONS = {
     'backup': {'ar': 'نسخ احتياطي', 'en': 'Backup'},
     'users': {'ar': 'المستخدمين', 'en': 'Users'},
     'licenses': {'ar': 'إدارة التراخيص', 'en': 'Licenses'},
+    'upload_students': {'ar': 'رفع طلاب', 'en': 'Upload Students'},
     'logout': {'ar': 'خروج', 'en': 'Logout'},
     
     # الإحصائيات والبطاقات
@@ -484,7 +485,8 @@ def license_required(f):
             '/login', '/logout', '/request_activation', '/activate_device',
             '/admin', '/api/admin', '/static/', '/test_supabase', '/health',
             '/trial_info', '/debug_student_ids', '/admin/clean_student_ids',
-            '/api/device_status'
+            '/api/device_status', '/admin/upload_students',
+            '/api/admin/export_current_students'
         ]
         
         for path in allowed_paths:
@@ -896,6 +898,226 @@ def device_status_api():
             })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+
+# ============== إدارة رفع الطلاب عبر Excel ==============
+ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
+
+def allowed_file(filename):
+    """التحقق من امتداد الملف المسموح"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def process_excel_file(file_content, filename):
+    """معالجة ملف Excel واستخراج بيانات الطلاب"""
+    try:
+        # قراءة الملف حسب نوعه
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(file_content), encoding='utf-8-sig')
+        else:
+            df = pd.read_excel(io.BytesIO(file_content))
+        
+        # تحويل أسماء الأعمدة إلى تنسيق موحد
+        df.columns = df.columns.str.lower().str.strip()
+        
+        # محاولة تحديد الأعمدة المطلوبة
+        id_column = None
+        name_column = None
+        grade_column = None
+        class_column = None
+        phone_column = None
+        parent_phone_column = None
+        
+        # قائمة الأسماء المحتملة لكل عمود
+        id_names = ['student_id', 'id', 'رقم الطالب', 'studentid', 'الرقم', 'الرقم الطلابي']
+        name_names = ['name', 'student_name', 'اسم الطالب', 'studentname', 'الاسم', 'student name']
+        grade_names = ['grade', 'الصف', 'class_grade', 'المرحلة', 'الصف الدراسي']
+        class_names = ['class', 'الشعبة', 'class_name', 'الفصل', 'division', 'شعبة']
+        phone_names = ['phone', 'student_phone', 'هاتف الطالب', 'mobile', 'جوال']
+        parent_phone_names = ['parent_phone', 'guardian_phone', 'هاتف ولي الأمر', 'parent_mobile', 'ولي الأمر']
+        
+        for col in df.columns:
+            if any(name in col for name in id_names):
+                id_column = col
+            if any(name in col for name in name_names):
+                name_column = col
+            if any(name in col for name in grade_names):
+                grade_column = col
+            if any(name in col for name in class_names):
+                class_column = col
+            if any(name in col for name in phone_names):
+                phone_column = col
+            if any(name in col for name in parent_phone_names):
+                parent_phone_column = col
+        
+        # إذا لم يتم العثور على الأعمدة المطلوبة
+        if id_column is None or name_column is None:
+            return {
+                'success': False,
+                'error': 'لم يتم العثور على الأعمدة المطلوبة (رقم الطالب واسم الطالب)',
+                'found_columns': list(df.columns)
+            }
+        
+        # معالجة البيانات
+        students = []
+        errors = []
+        success_count = 0
+        
+        for index, row in df.iterrows():
+            student_id = str(row.get(id_column, '')).strip()
+            name = str(row.get(name_column, '')).strip()
+            
+            # تخطي الصفوف الفارغة
+            if not student_id or student_id == 'nan' or not name or name == 'nan':
+                continue
+            
+            # تنظيف رقم الطالب
+            cleaned_id = clean_student_id(student_id)
+            
+            # التحقق من صحة البيانات
+            if not cleaned_id or not name:
+                errors.append(f"الصف {index + 2}: بيانات غير صالحة (الرقم: {student_id}, الاسم: {name})")
+                continue
+            
+            # إعداد بيانات الطالب
+            student_data = {
+                'student_id': cleaned_id,
+                'name': name,
+                'grade': str(row.get(grade_column, '')).strip() if grade_column else 'الأول الثانوي',
+                'class': str(row.get(class_column, '')).strip() if class_column else '1',
+                'phone': str(row.get(phone_column, '')).strip() if phone_column else '',
+                'parent_phone': str(row.get(parent_phone_column, '')).strip() if parent_phone_column else ''
+            }
+            
+            # تنظيف القيم الفارغة
+            for key, value in student_data.items():
+                if value == 'nan' or value == 'None' or value == '':
+                    student_data[key] = ''
+            
+            students.append(student_data)
+            success_count += 1
+        
+        return {
+            'success': True,
+            'students': students,
+            'success_count': success_count,
+            'errors': errors,
+            'total_rows': len(df),
+            'id_column': id_column,
+            'name_column': name_column,
+            'grade_column': grade_column,
+            'class_column': class_column
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'خطأ في معالجة الملف: {str(e)}'
+        }
+
+@app.route('/admin/upload_students', methods=['GET', 'POST'])
+@login_required
+def admin_upload_students():
+    """صفحة رفع ملف Excel لتحديث بيانات الطلاب (للمدير فقط)"""
+    if session.get('role') != 'admin':
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        # التحقق من وجود ملف مرفوع
+        if 'file' not in request.files:
+            return render_template('admin_upload.html', error="الرجاء اختيار ملف للرفع")
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return render_template('admin_upload.html', error="الرجاء اختيار ملف للرفع")
+        
+        if not allowed_file(file.filename):
+            return render_template('admin_upload.html', error="نوع الملف غير مسموح. يرجى رفع ملف Excel (.xlsx, .xls) أو CSV")
+        
+        try:
+            # قراءة محتوى الملف
+            file_content = file.read()
+            
+            # معالجة الملف
+            result = process_excel_file(file_content, file.filename)
+            
+            if not result['success']:
+                return render_template('admin_upload.html', error=result.get('error', 'حدث خطأ في معالجة الملف'), found_columns=result.get('found_columns'))
+            
+            # تأكيد قبل الحذف والإضافة
+            if request.form.get('confirm') != 'yes':
+                # الحصول على عدد الطلاب الحاليين
+                old_students = get_live_students()
+                # عرض معاينة للبيانات
+                return render_template('admin_upload.html', 
+                                     preview=result['students'][:10],
+                                     total_students=result['success_count'],
+                                     old_count=len(old_students),
+                                     errors=result['errors'],
+                                     filename=file.filename,
+                                     confirm_required=True)
+            
+            # حذف جميع الطلاب الحاليين
+            supabase.table("students").delete().neq("student_id", "").execute()
+            
+            # إضافة الطلاب الجدد على دفعات
+            students_list = result['students']
+            batch_size = 50
+            batches = [students_list[i:i+batch_size] for i in range(0, len(students_list), batch_size)]
+            
+            for batch in batches:
+                supabase.table("students").insert(batch).execute()
+            
+            # تسجيل النشاط
+            try:
+                supabase.table("security_logs").insert({
+                    "hardware_id": get_hardware_id(),
+                    "ip_address": request.remote_addr,
+                    "action": "upload_students",
+                    "details": f"تم رفع {len(students_list)} طالب من ملف {file.filename}"
+                }).execute()
+            except:
+                pass
+            
+            return render_template('admin_upload.html', 
+                                 success=True,
+                                 total_uploaded=len(students_list),
+                                 filename=file.filename)
+            
+        except Exception as e:
+            return render_template('admin_upload.html', error=f"حدث خطأ: {str(e)}")
+    
+    return render_template('admin_upload.html')
+
+@app.route('/api/admin/export_current_students')
+@login_required
+def export_current_students():
+    """تصدير بيانات الطلاب الحاليين إلى Excel (للمدير فقط)"""
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    
+    students = get_live_students()
+    
+    # تحويل إلى DataFrame
+    df = pd.DataFrame(students)
+    
+    # ترتيب الأعمدة
+    columns_order = ['student_id', 'name', 'grade', 'class', 'phone', 'parent_phone']
+    existing_columns = [col for col in columns_order if col in df.columns]
+    df = df[existing_columns]
+    
+    # إنشاء ملف Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Students')
+    
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'students_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
 
 # ============== صفحات فحص وتنظيف البيانات ==============
 @app.route('/debug_student_ids')
@@ -2095,6 +2317,7 @@ if __name__ == "__main__":
     print("   👥 المستخدمين: /users_list")
     print("   📚 إدارة الطلاب: /manage_students")
     print("   🔑 إدارة التراخيص: /admin/licenses")
+    print("   📤 رفع طلاب: /admin/upload_students")
     print("   🆓 معلومات المحاولات: /trial_info")
     print("   🔍 فحص البيانات: /debug_student_ids")
     print("   🧹 تنظيف البيانات: /admin/clean_student_ids")
