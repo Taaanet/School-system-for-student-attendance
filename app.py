@@ -41,7 +41,6 @@ TRANSLATIONS = {
     'monthly_reports': {'ar': 'التقارير الشهرية', 'en': 'Monthly Reports'},
     'charts': {'ar': 'الرسوم البيانية', 'en': 'Charts'},
     'class_reports': {'ar': 'تقارير الصف والفصل', 'en': 'Class Reports'},
-    # 'qr_codes' تم حذفه
     'manage_students': {'ar': 'إدارة الطلاب', 'en': 'Manage Students'},
     'backup': {'ar': 'نسخ احتياطي', 'en': 'Backup'},
     'users': {'ar': 'المستخدمين', 'en': 'Users'},
@@ -337,7 +336,20 @@ def verify_password(password, hashed):
 SECRET_KEY_FOR_LICENSES = hashlib.sha256(b"Your-Super-Secret-Key-For-Licensing-2024-Taha").digest()
 
 def get_hardware_id():
-    """يُولد مُعرّفاً فريداً للجهاز بناءً على مكونات الهاردوير الأساسية"""
+    """يُولد مُعرّفاً فريداً للجهاز مع تخزين محلي لضمان الثبات"""
+    # محاولة جلب معرف مخزن محلياً (للباك اند)
+    stored_id = None
+    try:
+        import tempfile
+        id_file = os.path.join(tempfile.gettempdir(), 'app_hardware_id.txt')
+        if os.path.exists(id_file):
+            with open(id_file, 'r') as f:
+                stored_id = f.read().strip()
+                if stored_id and len(stored_id) == 64:  # التحقق من صحة المعرف
+                    return stored_id
+    except:
+        pass
+    
     system = platform.system().lower()
     unique_id_parts = []
 
@@ -356,6 +368,16 @@ def get_hardware_id():
 
     combined_string = "|".join(unique_id_parts)
     hardware_hash = hashlib.sha256(combined_string.encode()).hexdigest()
+    
+    # حفظ المعرف لاستخدامه لاحقاً
+    try:
+        import tempfile
+        id_file = os.path.join(tempfile.gettempdir(), 'app_hardware_id.txt')
+        with open(id_file, 'w') as f:
+            f.write(hardware_hash)
+    except:
+        pass
+    
     return hardware_hash
 
 def encrypt_activation_code(hardware_id, expiration_date):
@@ -382,24 +404,35 @@ def decrypt_activation_code(activation_code):
         return None, None
 
 def check_device_license():
-    """تتحقق مما إذا كان الجهاز الحالي مرخصاً لاستخدام التطبيق"""
+    """تتحقق مما إذا كان الجهاز الحالي مرخصاً لاستخدام التطبيق (نسخة محسنة)"""
     current_hardware_id = get_hardware_id()
     if not current_hardware_id:
+        print("⚠️ لا يمكن تحديد معرف الجهاز")
         return False
 
     try:
-        result = supabase.table("device_licenses").select("expires_at").eq("hardware_id", current_hardware_id).execute()
+        result = supabase.table("device_licenses").select("expires_at", "id").eq("hardware_id", current_hardware_id).execute()
+        
         if result.data:
-            expiry_date = datetime.fromisoformat(result.data[0]['expires_at'])
-            if expiry_date > datetime.now():
-                return True
-            else:
-                return False
+            for license_data in result.data:
+                try:
+                    expiry_date = datetime.fromisoformat(license_data['expires_at'])
+                    if expiry_date > datetime.now():
+                        print(f"✅ جهاز مرخص: {current_hardware_id[:20]}... ينتهي في {expiry_date}")
+                        return True
+                    else:
+                        print(f"⚠️ ترخيص منتهي للجهاز: {current_hardware_id[:20]}...")
+                except Exception as e:
+                    print(f"⚠️ خطأ في قراءة تاريخ الانتهاء: {e}")
+                    continue
+            return False
+        else:
+            print(f"❌ لا يوجد ترخيص للجهاز: {current_hardware_id[:20]}...")
+            return False
+            
     except Exception as e:
         print(f"⚠️ خطأ في الاتصال بقاعدة بيانات التراخيص: {e}")
         return False
-
-    return False
 
 # ============== نظام المحاولات المجانية ==============
 FREE_TRIAL_LIMIT = 3
@@ -450,7 +483,8 @@ def license_required(f):
         allowed_paths = [
             '/login', '/logout', '/request_activation', '/activate_device',
             '/admin', '/api/admin', '/static/', '/test_supabase', '/health',
-            '/trial_info', '/debug_student_ids', '/admin/clean_student_ids'
+            '/trial_info', '/debug_student_ids', '/admin/clean_student_ids',
+            '/api/device_status'
         ]
         
         for path in allowed_paths:
@@ -728,13 +762,20 @@ def activate_device_page():
             return render_template('activate_device.html', error="هذا الرمز منتهي الصلاحية.")
 
         try:
-            supabase.table("device_licenses").upsert({
+            # استخدام upsert مع بيانات إضافية للتأكد من التحديث
+            result = supabase.table("device_licenses").upsert({
                 "hardware_id": hardware_id,
                 "activation_code": activation_code,
-                "expires_at": expiry_date.isoformat()
+                "expires_at": expiry_date.isoformat(),
+                "activated_at": datetime.now().isoformat(),
+                "last_verified_at": datetime.now().isoformat()
             }, on_conflict="hardware_id").execute()
-            return render_template('activate_device.html', success="تم تفعيل الجهاز بنجاح!")
+            
+            print(f"✅ تم تفعيل الجهاز: {hardware_id[:20]}... ينتهي في {expiry_date}")
+            return render_template('activate_device.html', success="تم تفعيل الجهاز بنجاح! يمكنك الآن استخدام التطبيق.")
+            
         except Exception as e:
+            print(f"❌ خطأ في التفعيل: {e}")
             return render_template('activate_device.html', error=f"حدث خطأ في قاعدة البيانات: {e}")
 
     return render_template('activate_device.html')
@@ -771,7 +812,9 @@ def create_license_api():
             "hardware_id": hardware_id,
             "activation_code": activation_code,
             "expires_at": expiry_date.isoformat(),
-            "created_by": session.get('username')
+            "created_by": session.get('username'),
+            "activated_at": None,
+            "last_verified_at": None
         }).execute()
         return render_template('admin_licenses_result.html', activation_code=activation_code, hardware_id=hardware_id, expiry_date=expiry_date)
     except Exception as e:
@@ -792,7 +835,7 @@ def create_license_api():
                 <li>نفّذ الأمر التالي:</li>
                 <pre style="background:#f0f0f0;padding:10px;border-radius:5px;">ALTER TABLE device_licenses DISABLE ROW LEVEL SECURITY;</pre>
                 <li>أو قم بإنشاء سياسة:</li>
-                <pre style="background:#f0f0f0;padding:10px;border-radius:5px;">CREATE POLICY "Allow insert" ON device_licenses FOR INSERT WITH CHECK (true);</pre>
+                <pre style="background:#f0f0f0;padding:10px;border-radius:5px;">CREATE POLICY "Allow all operations" ON device_licenses USING (true) WITH CHECK (true);</pre>
             </ol>
             <p><a href="/admin/licenses">← العودة إلى لوحة التحكم</a></p>
             </body>
@@ -818,6 +861,41 @@ def check_license_api():
         return jsonify({"success": False, "message": "غير مصرح"}), 403
     is_licensed = check_device_license()
     return jsonify({"success": True, "is_licensed": is_licensed, "hardware_id": get_hardware_id()})
+
+@app.route('/api/admin/device_status')
+@login_required
+def device_status_api():
+    """API للتحقق من حالة جهاز محدد (للمدير فقط)"""
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    
+    hardware_id = request.args.get('hardware_id', '')
+    
+    try:
+        result = supabase.table("device_licenses").select("*").eq("hardware_id", hardware_id).execute()
+        
+        if result.data:
+            license_data = result.data[0]
+            expiry_date = datetime.fromisoformat(license_data['expires_at'])
+            is_valid = expiry_date > datetime.now()
+            
+            return jsonify({
+                "success": True,
+                "is_licensed": is_valid,
+                "expires_at": license_data['expires_at'],
+                "days_remaining": (expiry_date - datetime.now()).days if is_valid else 0,
+                "hardware_id": hardware_id,
+                "activated_at": license_data.get('activated_at'),
+                "last_verified_at": license_data.get('last_verified_at')
+            })
+        else:
+            return jsonify({
+                "success": True,
+                "is_licensed": False,
+                "message": "لا يوجد ترخيص لهذا الجهاز"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 # ============== صفحات فحص وتنظيف البيانات ==============
 @app.route('/debug_student_ids')
@@ -2002,7 +2080,7 @@ if __name__ == "__main__":
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
-    print("🔒 نظام حماية الأجهزة: مفعل")
+    print("🔒 نظام حماية الأجهزة: مفعل (مع تخزين محلي للمعرف)")
     print("🎫 المحاولات المجانية: 3 محاولات لكل جهاز")
     print("👑 المدير يمكنه الدخول إلى إدارة التراخيص بدون تفعيل")
     print("")
