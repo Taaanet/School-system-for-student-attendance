@@ -2418,16 +2418,6 @@ def trial_info():
     # عرض أيام الترخيص المتبقية للجهاز
     return render_template('trial_info.html', remaining=0)
 
-@app.route('/api/remaining_trials')
-def api_remaining_trials():
-    """API متوافق مع القوالب القديمة - يعيد الأيام المتبقية"""
-    if 'logged_in' in session and 'username' in session:
-        username = session.get('username')
-        days_remaining = get_user_license_days_remaining(username)
-        if days_remaining == -1:
-            return jsonify({"success": True, "remaining": "غير محدود", "is_unlimited": True})
-        return jsonify({"success": True, "remaining": days_remaining if days_remaining > 0 else 0})
-    return jsonify({"success": True, "remaining": 0})
 
 # ============== تشغيل النسخ الاحتياطي التلقائي في الخلفية ==============
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
