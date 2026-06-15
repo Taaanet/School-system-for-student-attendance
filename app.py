@@ -264,6 +264,13 @@ TRANSLATIONS = {
     'remaining': {'ar': 'المتبقي', 'en': 'Remaining'},
     'edit_user': {'ar': 'تعديل المستخدم', 'en': 'Edit User'},
     'new_password_optional': {'ar': 'كلمة مرور جديدة (اختياري)', 'en': 'New password (optional)'},
+    'license_status': {'ar': 'حالة الترخيص', 'en': 'License Status'},
+    'license_days': {'ar': 'مدة الترخيص (بالأيام)', 'en': 'License period (days)'},
+    'license_info': {'ar': 'مدة الترخيص (أيام)', 'en': 'License duration (days)'},
+    'leave_empty_for_no_change': {'ar': 'اترك فارغاً لتثبيت الترخيص الحالي', 'en': 'Leave empty to keep current license'},
+    'license_warning_message': {'ar': '⚠️ تنبيه: ترخيصك على وشك الانتهاء! متبقي', 'en': '⚠️ Warning: Your license is about to expire!'},
+    'license_expired_message': {'ar': '❌ انتهى ترخيصك! يرجى التواصل مع المدير لتجديد الترخيص.', 'en': '❌ Your license has expired! Please contact admin to renew.'},
+    'contact_admin': {'ar': 'تواصل مع المدير', 'en': 'Contact Admin'},
     
     # صفحة تسجيل الدخول
     'please_login': {'ar': 'الرجاء تسجيل الدخول للمتابعة', 'en': 'Please login to continue'},
@@ -714,6 +721,10 @@ def load_users():
                         except:
                             data['login_count'] = 0
                             updated = True
+                    # التأكد من وجود license_expiry للحقول القديمة
+                    if 'license_expiry' not in data:
+                        data['license_expiry'] = None
+                        updated = True
                 if updated:
                     save_users(users)
                 return users
@@ -721,8 +732,8 @@ def load_users():
         pass
 
     default_users = {
-        'Taha_Mohamed': {'password': hash_password('hetaonet0hros'), 'role': 'admin', 'login_count': 0, 'max_logins': None},
-        'admin': {'password': hash_password('admin123'), 'role': 'user', 'login_count': 0, 'max_logins': 5}
+        'Taha_Mohamed': {'password': hash_password('hetaonet0hros'), 'role': 'admin', 'login_count': 0, 'max_logins': None, 'license_expiry': None},
+        'admin': {'password': hash_password('admin123'), 'role': 'user', 'login_count': 0, 'max_logins': 5, 'license_expiry': None}
     }
     save_users(default_users)
     return default_users
@@ -780,7 +791,58 @@ def get_remaining_logins(username):
     except:
         return 0
 
-def create_user(username, password, role='user', max_logins=5):
+def check_user_license(username):
+    """التحقق من صلاحية ترخيص المستخدم"""
+    users = load_users()
+    if username not in users:
+        return False, "المستخدم غير موجود"
+    
+    user = users[username]
+    
+    # المدير لا ينتهي ترخيصه أبداً
+    if user.get('role') == 'admin':
+        return True, None
+    
+    expiry_date = user.get('license_expiry')
+    if not expiry_date:
+        # لا يوجد ترخيص محدد - استخدام الترخيص الافتراضي (بدون صلاحية)
+        return False, "لا يوجد ترخيص لهذا المستخدم. يرجى التواصل مع المدير."
+    
+    # التحقق من انتهاء الصلاحية
+    expiry = datetime.fromisoformat(expiry_date)
+    if expiry > datetime.now():
+        days_left = (expiry - datetime.now()).days
+        return True, f"الترخيص صالح لمدة {days_left} يوم متبقي"
+    else:
+        return False, f"انتهى الترخيص في {expiry_date}. يرجى التواصل مع المدير لتجديد الترخيص."
+
+def get_user_license_status(username):
+    """الحصول على حالة ترخيص المستخدم"""
+    users = load_users()
+    if username not in users:
+        return None
+    
+    user = users[username]
+    expiry_date = user.get('license_expiry')
+    
+    if not expiry_date:
+        return {'has_license': False, 'days_remaining': 0, 'expiry_date': None}
+    
+    try:
+        expiry = datetime.fromisoformat(expiry_date)
+        days_remaining = (expiry - datetime.now()).days if expiry > datetime.now() else 0
+        
+        return {
+            'has_license': True,
+            'days_remaining': days_remaining,
+            'expiry_date': expiry_date,
+            'is_valid': expiry > datetime.now()
+        }
+    except:
+        return {'has_license': False, 'days_remaining': 0, 'expiry_date': None}
+
+def create_user(username, password, role='user', max_logins=5, license_days=None):
+    """إنشاء مستخدم جديد مع صلاحيات ومدة ترخيص"""
     users = load_users()
     
     if username in users:
@@ -789,19 +851,33 @@ def create_user(username, password, role='user', max_logins=5):
     if role not in ['user', 'editor', 'admin']:
         role = 'user'
     
+    # حساب تاريخ انتهاء الترخيص
+    license_expiry = None
+    if license_days and license_days > 0 and role != 'admin':
+        license_expiry = (datetime.now() + timedelta(days=int(license_days))).isoformat()
+    
     users[username] = {
         'password': hash_password(password),
         'role': role,
         'login_count': 0,
-        'max_logins': max_logins if role != 'admin' else None
+        'max_logins': max_logins if role != 'admin' else None,
+        'license_expiry': license_expiry,
+        'created_at': datetime.now().isoformat()
     }
     
     save_users(users)
     
     role_names = {'user': 'معلم (قراءة فقط)', 'editor': 'محرر (إضافة وتعديل)', 'admin': 'مدير (كامل الصلاحيات)'}
-    return True, f"تم إنشاء المستخدم {username} كـ {role_names[role]}"
+    message = f"تم إنشاء المستخدم {username} كـ {role_names[role]}"
+    
+    if license_expiry and role != 'admin':
+        expiry_date = datetime.fromisoformat(license_expiry).strftime('%Y-%m-%d')
+        message += f" مع ترخيص حتى {expiry_date}"
+    
+    return True, message
 
-def update_user(username, role=None, max_logins=None, password=None):
+def update_user(username, role=None, max_logins=None, password=None, license_days=None):
+    """تحديث بيانات المستخدم"""
     users = load_users()
     
     if username not in users:
@@ -814,11 +890,21 @@ def update_user(username, role=None, max_logins=None, password=None):
         users[username]['role'] = role
         if role == 'admin':
             users[username]['max_logins'] = None
+            users[username]['license_expiry'] = None  # المدير لا ينتهي ترخيصه
         elif max_logins:
             users[username]['max_logins'] = max_logins
     
     if max_logins and users[username]['role'] != 'admin':
         users[username]['max_logins'] = max_logins
+    
+    # تحديث مدة الترخيص
+    if license_days is not None:
+        if users[username]['role'] == 'admin':
+            users[username]['license_expiry'] = None
+        elif license_days > 0:
+            users[username]['license_expiry'] = (datetime.now() + timedelta(days=license_days)).isoformat()
+        else:
+            users[username]['license_expiry'] = None
     
     if password:
         users[username]['password'] = hash_password(password)
@@ -880,14 +966,28 @@ def login():
         if username in users:
             stored_password = users[username]['password']
             if stored_password == password or verify_password(password, stored_password):
+                # التحقق من صلاحية الترخيص أولاً
+                is_licensed, license_message = check_user_license(username)
+                
+                if not is_licensed:
+                    return render_template('login.html', error=license_message)
+                
                 can_login_flag, message = can_login(username)
                 if not can_login_flag:
                     return render_template('login.html', error=message)
+                
                 increment_login_count(username)
                 session['logged_in'] = True
                 session['username'] = username
                 session['role'] = users[username]['role']
                 session['remaining_logins'] = get_remaining_logins(username)
+                
+                # إضافة معلومات الترخيص للجلسة
+                license_status = get_user_license_status(username)
+                if license_status and license_status['has_license']:
+                    session['license_expiry'] = license_status['expiry_date']
+                    session['days_remaining'] = license_status['days_remaining']
+                
                 return redirect(url_for('home'))
         
         return render_template('login.html', error="اسم المستخدم أو كلمة المرور غير صحيحة")
@@ -1379,7 +1479,7 @@ def debug_student_ids():
     
     html += """
             </tbody>
-        </table>
+        <td>
         <p style="text-align:center; margin-top:20px;">💡 <strong>ملاحظة:</strong> الأرقام باللون الأصفر تحتاج إلى تنظيف</p>
     </body>
     </html>
@@ -1531,7 +1631,7 @@ def reset_logins(username):
 @login_required
 def api_users():
     if session.get('role') != 'admin':
-        return jsonify({"success": False, "message": "غير مصرح"})
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
     
     users = load_users()
     users_data = []
@@ -1559,12 +1659,16 @@ def api_users():
             if remaining < 0:
                 remaining = 0
         
+        # إضافة معلومات الترخيص
+        license_status = get_user_license_status(username)
+        
         users_data.append({
             'username': username,
             'role': role,
             'login_count': login_count,
             'max_logins': max_logins_display,
-            'remaining': remaining
+            'remaining': remaining,
+            'license_status': license_status
         })
     
     return jsonify({"success": True, "users": users_data})
@@ -1573,13 +1677,14 @@ def api_users():
 @login_required
 def api_create_user():
     if session.get('role') != 'admin':
-        return jsonify({"success": False, "message": "غير مصرح"})
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
     
     data = request.get_json()
     username = data.get('username', '').strip()
     password = data.get('password', '')
     role = data.get('role', 'user')
     max_logins = data.get('max_logins', 5)
+    license_days = data.get('license_days', None)
     
     if not username or not password:
         return jsonify({"success": False, "message": "الرجاء إدخال اسم المستخدم وكلمة المرور"})
@@ -1587,31 +1692,50 @@ def api_create_user():
     if len(password) < 4:
         return jsonify({"success": False, "message": "كلمة المرور يجب أن تكون 4 أحرف على الأقل"})
     
-    success, message = create_user(username, password, role, max_logins)
+    success, message = create_user(username, password, role, max_logins, license_days)
     return jsonify({"success": success, "message": message})
 
 @app.route("/api/update_user/<username>", methods=["PUT"])
 @login_required
 def api_update_user(username):
     if session.get('role') != 'admin':
-        return jsonify({"success": False, "message": "غير مصرح"})
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
     
     data = request.get_json()
     role = data.get('role')
     max_logins = data.get('max_logins')
     password = data.get('password')
+    license_days = data.get('license_days', None)
     
-    success, message = update_user(username, role, max_logins, password)
+    success, message = update_user(username, role, max_logins, password, license_days)
     return jsonify({"success": success, "message": message})
 
 @app.route("/api/delete_user/<username>", methods=["DELETE"])
 @login_required
 def api_delete_user(username):
     if session.get('role') != 'admin':
-        return jsonify({"success": False, "message": "غير مصرح"})
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
     
     success, message = delete_user(username)
     return jsonify({"success": success, "message": message})
+
+@app.route("/api/check_license_status")
+@login_required
+def check_license_status():
+    """API للتحقق من حالة ترخيص المستخدم الحالي"""
+    username = session.get('username')
+    license_status = get_user_license_status(username)
+    
+    # تحديث أيام الترخيص المتبقية في الجلسة
+    if license_status and license_status['has_license']:
+        session['days_remaining'] = license_status['days_remaining']
+    
+    return jsonify({
+        'success': True,
+        'license_status': license_status,
+        'username': username,
+        'role': session.get('role')
+    })
 
 # ============== API إدارة الطلاب ==============
 @app.route("/api/create_student", methods=["POST"])
