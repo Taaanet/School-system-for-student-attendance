@@ -64,6 +64,17 @@
     .perm-read { background: #bee3f8; color: #2c5282; }
     .perm-write { background: #c6f6d5; color: #22543d; }
     .perm-delete { background: #fed7d7; color: #742a2a; }
+    .license-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .license-valid { background: #c6f6d5; color: #22543d; }
+    .license-expired { background: #fed7d7; color: #742a2a; }
+    .license-warning { background: #feebc8; color: #744210; }
+    .license-none { background: #e2e8f0; color: #4a5568; }
     
     .card {
         background: white;
@@ -168,6 +179,7 @@
             <option value="editor">✏️ {{ t('editor_add_edit') }}</option>
             <option value="admin">👑 {{ t('admin_full') }}</option>
         </select>
+        <input type="number" id="newLicenseDays" placeholder="{{ t('license_days') }}" value="365" style="min-width: 130px;">
         <button onclick="createUser()"><i class="fas fa-plus"></i> {{ t('add_user') }}</button>
     </div>
     <div class="permissions-card">
@@ -175,12 +187,13 @@
         <span class="permission-badge perm-read">📖 {{ t('teacher_readonly_desc') }}</span>
         <span class="permission-badge perm-write">✏️ {{ t('editor_desc') }}</span>
         <span class="permission-badge perm-delete">👑 {{ t('admin_desc') }}</span>
+        <span class="permission-badge" style="background:#feebc8;">⏰ {{ t('license_info') }}</span>
     </div>
 </div>
 
 <div class="card">
     <div class="table-wrapper">
-        <table id="usersTable">
+        <table id="usersTable" style="width:100%; border-collapse: collapse;">
             <thead>
                 <tr>
                     <th>{{ t('username') }}</th>
@@ -189,11 +202,12 @@
                     <th>{{ t('login_count') }}</th>
                     <th>{{ t('max_logins') }}</th>
                     <th>{{ t('remaining') }}</th>
+                    <th>{{ t('license_status') }}</th>
                     <th>{{ t('actions') }}</th>
                 </tr>
             </thead>
             <tbody id="usersTableBody">
-                <td><td colspan="7" style="text-align:center;">{{ t('loading') }}</td></tr>
+                <tr><td colspan="8" style="text-align:center;">{{ t('loading') }}<\/td><\/tr>
             </tbody>
         </table>
     </div>
@@ -202,6 +216,24 @@
 <script>
     const lang = '{{ lang }}';
     let currentUsers = [];
+
+    function t(key) {
+        const translations = {
+            'license_valid': lang === 'ar' ? '✓ ساري' : '✓ Valid',
+            'license_expired': lang === 'ar' ? '✗ منتهي' : '✗ Expired',
+            'license_warning': lang === 'ar' ? '⚠️ ينتهي قريباً' : '⚠️ Expiring soon',
+            'license_none': lang === 'ar' ? 'لا يوجد ترخيص' : 'No license',
+            'days_left': lang === 'ar' ? 'متبقي' : 'left',
+            'days': lang === 'ar' ? 'يوم' : 'days',
+            'license_days': lang === 'ar' ? 'مدة الترخيص (بالأيام)' : 'License period (days)',
+            'license_status': lang === 'ar' ? 'حالة الترخيص' : 'License Status',
+            'license_info': lang === 'ar' ? 'مدة الترخيص (أيام)' : 'License duration (days)',
+            'leave_empty_for_no_change': lang === 'ar' ? 'اترك فارغاً لتثبيت الترخيص الحالي' : 'Leave empty to keep current license',
+            'no_permission': lang === 'ar' ? 'ليس لديك صلاحية لهذا الإجراء' : 'You do not have permission',
+            'connection_error': lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error'
+        };
+        return translations[key] || key;
+    }
 
     function showAlert(message, type) {
         const alertDiv = document.getElementById('alert');
@@ -220,7 +252,23 @@
                 renderTable(currentUsers);
             }
         } catch(e) {
-            document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center;">❌ ${lang === 'ar' ? 'حدث خطأ في التحميل' : 'Error loading data'}</td></tr>`;
+            document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" style="text-align:center;">❌ ${t('connection_error')}<\/td><\/tr>`;
+        }
+    }
+
+    function getLicenseBadge(licenseData) {
+        if (!licenseData || !licenseData.has_license) {
+            return '<span class="license-badge license-none">' + t('license_none') + '</span>';
+        }
+        
+        const days = licenseData.days_remaining;
+        
+        if (days <= 0) {
+            return '<span class="license-badge license-expired">' + t('license_expired') + '</span>';
+        } else if (days <= 7) {
+            return '<span class="license-badge license-warning">⚠️ ' + days + ' ' + t('days_left') + '</span>';
+        } else {
+            return '<span class="license-badge license-valid">✓ ' + days + ' ' + t('days_left') + '</span>';
         }
     }
 
@@ -259,7 +307,7 @@
     function renderTable(users) {
         const tbody = document.getElementById('usersTableBody');
         if (!users || users.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">⚠️ ${lang === 'ar' ? 'لا توجد بيانات' : 'No data'}</td></tr>`;
+            tbody.innerHTML = `<td><td colspan="8" style="text-align:center;">⚠️ ${lang === 'ar' ? 'لا توجد بيانات' : 'No data'}<\/td><\/tr>`;
             return;
         }
         
@@ -268,17 +316,21 @@
             if (user.role !== 'admin' && user.remaining !== (lang === 'ar' ? 'غير محدود' : 'Unlimited') && user.remaining < 3) {
                 remainingClass = 'warning';
             }
+            
+            const licenseBadge = getLicenseBadge(user.license_status);
+            
             return `
                 <tr>
-                    <td><strong>${user.username}</strong></td>
-                    <td>${getRoleName(user.role)}</td>
-                    <td>${getPermissions(user.role)}</td>
-                    <td>${user.login_count}</td>
-                    <td>${user.max_logins}</td>
-                    <td class="${remainingClass}">${user.remaining}</td>
+                    <td><strong>${user.username}</strong><\/td>
+                    <td>${getRoleName(user.role)}<\/td>
+                    <td>${getPermissions(user.role)}<\/td>
+                    <td>${user.login_count}<\/td>
+                    <td>${user.max_logins}<\/td>
+                    <td class="${remainingClass}">${user.remaining}<\/td>
+                    <td>${licenseBadge}<\/td>
                     <td>
                         ${user.username !== 'Taha_Mohamed' ? `
-                            <button class="btn btn-edit" onclick="openEditModal('${user.username}', '${user.role}')"><i class="fas fa-edit"></i> ${lang === 'ar' ? 'تعديل' : 'Edit'}</button>
+                            <button class="btn btn-edit" onclick="openEditModal('${user.username}', '${user.role}', ${JSON.stringify(user.license_status)})"><i class="fas fa-edit"></i> ${lang === 'ar' ? 'تعديل' : 'Edit'}</button>
                             <button class="btn btn-delete" onclick="deleteUser('${user.username}')"><i class="fas fa-trash"></i> ${lang === 'ar' ? 'حذف' : 'Delete'}</button>
                         ` : `
                             <span style="color:#999;">${lang === 'ar' ? 'المدير الأساسي' : 'Primary Admin'}</span>
@@ -286,8 +338,8 @@
                         ${user.role !== 'admin' ? `
                             <button class="btn btn-reset" onclick="resetLogins('${user.username}')"><i class="fas fa-sync-alt"></i> ${lang === 'ar' ? 'إعادة تعيين' : 'Reset'}</button>
                         ` : ''}
-                    </td>
-                </tr>
+                    <\/td>
+                <\/tr>
             `;
         }).join('');
     }
@@ -296,6 +348,7 @@
         const username = document.getElementById('newUsername').value.trim();
         const password = document.getElementById('newPassword').value;
         const role = document.getElementById('newRole').value;
+        const licenseDays = document.getElementById('newLicenseDays').value;
         
         if (!username) { showAlert(lang === 'ar' ? 'الرجاء إدخال اسم المستخدم' : 'Please enter username', 'error'); return; }
         if (!password || password.length < 4) { showAlert(lang === 'ar' ? 'كلمة المرور يجب أن تكون 4 أحرف على الأقل' : 'Password must be at least 4 characters', 'error'); return; }
@@ -304,7 +357,7 @@
             const response = await fetch('/api/create_user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, role })
+                body: JSON.stringify({ username, password, role, license_days: licenseDays ? parseInt(licenseDays) : null })
             });
             const data = await response.json();
             
@@ -312,19 +365,21 @@
                 showAlert(data.message, 'success');
                 document.getElementById('newUsername').value = '';
                 document.getElementById('newPassword').value = '';
+                document.getElementById('newLicenseDays').value = '365';
                 loadUsers();
             } else {
                 showAlert(data.message, 'error');
             }
         } catch(e) {
-            showAlert(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error', 'error');
+            showAlert(t('connection_error'), 'error');
         }
     }
 
-    function openEditModal(username, role) {
+    function openEditModal(username, role, licenseStatus) {
         document.getElementById('editUsername').value = username;
         document.getElementById('editRole').value = role;
         document.getElementById('editPassword').value = '';
+        document.getElementById('editLicenseDays').value = '';
         document.getElementById('editModal').style.display = 'flex';
     }
 
@@ -332,9 +387,11 @@
         const username = document.getElementById('editUsername').value;
         const role = document.getElementById('editRole').value;
         const password = document.getElementById('editPassword').value;
+        const licenseDays = document.getElementById('editLicenseDays').value;
         
         const data = { role };
         if (password) data.password = password;
+        if (licenseDays) data.license_days = parseInt(licenseDays);
         
         try {
             const response = await fetch(`/api/update_user/${username}`, {
@@ -352,7 +409,7 @@
                 showAlert(result.message, 'error');
             }
         } catch(e) {
-            showAlert(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error', 'error');
+            showAlert(t('connection_error'), 'error');
         }
     }
 
@@ -370,7 +427,7 @@
                 showAlert(data.message, 'error');
             }
         } catch(e) {
-            showAlert(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error', 'error');
+            showAlert(t('connection_error'), 'error');
         }
     }
 
@@ -388,7 +445,7 @@
                 showAlert(data.message, 'error');
             }
         } catch(e) {
-            showAlert(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error', 'error');
+            showAlert(t('connection_error'), 'error');
         }
     }
 
@@ -415,6 +472,7 @@
             <option value="editor">✏️ {{ t('editor_add_edit') }}</option>
             <option value="admin">👑 {{ t('admin_full') }}</option>
         </select>
+        <input type="number" id="editLicenseDays" placeholder="{{ t('license_days') }}" style="width:100%;">
         <input type="password" id="editPassword" placeholder="{{ t('new_password_optional') }}">
         <div class="modal-buttons">
             <button class="btn-save" onclick="updateUser()"><i class="fas fa-save"></i> {{ t('save') }}</button>
