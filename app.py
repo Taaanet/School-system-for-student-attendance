@@ -33,6 +33,19 @@ def inject_language():
     lang = session.get('language', 'ar')
     return dict(lang=lang)
 
+# ============== تمرير معلومات أيام الترخيص إلى جميع القوالب ==============
+@app.context_processor
+def inject_license_info():
+    """يجعل معلومات أيام الترخيص متاحة في جميع القوالب"""
+    if 'logged_in' in session and 'username' in session:
+        username = session.get('username')
+        days_remaining = get_user_license_days_remaining(username)
+        return {
+            'license_days_remaining': days_remaining,
+            'license_is_unlimited': days_remaining == -1
+        }
+    return {'license_days_remaining': 0, 'license_is_unlimited': False}
+
 # قاموس الترجمة الكامل
 TRANSLATIONS = {
     # القائمة الرئيسية
@@ -135,17 +148,17 @@ TRANSLATIONS = {
     'all_grades': {'ar': 'جميع الصفوف', 'en': 'All Grades'},
     'all_classes': {'ar': 'جميع الشعب', 'en': 'All Classes'},
     
-    # المحاولات المجانية
-    'trial_info': {'ar': 'المحاولات المجانية', 'en': 'Free Trials'},
-    'trial_system': {'ar': 'نظام المحاولات المجانية', 'en': 'Free Trial System'},
+    # المحاولات المجانية (سيتم تعديلها لأيام الترخيص)
+    'trial_info': {'ar': 'معلومات الترخيص', 'en': 'License Info'},
+    'trial_system': {'ar': 'نظام الترخيص', 'en': 'License System'},
     'welcome_trial': {'ar': 'مرحباً بك في نظام حضور الطلاب', 'en': 'Welcome to Student Attendance System'},
-    'trial_description': {'ar': 'يمكنك تجربة النظام 3 مرات مجاناً قبل الحاجة إلى الترخيص.', 'en': 'You can try the system 3 times for free before needing a license.'},
-    'remaining_trials': {'ar': 'المحاولات المتبقية', 'en': 'Remaining Trials'},
+    'trial_description': {'ar': 'تم تحديد مدة ترخيص لاستخدام النظام.', 'en': 'A license period has been set to use the system.'},
+    'remaining_trials': {'ar': 'الأيام المتبقية', 'en': 'Remaining Days'},
     'max_trials': {'ar': 'الحد الأقصى', 'en': 'Maximum'},
     'trials_left_message': {'ar': 'لديك', 'en': 'You have'},
-    'trials': {'ar': 'محاولات مجانية متبقية', 'en': 'free trials remaining'},
-    'start_trial': {'ar': 'ابدأ التجربة الآن', 'en': 'Start Trial Now'},
-    'trials_expired': {'ar': 'لقد انتهت المحاولات المجانية', 'en': 'Free trials have expired'},
+    'trials': {'ar': 'يوم متبقي', 'en': 'days remaining'},
+    'start_trial': {'ar': 'ابدأ الآن', 'en': 'Start Now'},
+    'trials_expired': {'ar': 'لقد انتهت صلاحية الترخيص', 'en': 'License has expired'},
     'request_license': {'ar': 'طلب ترخيص', 'en': 'Request License'},
     'how_to_get_license': {'ar': 'كيف تحصل على ترخيص؟', 'en': 'How to get a license?'},
     'go_to_activation_request': {'ar': 'اذهب إلى صفحة طلب التفعيل', 'en': 'Go to activation request page'},
@@ -155,8 +168,8 @@ TRANSLATIONS = {
     
     # التفعيل
     'activation_required': {'ar': 'تفعيل الجهاز مطلوب', 'en': 'Activation Required'},
-    'trials_expired_title': {'ar': 'انتهت المحاولات المجانية لهذا الجهاز', 'en': 'Free trials for this device have expired'},
-    'activation_required_message': {'ar': 'لقد استنفدت المحاولات المجانية الثلاث. يرجى الحصول على ترخيص للاستمرار:', 'en': 'You have exhausted the three free trials. Please obtain a license to continue:'},
+    'trials_expired_title': {'ar': 'انتهت صلاحية الترخيص لهذا الجهاز', 'en': 'License for this device has expired'},
+    'activation_required_message': {'ar': 'لقد انتهت صلاحية الترخيص. يرجى الحصول على ترخيص للاستمرار:', 'en': 'Your license has expired. Please obtain a license to continue:'},
     'activation_step1': {'ar': 'اذهب إلى صفحة', 'en': 'Go to the'},
     'activation_request': {'ar': 'طلب التفعيل', 'en': 'activation request page'},
     'activation_step2': {'ar': 'انسخ رمز الطلب المُولّد وأرسله إلى مدير النظام.', 'en': 'Copy the generated request code and send it to the system administrator.'},
@@ -259,16 +272,13 @@ TRANSLATIONS = {
     'admin_desc': {'ar': 'مدير: صلاحيات كاملة (قراءة + إضافة + تعديل + حذف)', 'en': 'Admin: Full access (Read + Add + Edit + Delete)'},
     'role': {'ar': 'الدور', 'en': 'Role'},
     'permissions': {'ar': 'الصلاحيات', 'en': 'Permissions'},
-    'login_count': {'ar': 'عدد مرات الدخول', 'en': 'Login Count'},
-    'max_logins': {'ar': 'الحد الأقصى', 'en': 'Maximum'},
-    'remaining': {'ar': 'المتبقي', 'en': 'Remaining'},
     'edit_user': {'ar': 'تعديل المستخدم', 'en': 'Edit User'},
     'new_password_optional': {'ar': 'كلمة مرور جديدة (اختياري)', 'en': 'New password (optional)'},
     'license_status': {'ar': 'حالة الترخيص', 'en': 'License Status'},
     'license_days': {'ar': 'مدة الترخيص (بالأيام)', 'en': 'License period (days)'},
     'license_info': {'ar': 'مدة الترخيص (أيام)', 'en': 'License duration (days)'},
     'leave_empty_for_no_change': {'ar': 'اترك فارغاً لتثبيت الترخيص الحالي', 'en': 'Leave empty to keep current license'},
-    'license_warning_message': {'ar': '⚠️ تنبيه: ترخيصك على وشك الانتهاء! متبقي', 'en': '⚠️ Warning: Your license is about to expire!'},
+    'license_warning_message': {'ar': '⚠️ تنبيه: ترخيصك على وشك الانتهاء! متبقي', 'en': '⚠️ Warning: Your license is about to expire! Remaining'},
     'license_expired_message': {'ar': '❌ انتهى ترخيصك! يرجى التواصل مع المدير لتجديد الترخيص.', 'en': '❌ Your license has expired! Please contact admin to renew.'},
     'contact_admin': {'ar': 'تواصل مع المدير', 'en': 'Contact Admin'},
     
@@ -603,196 +613,10 @@ def check_device_license():
         print(f"⚠️ خطأ في الاتصال بقاعدة بيانات التراخيص: {e}")
         return False
 
-# ============== نظام المحاولات المجانية ==============
-FREE_TRIAL_LIMIT = 3
+# ============== نظام أيام الترخيص للمستخدمين (بدلاً من المحاولات المجانية) ==============
 
-def get_trial_attempts(hardware_id):
-    try:
-        result = supabase.table("trial_attempts").select("attempts").eq("hardware_id", hardware_id).execute()
-        if result.data:
-            return result.data[0]['attempts']
-        return 0
-    except Exception as e:
-        print(f"⚠️ خطأ في قراءة المحاولات: {e}")
-        return 0
-
-def increment_trial_attempts(hardware_id):
-    try:
-        current = get_trial_attempts(hardware_id)
-        if current == 0:
-            supabase.table("trial_attempts").insert({
-                "hardware_id": hardware_id,
-                "attempts": 1,
-                "first_attempt_at": datetime.now().isoformat(),
-                "last_attempt_at": datetime.now().isoformat()
-            }).execute()
-        else:
-            supabase.table("trial_attempts").update({
-                "attempts": current + 1,
-                "last_attempt_at": datetime.now().isoformat()
-            }).eq("hardware_id", hardware_id).execute()
-        return True
-    except Exception as e:
-        print(f"⚠️ خطأ في تحديث المحاولات: {e}")
-        return False
-
-def can_access_trial(hardware_id):
-    attempts = get_trial_attempts(hardware_id)
-    return attempts < FREE_TRIAL_LIMIT
-
-def get_remaining_trials(hardware_id):
-    attempts = get_trial_attempts(hardware_id)
-    remaining = FREE_TRIAL_LIMIT - attempts
-    return remaining if remaining > 0 else 0
-
-def license_required(f):
-    """ديكورator لحماية الصفحات - يسمح بـ 3 محاولات مجانية ثم يطلب الترخيص"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        allowed_paths = [
-            '/login', '/logout', '/request_activation', '/activate_device',
-            '/admin', '/api/admin', '/static/', '/test_supabase', '/health',
-            '/trial_info', '/debug_student_ids', '/admin/clean_student_ids',
-            '/api/device_status', '/admin/upload_students',
-            '/api/admin/export_current_students'
-        ]
-        
-        for path in allowed_paths:
-            if request.path.startswith(path):
-                return f(*args, **kwargs)
-
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-
-        current_hardware_id = get_hardware_id()
-        is_licensed = check_device_license()
-        
-        if is_licensed:
-            return f(*args, **kwargs)
-        
-        if session.get('role') == 'admin':
-            return f(*args, **kwargs)
-        
-        if can_access_trial(current_hardware_id):
-            increment_trial_attempts(current_hardware_id)
-            remaining = get_remaining_trials(current_hardware_id)
-            session['remaining_trials'] = remaining
-            return f(*args, **kwargs)
-        
-        try:
-            supabase.table("security_logs").insert({
-                "hardware_id": current_hardware_id,
-                "ip_address": request.remote_addr,
-                "attempted_path": request.path,
-                "trial_expired": True
-            }).execute()
-        except:
-            pass
-        
-        return redirect(url_for('activation_required_page'))
-    
-    return decorated_function
-
-# ============== إدارة المستخدمين المتقدمة ==============
-USERS_FILE = 'users.json'
-
-def load_users():
-    try:
-        if os.path.exists(USERS_FILE):
-            with open(USERS_FILE, 'r', encoding='utf-8') as f:
-                users = json.load(f)
-                updated = False
-                for username, data in users.items():
-                    if 'max_logins' in data:
-                        if isinstance(data['max_logins'], str):
-                            try:
-                                if data['max_logins'] in ['null', '', 'None']:
-                                    data['max_logins'] = None
-                                else:
-                                    data['max_logins'] = int(data['max_logins'])
-                                updated = True
-                            except:
-                                data['max_logins'] = 5
-                                updated = True
-                    if 'login_count' in data and isinstance(data['login_count'], str):
-                        try:
-                            data['login_count'] = int(data['login_count'])
-                            updated = True
-                        except:
-                            data['login_count'] = 0
-                            updated = True
-                    # التأكد من وجود license_expiry للحقول القديمة
-                    if 'license_expiry' not in data:
-                        data['license_expiry'] = None
-                        updated = True
-                if updated:
-                    save_users(users)
-                return users
-    except:
-        pass
-
-    default_users = {
-        'Taha_Mohamed': {'password': hash_password('hetaonet0hros'), 'role': 'admin', 'login_count': 0, 'max_logins': None, 'license_expiry': None},
-        'admin': {'password': hash_password('admin123'), 'role': 'user', 'login_count': 0, 'max_logins': 5, 'license_expiry': None}
-    }
-    save_users(default_users)
-    return default_users
-
-def save_users(users):
-    try:
-        with open(USERS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(users, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"خطأ: {e}")
-
-def can_login(username):
-    users = load_users()
-    if username not in users:
-        return False, "اسم المستخدم غير موجود"
-    user = users[username]
-    if user['role'] == 'admin':
-        return True, None
-    if user['max_logins'] is not None and user['login_count'] >= user['max_logins']:
-        return False, f"لقد تجاوزت الحد المسموح به ({user['max_logins']} مرات)"
-    return True, None
-
-def increment_login_count(username):
-    users = load_users()
-    if username in users and users[username]['role'] != 'admin':
-        users[username]['login_count'] = users[username].get('login_count', 0) + 1
-        save_users(users)
-
-def get_remaining_logins(username):
-    users = load_users()
-    if username not in users:
-        return 0
-    user = users[username]
-    if user.get('role') == 'admin':
-        return "غير محدود"
-    
-    max_logins = user.get('max_logins', 5)
-    used = user.get('login_count', 0)
-    
-    try:
-        if max_logins is None or str(max_logins).lower() in ['null', 'none', '']:
-            max_logins = 5
-        else:
-            max_logins = int(str(max_logins))
-        
-        if used is None or str(used).lower() in ['null', 'none', '']:
-            used = 0
-        else:
-            used = int(str(used))
-        
-        remaining = max_logins - used
-        if remaining < 0:
-            return 0
-        return remaining
-    except:
-        return 0
-
-def check_user_license(username):
-    """التحقق من صلاحية ترخيص المستخدم"""
+def check_user_license_by_days(username):
+    """التحقق من صلاحية ترخيص المستخدم بناءً على الأيام"""
     users = load_users()
     if username not in users:
         return False, "المستخدم غير موجود"
@@ -805,44 +629,89 @@ def check_user_license(username):
     
     expiry_date = user.get('license_expiry')
     if not expiry_date:
-        # لا يوجد ترخيص محدد - استخدام الترخيص الافتراضي (بدون صلاحية)
         return False, "لا يوجد ترخيص لهذا المستخدم. يرجى التواصل مع المدير."
-    
-    # التحقق من انتهاء الصلاحية
-    expiry = datetime.fromisoformat(expiry_date)
-    if expiry > datetime.now():
-        days_left = (expiry - datetime.now()).days
-        return True, f"الترخيص صالح لمدة {days_left} يوم متبقي"
-    else:
-        return False, f"انتهى الترخيص في {expiry_date}. يرجى التواصل مع المدير لتجديد الترخيص."
-
-def get_user_license_status(username):
-    """الحصول على حالة ترخيص المستخدم"""
-    users = load_users()
-    if username not in users:
-        return None
-    
-    user = users[username]
-    expiry_date = user.get('license_expiry')
-    
-    if not expiry_date:
-        return {'has_license': False, 'days_remaining': 0, 'expiry_date': None}
     
     try:
         expiry = datetime.fromisoformat(expiry_date)
-        days_remaining = (expiry - datetime.now()).days if expiry > datetime.now() else 0
-        
-        return {
-            'has_license': True,
-            'days_remaining': days_remaining,
-            'expiry_date': expiry_date,
-            'is_valid': expiry > datetime.now()
-        }
+        if expiry > datetime.now():
+            days_left = (expiry - datetime.now()).days
+            return True, f"الترخيص صالح لمدة {days_left} يوم متبقي"
+        else:
+            return False, f"انتهى الترخيص في {expiry_date}. يرجى التواصل مع المدير لتجديد الترخيص."
     except:
-        return {'has_license': False, 'days_remaining': 0, 'expiry_date': None}
+        return False, "تاريخ الترخيص غير صالح"
 
-def create_user(username, password, role='user', max_logins=5, license_days=None):
-    """إنشاء مستخدم جديد مع صلاحيات ومدة ترخيص"""
+def get_user_license_days_remaining(username):
+    """الحصول على عدد الأيام المتبقية من ترخيص المستخدم"""
+    users = load_users()
+    if username not in users:
+        return 0
+    
+    user = users[username]
+    
+    if user.get('role') == 'admin':
+        return -1  # غير محدود
+    
+    expiry_date = user.get('license_expiry')
+    if not expiry_date:
+        return 0
+    
+    try:
+        expiry = datetime.fromisoformat(expiry_date)
+        days_remaining = (expiry - datetime.now()).days
+        return days_remaining if days_remaining > 0 else 0
+    except:
+        return 0
+
+# ============== إدارة المستخدمين المتقدمة (مع أيام الترخيص) ==============
+USERS_FILE = 'users.json'
+
+def load_users():
+    try:
+        if os.path.exists(USERS_FILE):
+            with open(USERS_FILE, 'r', encoding='utf-8') as f:
+                users = json.load(f)
+                updated = False
+                for username, data in users.items():
+                    # إزالة الحقول القديمة (login_count, max_logins) وتحويلها إلى نظام أيام
+                    if 'login_count' in data:
+                        del data['login_count']
+                        updated = True
+                    if 'max_logins' in data:
+                        del data['max_logins']
+                        updated = True
+                    # التأكد من وجود license_expiry للحقول القديمة
+                    if 'license_expiry' not in data:
+                        data['license_expiry'] = None
+                        updated = True
+                    if 'license_days' not in data:
+                        data['license_days'] = None
+                        updated = True
+                    if 'created_at' not in data:
+                        data['created_at'] = datetime.now().isoformat()
+                        updated = True
+                if updated:
+                    save_users(users)
+                return users
+    except:
+        pass
+
+    default_users = {
+        'Taha_Mohamed': {'password': hash_password('hetaonet0hros'), 'role': 'admin', 'license_expiry': None, 'license_days': None, 'created_at': datetime.now().isoformat()},
+        'admin': {'password': hash_password('admin123'), 'role': 'admin', 'license_expiry': None, 'license_days': None, 'created_at': datetime.now().isoformat()}
+    }
+    save_users(default_users)
+    return default_users
+
+def save_users(users):
+    try:
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(users, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"خطأ: {e}")
+
+def create_user(username, password, role='user', license_days=None):
+    """إنشاء مستخدم جديد مع صلاحيات ومدة ترخيص بالأيام"""
     users = load_users()
     
     if username in users:
@@ -859,9 +728,8 @@ def create_user(username, password, role='user', max_logins=5, license_days=None
     users[username] = {
         'password': hash_password(password),
         'role': role,
-        'login_count': 0,
-        'max_logins': max_logins if role != 'admin' else None,
         'license_expiry': license_expiry,
+        'license_days': license_days if (license_days and role != 'admin') else None,
         'created_at': datetime.now().isoformat()
     }
     
@@ -872,39 +740,37 @@ def create_user(username, password, role='user', max_logins=5, license_days=None
     
     if license_expiry and role != 'admin':
         expiry_date = datetime.fromisoformat(license_expiry).strftime('%Y-%m-%d')
-        message += f" مع ترخيص حتى {expiry_date}"
+        message += f" مع ترخيص {license_days} يوماً حتى {expiry_date}"
     
     return True, message
 
-def update_user(username, role=None, max_logins=None, password=None, license_days=None):
+def update_user(username, role=None, password=None, license_days=None):
     """تحديث بيانات المستخدم"""
     users = load_users()
     
     if username not in users:
         return False, "المستخدم غير موجود"
     
-    if username == 'Taha_Mohamed':
-        return False, "لا يمكن تعديل حساب المدير الأساسي"
+    if username == 'Taha_Mohamed' and role != 'admin':
+        return False, "لا يمكن تغيير دور المدير الأساسي"
     
     if role:
         users[username]['role'] = role
         if role == 'admin':
-            users[username]['max_logins'] = None
-            users[username]['license_expiry'] = None  # المدير لا ينتهي ترخيصه
-        elif max_logins:
-            users[username]['max_logins'] = max_logins
-    
-    if max_logins and users[username]['role'] != 'admin':
-        users[username]['max_logins'] = max_logins
+            users[username]['license_expiry'] = None
+            users[username]['license_days'] = None
     
     # تحديث مدة الترخيص
     if license_days is not None:
         if users[username]['role'] == 'admin':
             users[username]['license_expiry'] = None
+            users[username]['license_days'] = None
         elif license_days > 0:
             users[username]['license_expiry'] = (datetime.now() + timedelta(days=license_days)).isoformat()
+            users[username]['license_days'] = license_days
         else:
             users[username]['license_expiry'] = None
+            users[username]['license_days'] = None
     
     if password:
         users[username]['password'] = hash_password(password)
@@ -966,27 +832,19 @@ def login():
         if username in users:
             stored_password = users[username]['password']
             if stored_password == password or verify_password(password, stored_password):
-                # التحقق من صلاحية الترخيص أولاً
-                is_licensed, license_message = check_user_license(username)
+                # التحقق من صلاحية الترخيص بالأيام
+                is_licensed, license_message = check_user_license_by_days(username)
                 
                 if not is_licensed:
                     return render_template('login.html', error=license_message)
                 
-                can_login_flag, message = can_login(username)
-                if not can_login_flag:
-                    return render_template('login.html', error=message)
-                
-                increment_login_count(username)
                 session['logged_in'] = True
                 session['username'] = username
                 session['role'] = users[username]['role']
-                session['remaining_logins'] = get_remaining_logins(username)
                 
-                # إضافة معلومات الترخيص للجلسة
-                license_status = get_user_license_status(username)
-                if license_status and license_status['has_license']:
-                    session['license_expiry'] = license_status['expiry_date']
-                    session['days_remaining'] = license_status['days_remaining']
+                # إضافة معلومات أيام الترخيص للجلسة
+                days_remaining = get_user_license_days_remaining(username)
+                session['license_days_remaining'] = days_remaining
                 
                 return redirect(url_for('home'))
         
@@ -1025,7 +883,6 @@ def activate_device_page():
             return render_template('activate_device.html', error="هذا الرمز منتهي الصلاحية.")
 
         try:
-            # استخدام upsert مع الحقول الأساسية فقط (بدون activated_at)
             result = supabase.table("device_licenses").upsert({
                 "hardware_id": hardware_id,
                 "activation_code": activation_code,
@@ -1069,7 +926,6 @@ def create_license_api():
     activation_code = encrypt_activation_code(hardware_id, expiry_date)
 
     try:
-        # إدراج الترخيص بدون الحقول الإضافية
         result = supabase.table("device_licenses").insert({
             "hardware_id": hardware_id,
             "activation_code": activation_code,
@@ -1165,16 +1021,13 @@ def allowed_file(filename):
 def process_excel_file(file_content, filename):
     """معالجة ملف Excel واستخراج بيانات الطلاب"""
     try:
-        # قراءة الملف حسب نوعه
         if filename.endswith('.csv'):
             df = pd.read_csv(io.BytesIO(file_content), encoding='utf-8-sig')
         else:
             df = pd.read_excel(io.BytesIO(file_content))
         
-        # تحويل أسماء الأعمدة إلى تنسيق موحد
         df.columns = df.columns.str.lower().str.strip()
         
-        # محاولة تحديد الأعمدة المطلوبة
         id_column = None
         name_column = None
         grade_column = None
@@ -1182,7 +1035,6 @@ def process_excel_file(file_content, filename):
         phone_column = None
         parent_phone_column = None
         
-        # قائمة الأسماء المحتملة لكل عمود
         id_names = ['student_id', 'id', 'رقم الطالب', 'studentid', 'الرقم', 'الرقم الطلابي']
         name_names = ['name', 'student_name', 'اسم الطالب', 'studentname', 'الاسم', 'student name']
         grade_names = ['grade', 'الصف', 'class_grade', 'المرحلة', 'الصف الدراسي']
@@ -1204,7 +1056,6 @@ def process_excel_file(file_content, filename):
             if any(name in col for name in parent_phone_names):
                 parent_phone_column = col
         
-        # إذا لم يتم العثور على الأعمدة المطلوبة
         if id_column is None or name_column is None:
             return {
                 'success': False,
@@ -1212,7 +1063,6 @@ def process_excel_file(file_content, filename):
                 'found_columns': list(df.columns)
             }
         
-        # معالجة البيانات
         students = []
         errors = []
         success_count = 0
@@ -1221,19 +1071,15 @@ def process_excel_file(file_content, filename):
             student_id = str(row.get(id_column, '')).strip()
             name = str(row.get(name_column, '')).strip()
             
-            # تخطي الصفوف الفارغة
             if not student_id or student_id == 'nan' or not name or name == 'nan':
                 continue
             
-            # تنظيف رقم الطالب
             cleaned_id = clean_student_id(student_id)
             
-            # التحقق من صحة البيانات
             if not cleaned_id or not name:
                 errors.append(f"الصف {index + 2}: بيانات غير صالحة (الرقم: {student_id}, الاسم: {name})")
                 continue
             
-            # إعداد بيانات الطالب
             student_data = {
                 'student_id': cleaned_id,
                 'name': name,
@@ -1243,7 +1089,6 @@ def process_excel_file(file_content, filename):
                 'parent_phone': str(row.get(parent_phone_column, '')).strip() if parent_phone_column else ''
             }
             
-            # تنظيف القيم الفارغة
             for key, value in student_data.items():
                 if value == 'nan' or value == 'None' or value == '':
                     student_data[key] = ''
@@ -1272,12 +1117,10 @@ def process_excel_file(file_content, filename):
 @app.route('/admin/upload_students', methods=['GET', 'POST'])
 @login_required
 def admin_upload_students():
-    """صفحة رفع ملف Excel لتحديث بيانات الطلاب (للمدير فقط)"""
     if session.get('role') != 'admin':
         return redirect(url_for('home'))
     
     if request.method == 'POST':
-        # التحقق من وجود ملف مرفوع
         if 'file' not in request.files:
             return render_template('admin_upload.html', error="الرجاء اختيار ملف للرفع")
         
@@ -1290,20 +1133,14 @@ def admin_upload_students():
             return render_template('admin_upload.html', error="نوع الملف غير مسموح. يرجى رفع ملف Excel (.xlsx, .xls) أو CSV")
         
         try:
-            # قراءة محتوى الملف
             file_content = file.read()
-            
-            # معالجة الملف
             result = process_excel_file(file_content, file.filename)
             
             if not result['success']:
                 return render_template('admin_upload.html', error=result.get('error', 'حدث خطأ في معالجة الملف'), found_columns=result.get('found_columns'))
             
-            # تأكيد قبل الحذف والإضافة
             if request.form.get('confirm') != 'yes':
-                # الحصول على عدد الطلاب الحاليين
                 old_students = get_live_students()
-                # عرض معاينة للبيانات
                 return render_template('admin_upload.html', 
                                      preview=result['students'][:10],
                                      total_students=result['success_count'],
@@ -1312,10 +1149,8 @@ def admin_upload_students():
                                      filename=file.filename,
                                      confirm_required=True)
             
-            # حذف جميع الطلاب الحاليين
             supabase.table("students").delete().neq("student_id", "").execute()
             
-            # إضافة الطلاب الجدد على دفعات
             students_list = result['students']
             batch_size = 50
             batches = [students_list[i:i+batch_size] for i in range(0, len(students_list), batch_size)]
@@ -1323,7 +1158,6 @@ def admin_upload_students():
             for batch in batches:
                 supabase.table("students").insert(batch).execute()
             
-            # تسجيل النشاط
             try:
                 supabase.table("security_logs").insert({
                     "hardware_id": get_hardware_id(),
@@ -1347,7 +1181,6 @@ def admin_upload_students():
 @app.route('/api/admin/export_current_students')
 @login_required
 def export_current_students():
-    """تصدير بيانات الطلاب الحاليين إلى Excel (للمدير فقط)"""
     if session.get('role') != 'admin':
         return jsonify({"success": False, "message": "غير مصرح"}), 403
     
@@ -1357,15 +1190,11 @@ def export_current_students():
         if not students:
             return jsonify({"success": False, "message": "لا توجد بيانات للتصدير"}), 404
         
-        # تحويل إلى DataFrame
         df = pd.DataFrame(students)
-        
-        # ترتيب الأعمدة
         columns_order = ['student_id', 'name', 'grade', 'class', 'phone', 'parent_phone']
         existing_columns = [col for col in columns_order if col in df.columns]
         df = df[existing_columns]
         
-        # إعادة تسمية الأعمدة للعربية (للتسهيل)
         column_names_ar = {
             'student_id': 'رقم الطالب',
             'name': 'اسم الطالب',
@@ -1375,11 +1204,9 @@ def export_current_students():
             'parent_phone': 'هاتف ولي الأمر'
         }
         
-        # إعادة تسمية الأعمدة الموجودة فقط
         rename_dict = {col: column_names_ar[col] for col in existing_columns if col in column_names_ar}
         df = df.rename(columns=rename_dict)
         
-        # إنشاء ملف Excel في الذاكرة
         output = io.BytesIO()
         
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -1479,7 +1306,7 @@ def debug_student_ids():
     
     html += """
             </tbody>
-        <td>
+        </table>
         <p style="text-align:center; margin-top:20px;">💡 <strong>ملاحظة:</strong> الأرقام باللون الأصفر تحتاج إلى تنظيف</p>
     </body>
     </html>
@@ -1547,7 +1374,7 @@ def admin_clean_student_ids():
             <tbody>
         """
         for change in changes[:50]:
-            html += f"<td><td>{change['name']}</td><td><code>{change['old']}</code></td><td>{change['new']}</td></tr>"
+            html += f"<tr><td>{change['name']}</td><td><code>{change['old']}</code></td><td>{change['new']}</td></tr>"
         html += "</tbody></table>"
     
     html += """
@@ -1572,37 +1399,18 @@ def users_list():
 
         for username, data in users.items():
             role = data.get('role', 'user')
-            login_count = data.get('login_count', 0)
-            
-            try:
-                login_count = int(login_count) if login_count is not None else 0
-            except (ValueError, TypeError):
-                login_count = 0
-
-            if role == 'admin':
-                max_logins_display = "غير محدود"
-                remaining = "غير محدود"
-            else:
-                max_logins = data.get('max_logins', 5)
-                try:
-                    if max_logins is None or str(max_logins).lower() == 'null':
-                        max_logins = 5
-                    else:
-                        max_logins = int(str(max_logins))
-                except (ValueError, TypeError):
-                    max_logins = 5
-                
-                max_logins_display = max_logins
-                remaining = max_logins - login_count
-                if remaining < 0:
-                    remaining = 0
+            license_days = data.get('license_days')
+            license_expiry = data.get('license_expiry')
+            days_remaining = get_user_license_days_remaining(username)
+            created_at = data.get('created_at', '')
 
             users_data.append({
                 'username': username,
                 'role': role,
-                'login_count': login_count,
-                'max_logins': max_logins_display,
-                'remaining': remaining
+                'license_days': license_days,
+                'license_expiry': license_expiry,
+                'days_remaining': days_remaining,
+                'created_at': created_at[:10] if created_at else ''
             })
 
         return render_template('users_list.html', users=users_data)
@@ -1612,20 +1420,6 @@ def users_list():
         import traceback
         traceback.print_exc()
         return f"<h1>خطأ في النظام</h1><p>الرجاء المحاولة لاحقاً</p><p>التفاصيل: {str(e)}</p>", 500
-
-@app.route('/reset_logins/<username>')
-@login_required
-def reset_logins(username):
-    if session.get('role') != 'admin':
-        return jsonify({"success": False, "message": "غير مصرح"})
-    users = load_users()
-    if username in users:
-        if users[username].get('role') == 'admin':
-            return jsonify({"success": False, "message": "لا يمكن إعادة تعيين مدير النظام"})
-        users[username]['login_count'] = 0
-        save_users(users)
-        return redirect(url_for('users_list'))
-    return jsonify({"success": False, "message": "المستخدم غير موجود"})
 
 @app.route("/api/users")
 @login_required
@@ -1638,36 +1432,17 @@ def api_users():
     
     for username, data in users.items():
         role = data.get('role', 'user')
-        login_count = data.get('login_count', 0)
-        
-        try:
-            login_count = int(login_count) if login_count else 0
-        except:
-            login_count = 0
-        
-        if role == 'admin':
-            max_logins_display = "غير محدود"
-            remaining = "غير محدود"
-        else:
-            max_logins = data.get('max_logins', 5)
-            try:
-                max_logins = int(max_logins) if max_logins else 5
-            except:
-                max_logins = 5
-            max_logins_display = max_logins
-            remaining = max_logins - login_count
-            if remaining < 0:
-                remaining = 0
-        
-        # إضافة معلومات الترخيص
-        license_status = get_user_license_status(username)
+        license_status = {
+            'has_license': data.get('license_expiry') is not None,
+            'days_remaining': get_user_license_days_remaining(username),
+            'expiry_date': data.get('license_expiry'),
+            'license_days': data.get('license_days'),
+            'created_at': data.get('created_at')
+        }
         
         users_data.append({
             'username': username,
             'role': role,
-            'login_count': login_count,
-            'max_logins': max_logins_display,
-            'remaining': remaining,
             'license_status': license_status
         })
     
@@ -1683,7 +1458,6 @@ def api_create_user():
     username = data.get('username', '').strip()
     password = data.get('password', '')
     role = data.get('role', 'user')
-    max_logins = data.get('max_logins', 5)
     license_days = data.get('license_days', None)
     
     if not username or not password:
@@ -1692,7 +1466,7 @@ def api_create_user():
     if len(password) < 4:
         return jsonify({"success": False, "message": "كلمة المرور يجب أن تكون 4 أحرف على الأقل"})
     
-    success, message = create_user(username, password, role, max_logins, license_days)
+    success, message = create_user(username, password, role, license_days)
     return jsonify({"success": success, "message": message})
 
 @app.route("/api/update_user/<username>", methods=["PUT"])
@@ -1703,11 +1477,10 @@ def api_update_user(username):
     
     data = request.get_json()
     role = data.get('role')
-    max_logins = data.get('max_logins')
     password = data.get('password')
     license_days = data.get('license_days', None)
     
-    success, message = update_user(username, role, max_logins, password, license_days)
+    success, message = update_user(username, role, password, license_days)
     return jsonify({"success": success, "message": message})
 
 @app.route("/api/delete_user/<username>", methods=["DELETE"])
@@ -1724,18 +1497,38 @@ def api_delete_user(username):
 def check_license_status():
     """API للتحقق من حالة ترخيص المستخدم الحالي"""
     username = session.get('username')
-    license_status = get_user_license_status(username)
-    
-    # تحديث أيام الترخيص المتبقية في الجلسة
-    if license_status and license_status['has_license']:
-        session['days_remaining'] = license_status['days_remaining']
+    days_remaining = get_user_license_days_remaining(username)
     
     return jsonify({
         'success': True,
-        'license_status': license_status,
+        'has_license': days_remaining > 0 or days_remaining == -1,
+        'days_remaining': days_remaining,
+        'is_unlimited': days_remaining == -1,
         'username': username,
         'role': session.get('role')
     })
+
+@app.route("/api/user_license_days")
+@login_required
+def api_user_license_days():
+    """API لعرض عدد الأيام المتبقية من الترخيص"""
+    username = session.get('username')
+    days_remaining = get_user_license_days_remaining(username)
+    return jsonify({
+        'success': True,
+        'days_remaining': days_remaining,
+        'is_unlimited': days_remaining == -1
+    })
+
+@app.route("/api/remaining_trials")
+@login_required
+def api_remaining_trials():
+    """API متوافق مع القوالب القديمة - يعيد الأيام المتبقية"""
+    username = session.get('username')
+    days_remaining = get_user_license_days_remaining(username)
+    if days_remaining == -1:
+        return jsonify({"success": True, "remaining": "غير محدود", "is_unlimited": True})
+    return jsonify({"success": True, "remaining": days_remaining if days_remaining > 0 else 0})
 
 # ============== API إدارة الطلاب ==============
 @app.route("/api/create_student", methods=["POST"])
@@ -2582,18 +2375,23 @@ def health():
 def offline_page():
     return render_template('offline.html')
 
-# ============== نظام المحاولات المجانية - صفحات إضافية ==============
+# ============== نظام المحاولات المجانية - صفحات إضافية (محولة لأيام الترخيص) ==============
 @app.route('/trial_info')
 def trial_info():
     hardware_id = get_hardware_id()
-    remaining = get_remaining_trials(hardware_id)
-    return render_template('trial_info.html', remaining=remaining)
+    # عرض أيام الترخيص المتبقية للجهاز
+    return render_template('trial_info.html', remaining=0)
 
 @app.route('/api/remaining_trials')
 def api_remaining_trials():
-    hardware_id = get_hardware_id()
-    remaining = get_remaining_trials(hardware_id)
-    return jsonify({"success": True, "remaining": remaining})
+    """API متوافق مع القوالب القديمة - يعيد الأيام المتبقية"""
+    if 'logged_in' in session and 'username' in session:
+        username = session.get('username')
+        days_remaining = get_user_license_days_remaining(username)
+        if days_remaining == -1:
+            return jsonify({"success": True, "remaining": "غير محدود", "is_unlimited": True})
+        return jsonify({"success": True, "remaining": days_remaining if days_remaining > 0 else 0})
+    return jsonify({"success": True, "remaining": 0})
 
 # ============== تشغيل النسخ الاحتياطي التلقائي في الخلفية ==============
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
@@ -2606,13 +2404,14 @@ setup_rls_policies()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     print("=" * 60)
-    print("🚀 نظام الحضور يعمل الآن!")
+    print("🚀 نظام الحضور يعمل الآن - نظام أيام الترخيص")
     print("📊 قاعدة البيانات: Supabase")
     print("⏰ ساعات التسجيل: 24 ساعة (طوال اليوم)")
     print("📅 أيام العطلات: الجمعة والسبت فقط")
     print("🔒 نظام حماية الأجهزة: مفعل (مع تخزين محلي للمعرف)")
-    print("🎫 المحاولات المجانية: 3 محاولات لكل جهاز")
-    print("👑 المدير يمكنه الدخول إلى إدارة التراخيص بدون تفعيل")
+    print("📅 نظام أيام الترخيص: مفعل")
+    print("👑 المدير: ترخيص غير محدود")
+    print("👤 المستخدمون: ترخيص بعدد أيام محدد")
     print("")
     print("📱 الصفحات المتاحة:")
     print("   🏠 الرئيسية: /")
@@ -2626,7 +2425,7 @@ if __name__ == "__main__":
     print("   📚 إدارة الطلاب: /manage_students")
     print("   🔑 إدارة التراخيص: /admin/licenses")
     print("   📤 رفع طلاب: /admin/upload_students")
-    print("   🆓 معلومات المحاولات: /trial_info")
+    print("   🆓 معلومات الترخيص: /trial_info")
     print("   🔍 فحص البيانات: /debug_student_ids")
     print("   🧹 تنظيف البيانات: /admin/clean_student_ids")
     print("   📡 صفحة عدم الاتصال: /offline")
