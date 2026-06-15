@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}إدارة المستخدمين{% endblock %}
-{% block page_title %}<i class="fas fa-users-cog"></i> إدارة المستخدمين{% endblock %}
+{% block page_title %}<i class="fas fa-users-cog"></i> إدارة المستخدمين - نظام أيام الترخيص{% endblock %}
 
 {% block content %}
 <style>
@@ -163,7 +163,7 @@
         <strong>🔐 شرح الصلاحيات:</strong><br>
         <span class="permission-badge perm-read">📖 معلم: قراءة فقط</span>
         <span class="permission-badge perm-write">✏️ محرر: قراءة + إضافة + تعديل</span>
-        <span class="permission-badge perm-delete">👑 مدير: صلاحيات كاملة (قراءة + إضافة + تعديل + حذف)</span>
+        <span class="permission-badge perm-delete">👑 مدير: صلاحيات كاملة</span>
         <span class="permission-badge" style="background:#feebc8;">⏰ المدير: ترخيص غير محدود</span>
     </div>
 </div>
@@ -262,6 +262,11 @@
             return '-';
         }
         
+        // عرض عدد أيام الترخيص من license_days
+        if (licenseData.license_days && licenseData.license_days > 0) {
+            return licenseData.license_days;
+        }
+        
         // إذا كان لدينا expiry_date و created_at نحسب المدة
         if (licenseData.expiry_date && licenseData.created_at) {
             try {
@@ -272,11 +277,6 @@
                     return totalDays;
                 }
             } catch(e) {}
-        }
-        
-        // إذا كان لدينا أيام متبقية فقط
-        if (licenseData.days_remaining > 0) {
-            return '?';
         }
         
         return '-';
@@ -424,7 +424,9 @@
         
         // تعيين مدة الترخيص الحالية إن وجدت
         const licenseDaysInput = document.getElementById('editLicenseDays');
-        if (licenseStatus && licenseStatus.expiry_date && licenseStatus.created_at) {
+        if (licenseStatus && licenseStatus.license_days) {
+            licenseDaysInput.value = licenseStatus.license_days;
+        } else if (licenseStatus && licenseStatus.expiry_date && licenseStatus.created_at) {
             try {
                 const expiry = new Date(licenseStatus.expiry_date);
                 const created = new Date(licenseStatus.created_at);

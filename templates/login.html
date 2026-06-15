@@ -91,6 +91,15 @@
             margin: 0 5px;
         }
         .lang-btn:hover { background: #cbd5e0; }
+        .license-info {
+            background: #fff3cd;
+            border-right: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 11px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -124,9 +133,17 @@
             <div class="note">
                 ℹ️ 
                 {% if lang == 'ar' %}
-                ملاحظة: يمكن للمعلم تسجيل الدخول 3 مرات فقط للنسخة التجريبية. بعد انتهاء المحاولات، يرجى التواصل مع مدير النظام على الرقم 0554289816.
+                يتم تسجيل الدخول بناءً على مدة الترخيص المحددة لكل مستخدم. بعد انتهاء الأيام المتبقية، يرجى التواصل مع مدير النظام لتجديد الترخيص.
                 {% else %}
-                Note: Teachers can only log in 3 times for the trial version. After trials expire, please contact the system administrator at 0554289816.
+                Login is based on the license duration assigned to each user. After the remaining days expire, please contact the system administrator to renew the license.
+                {% endif %}
+            </div>
+            <div class="license-info">
+                <i class="fas fa-info-circle"></i>
+                {% if lang == 'ar' %}
+                📅 المدير لديه ترخيص غير محدود. يمكن للمستخدمين العاديين الدخول حسب الأيام المحددة في الترخيص.
+                {% else %}
+                📅 Admin has unlimited license. Regular users can log in according to the specified license days.
                 {% endif %}
             </div>
         </div>
