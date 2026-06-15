@@ -2,8 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>نظام إدارة الترخيص - لوحة التحكم</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الترخيص - النسخة النهائية</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
         }
 
         body {
-            background: linear-gradient(135deg, #eef2f9 0%, #e0e8f2 100%);
+            background: linear-gradient(135deg, #eef2f9 0%, #dce3ef 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -21,110 +21,92 @@
             padding: 1.5rem;
         }
 
-        /* بطاقة الترخيص الرئيسية */
-        .license-container {
-            max-width: 780px;
+        .license-card {
+            max-width: 800px;
             width: 100%;
-            background: #ffffff;
+            background: white;
             border-radius: 2rem;
-            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
             overflow: hidden;
-            transition: all 0.2s;
         }
 
-        /* الرأس */
-        .header {
-            background: linear-gradient(105deg, #0a2b3e 0%, #123b52 100%);
+        /* header */
+        .card-header {
+            background: linear-gradient(105deg, #0a2b3e, #124e6d);
             padding: 1.5rem 2rem;
             color: white;
-            border-bottom: 4px solid #f7b05e;
         }
 
-        .header h1 {
-            font-size: 1.7rem;
-            font-weight: 600;
+        .card-header h1 {
+            font-size: 1.6rem;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
-        .header h1::before {
-            content: "⚖️";
+        .card-header h1:before {
+            content: "📜";
             font-size: 1.8rem;
         }
 
-        /* معلومات المستخدم */
-        .user-section {
-            background: #f9fbfe;
+        /* user info */
+        .user-area {
+            background: #f8fafd;
             padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            border-bottom: 1px solid #e2e8f0;
             flex-wrap: wrap;
-            gap: 12px;
-            border-bottom: 1px solid #e9edf2;
         }
 
-        .user-label {
-            background: #eef2f7;
-            padding: 5px 14px;
-            border-radius: 40px;
+        .user-badge {
+            background: #e9edf2;
+            padding: 4px 14px;
+            border-radius: 30px;
             font-size: 0.8rem;
-            font-weight: 700;
-            color: #1f4970;
+            font-weight: bold;
+            color: #1e4a76;
         }
 
         .user-name {
-            font-size: 1.2rem;
             font-weight: 800;
-            color: #0f3b5c;
-            letter-spacing: -0.3px;
-            word-break: break-word;
+            font-size: 1.2rem;
+            color: #0a2b3e;
         }
 
-        /* المحتوى */
+        /* content */
         .content {
             padding: 2rem;
         }
 
-        /* بطاقة الحالة (نشط/غير نشط) */
-        .status-card {
-            background: #f4f8fe;
+        /* status row */
+        .status-row {
+            background: #f1f6fd;
             border-radius: 1.2rem;
             padding: 1rem 1.5rem;
-            margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 1rem;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
-            border: 1px solid #e2ecf9;
+            margin-bottom: 2rem;
+            border: 1px solid #e2edfc;
         }
 
         .status-title {
             font-weight: 800;
             color: #1d4e7a;
             font-size: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
-        .status-control {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .toggle {
+        .toggle-switch {
             position: relative;
             display: inline-block;
             width: 64px;
             height: 32px;
         }
 
-        .toggle input {
+        .toggle-switch input {
             opacity: 0;
             width: 0;
             height: 0;
@@ -138,8 +120,8 @@
             right: 0;
             bottom: 0;
             background-color: #cbd5e1;
-            transition: 0.25s;
-            border-radius: 40px;
+            transition: 0.3s;
+            border-radius: 34px;
         }
 
         .slider:before {
@@ -150,419 +132,371 @@
             left: 3px;
             bottom: 3px;
             background-color: white;
-            transition: 0.25s;
+            transition: 0.3s;
             border-radius: 50%;
         }
 
         input:checked + .slider {
-            background-color: #2b7e3a;
+            background-color: #2e7d32;
         }
 
         input:checked + .slider:before {
             transform: translateX(32px);
         }
 
-        .status-badge-text {
-            font-weight: 700;
-            font-size: 1.05rem;
+        .status-text {
+            font-weight: bold;
             background: white;
-            padding: 6px 18px;
+            padding: 5px 16px;
             border-radius: 40px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .status-active {
-            color: #2b6e3a;
-            border-right: 3px solid #2b6e3a;
+            color: #2e7d32;
+            border-right: 3px solid #2e7d32;
         }
 
         .status-inactive {
-            color: #b91c1c;
-            border-right: 3px solid #b91c1c;
+            color: #c0392b;
+            border-right: 3px solid #c0392b;
         }
 
-        /* شبكة المعلومات (الحد الأقصى + المتبقي) */
-        .stats-grid {
+        /* two columns */
+        .columns {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1.6rem;
-            margin: 1.8rem 0 1.5rem 0;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
 
-        .stat-block {
-            background: #ffffff;
-            border-radius: 1.5rem;
-            padding: 1.2rem 1.3rem;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.03);
+        .info-box {
+            background: white;
+            border-radius: 1.2rem;
+            padding: 1.2rem;
             border: 1px solid #eef3fc;
-            transition: 0.2s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
         }
 
-        .stat-label {
-            font-size: 0.8rem;
-            font-weight: 600;
+        .info-label {
+            font-size: 0.75rem;
             text-transform: uppercase;
+            font-weight: 700;
+            color: #6c86a3;
+            margin-bottom: 0.6rem;
             letter-spacing: 0.5px;
-            color: #5f7f9f;
-            margin-bottom: 0.7rem;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
-        .stat-number {
-            font-size: 2.5rem;
+        .info-value {
+            font-size: 2.3rem;
             font-weight: 800;
             color: #103a56;
-            line-height: 1.1;
         }
 
-        .stat-unit {
+        .info-unit {
             font-size: 1rem;
-            font-weight: 500;
-            color: #6f8eae;
-            margin-right: 5px;
+            font-weight: normal;
+            color: #7f9cbb;
         }
 
-        .remaining-highlight {
-            background: #fffbf0;
-            border-right: 5px solid #f6b83e;
-        }
-
-        .helper-note {
+        .info-hint {
             font-size: 0.7rem;
-            margin-top: 8px;
-            color: #8ca3bc;
+            color: #8ea3c0;
+            margin-top: 5px;
         }
 
-        /* لوحة التحكم التجريبية */
-        .demo-panel {
+        .remaining-box {
+            background: #fffbf0;
+            border-right: 4px solid #f4a261;
+        }
+
+        /* control panel */
+        .control-panel {
             background: #f7fafd;
             border-radius: 1.2rem;
             padding: 1rem 1.2rem;
-            margin-top: 1.2rem;
             border: 1px solid #e2edfc;
+            margin-top: 0.5rem;
         }
 
-        .demo-title {
-            font-size: 0.85rem;
+        .panel-title {
             font-weight: 700;
-            color: #345f8a;
+            font-size: 0.85rem;
+            color: #2c5a82;
             margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
-        .button-group {
+        .btn-group {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            align-items: center;
         }
 
-        .btn {
-            background: #ffffff;
+        button {
+            background: white;
             border: 1px solid #cfdfef;
-            padding: 7px 15px;
-            border-radius: 60px;
+            padding: 7px 16px;
+            border-radius: 40px;
             font-weight: 600;
             font-size: 0.8rem;
             cursor: pointer;
-            transition: 0.15s;
+            transition: all 0.15s;
             color: #1e4a76;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
         }
 
-        .btn-primary {
+        button:hover {
             background: #eef3fc;
-            border-color: #bfd6ef;
-        }
-
-        .btn-warning {
-            background: #fff1e0;
-            border-color: #ffe0b5;
-            color: #c46f0a;
-        }
-
-        .btn-reset {
-            background: #e2f3e6;
-            border-color: #bfe0cb;
-            color: #237a44;
-        }
-
-        .btn:hover {
-            background: #e6edf6;
             transform: translateY(-1px);
         }
 
-        .footer-meta {
+        .btn-warning {
+            background: #fff0e0;
+            border-color: #ffd9a5;
+            color: #b65d0a;
+        }
+
+        .btn-success {
+            background: #e3f5e8;
+            border-color: #c2e0cf;
+            color: #1f6e43;
+        }
+
+        .footer {
             margin-top: 2rem;
             text-align: center;
             font-size: 0.7rem;
-            color: #8fa2bb;
+            color: #8aa0bc;
             border-top: 1px solid #eef2f8;
-            padding-top: 1.3rem;
+            padding-top: 1.2rem;
         }
 
         @media (max-width: 550px) {
-            .stats-grid {
+            .columns {
                 grid-template-columns: 1fr;
-                gap: 1rem;
             }
             .content {
-                padding: 1.3rem;
-            }
-            .header h1 {
-                font-size: 1.3rem;
+                padding: 1.2rem;
             }
         }
     </style>
 </head>
 <body>
-
-<div class="license-container" id="licenseDashboard">
-    <div class="header">
+<div class="license-card">
+    <div class="card-header">
         <h1>بوابة الترخيص الاحترافية</h1>
     </div>
-    <div class="user-section">
-        <span class="user-label">👤 المالك / المرخص له</span>
-        <span class="user-name" id="displayUserName">Taha_Mohamed</span>
+    <div class="user-area">
+        <span class="user-badge">👤 المالك / المرخص له</span>
+        <span class="user-name" id="userName">Taha_Mohamed</span>
     </div>
     <div class="content">
-        <!-- قسم حالة الترخيص (نشط / غير نشط) -->
-        <div class="status-card">
-            <div class="status-title">
-                <span>🔄</span> حالة الترخيص
-            </div>
-            <div class="status-control">
-                <label class="toggle">
-                    <input type="checkbox" id="licenseToggle" onchange="handleLicenseToggle()">
+        <!-- حالة الترخيص -->
+        <div class="status-row">
+            <span class="status-title">🔄 حالة الترخيص</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="licenseToggle">
                     <span class="slider"></span>
                 </label>
-                <span id="statusLabel" class="status-badge-text status-active">نشط</span>
+                <span id="statusBadge" class="status-text status-active">نشط</span>
             </div>
         </div>
 
-        <!-- بطاقات الحد الأقصى والمتبقي -->
-        <div class="stats-grid">
-            <!-- الحد الأقصى للأيام المتاحة -->
-            <div class="stat-block">
-                <div class="stat-label">
-                    <span>📆</span> الحد الأقصى
+        <!-- الحد الأقصى + المتبقي -->
+        <div class="columns">
+            <div class="info-box">
+                <div class="info-label">📆 الحد الأقصى</div>
+                <div class="info-value">
+                    <span id="maxDays">30</span>
+                    <span class="info-unit">يوم</span>
                 </div>
-                <div class="stat-number">
-                    <span id="maxDaysValue">30</span>
-                    <span class="stat-unit">يوم</span>
-                </div>
-                <div class="helper-note">إجمالي الأيام المتاحة للترخيص</div>
+                <div class="info-hint">إجمالي الأيام المتاحة</div>
             </div>
-
-            <!-- المتبقي (الأيام المتبقية لانتهاء الترخيص) -->
-            <div class="stat-block remaining-highlight" id="remainingBlock">
-                <div class="stat-label">
-                    <span>⏳</span> المتبقي
+            <div class="info-box remaining-box" id="remainingBox">
+                <div class="info-label">⏳ المتبقي</div>
+                <div class="info-value">
+                    <span id="remainingDays">30</span>
+                    <span class="info-unit">يوم</span>
                 </div>
-                <div class="stat-number">
-                    <span id="remainingDaysValue">30</span>
-                    <span class="stat-unit">يوم</span>
-                </div>
-                <div class="helper-note" id="remainingNote">الأيام المتبقية لانتهاء الترخيص</div>
+                <div class="info-hint" id="remainingHint">الأيام المتبقية لانتهاء الترخيص</div>
             </div>
         </div>
 
-        <!-- أزرار التحكم التجريبية (لإدارة الأيام والحد الأقصى) -->
-        <div class="demo-panel">
-            <div class="demo-title">
-                ⚙️ أدوات التحكم في الترخيص
+        <!-- لوحة التحكم -->
+        <div class="control-panel">
+            <div class="panel-title">⚙️ أدوات التحكم في الترخيص</div>
+            <div class="btn-group">
+                <button id="decreaseMaxBtn">➖ إنقاص الحد (يوم)</button>
+                <button id="increaseMaxBtn">➕ زيادة الحد (يوم)</button>
+                <button id="consumeBtn" class="btn-warning">📅 استهلاك يوم واحد</button>
+                <button id="resetBtn" class="btn-success">⟳ إعادة تعيين المتبقي</button>
             </div>
-            <div class="button-group">
-                <button class="btn btn-primary" onclick="modifyMaxDays(-1)">➖ إنقاص الحد (يوم)</button>
-                <button class="btn btn-primary" onclick="modifyMaxDays(1)">➕ زيادة الحد (يوم)</button>
-                <button class="btn btn-warning" onclick="consumeOneDay()">📅 استهلاك يوم واحد</button>
-                <button class="btn btn-reset" onclick="resetLicenseUsage()">⟳ إعادة تعيين المتبقي</button>
-            </div>
-            <div class="helper-note" style="margin-top: 12px;">
+            <div class="info-hint" style="margin-top: 10px;">
                 * تغيير الحد الأقصى يحافظ على الأيام المستهلكة. الترخيص "غير نشط" يمنع الاستهلاك.
             </div>
         </div>
     </div>
-    <div class="footer-meta">
+    <div class="footer">
         ✅ تم تحديث النظام بالكامل — تم إزالة "عدد مرات الدخول" — التركيز على حالة الترخيص والحد الأقصى والمتبقي
     </div>
 </div>
 
 <script>
-    // ------------------- بيانات الترخيص -------------------
-    let licenseActive = true;        // نشط / غير نشط
-    let maxDaysLimit = 30;           // الحد الأقصى للأيام (المدة الكلية)
-    let daysConsumed = 0;            // عدد الأيام المستهلكة منذ بدء الترخيص
+    // --------------------- البيانات -------------------------
+    let isActive = true;          // حالة الترخيص: نشط
+    let maxLimit = 30;            // الحد الأقصى للأيام
+    let usedDays = 0;             // الأيام المستهلكة
     
-    // اسم المستخدم ثابت كما هو مطلوب: Taha_Mohamed
-    const USER_NAME = "Taha_Mohamed";
+    const userNameFixed = "Taha_Mohamed";
     
-    // عناصر HTML
-    const userNameSpan = document.getElementById('displayUserName');
-    const toggleCheckbox = document.getElementById('licenseToggle');
-    const statusSpan = document.getElementById('statusLabel');
-    const maxDaysSpan = document.getElementById('maxDaysValue');
-    const remainingSpan = document.getElementById('remainingDaysValue');
-    const remainingNoteSpan = document.getElementById('remainingNote');
-    const remainingBlockDiv = document.getElementById('remainingBlock');
+    // عناصر DOM
+    const toggleInput = document.getElementById('licenseToggle');
+    const statusSpan = document.getElementById('statusBadge');
+    const maxSpan = document.getElementById('maxDays');
+    const remainingSpan = document.getElementById('remainingDays');
+    const remainingHintSpan = document.getElementById('remainingHint');
+    const remainingBoxDiv = document.getElementById('remainingBox');
     
-    // دالة لحساب الأيام المتبقية (الحد الأقصى - المستهلك)
-    function computeRemainingDays() {
-        let remaining = maxDaysLimit - daysConsumed;
-        return remaining < 0 ? 0 : remaining;
+    // حساب المتبقي
+    function getRemaining() {
+        let remain = maxLimit - usedDays;
+        return remain < 0 ? 0 : remain;
     }
     
-    // تحديث كامل للواجهة بناءً على القيم الحالية
-    function refreshUI() {
+    // تحديث واجهة المستخدم بالكامل
+    function updateUI() {
         // عرض اسم المستخدم
-        userNameSpan.textContent = USER_NAME;
+        document.getElementById('userName').innerText = userNameFixed;
         
         // عرض الحد الأقصى
-        maxDaysSpan.textContent = maxDaysLimit;
+        maxSpan.innerText = maxLimit;
         
-        // حساب المتبقي
-        const remaining = computeRemainingDays();
-        remainingSpan.textContent = remaining;
+        // عرض المتبقي
+        const remaining = getRemaining();
+        remainingSpan.innerText = remaining;
         
-        // إدارة حالة الترخيص في الواجهة
-        if (licenseActive) {
-            statusSpan.textContent = "نشط";
-            statusSpan.className = "status-badge-text status-active";
-            toggleCheckbox.checked = true;
+        // تحديث حالة الترخيص (نشط / غير نشط)
+        if (isActive) {
+            statusSpan.innerText = "نشط";
+            statusSpan.className = "status-text status-active";
+            toggleInput.checked = true;
             
-            // نصائح المتبقي حسب قيمته
+            // تغيير لون ونص المتبقي حسب القيمة
             if (remaining === 0) {
-                remainingNoteSpan.innerHTML = "❌ انتهت صلاحية الترخيص (0 يوم متبقي)";
-                remainingNoteSpan.style.color = "#c0392b";
-                remainingBlockDiv.style.background = "#fff0f0";
-                remainingBlockDiv.style.borderRightColor = "#e07a5f";
+                remainingHintSpan.innerHTML = "❌ انتهت صلاحية الترخيص (0 يوم متبقي)";
+                remainingHintSpan.style.color = "#c0392b";
+                remainingBoxDiv.style.background = "#fff0f0";
             } else if (remaining <= 5) {
-                remainingNoteSpan.innerHTML = `⚠️ تنبيه: يتبقى ${remaining} أيام فقط لانتهاء الترخيص`;
-                remainingNoteSpan.style.color = "#e67e22";
-                remainingBlockDiv.style.background = "#fff7e8";
-                remainingBlockDiv.style.borderRightColor = "#f4a261";
+                remainingHintSpan.innerHTML = `⚠️ يتبقى ${remaining} أيام فقط لانتهاء الترخيص`;
+                remainingHintSpan.style.color = "#e67e22";
+                remainingBoxDiv.style.background = "#fff7e8";
             } else {
-                remainingNoteSpan.innerHTML = "✅ الأيام المتبقية لانتهاء الترخيص";
-                remainingNoteSpan.style.color = "#5f7f9f";
-                remainingBlockDiv.style.background = "#fffbf0";
-                remainingBlockDiv.style.borderRightColor = "#f6b83e";
+                remainingHintSpan.innerHTML = "✅ الأيام المتبقية لانتهاء الترخيص";
+                remainingHintSpan.style.color = "#5f7f9f";
+                remainingBoxDiv.style.background = "#fffbf0";
             }
         } else {
             // الترخيص غير نشط
-            statusSpan.textContent = "غير نشط";
-            statusSpan.className = "status-badge-text status-inactive";
-            toggleCheckbox.checked = false;
-            remainingNoteSpan.innerHTML = "⛔ الترخيص غير نشط (الصلاحية معطلة)";
-            remainingNoteSpan.style.color = "#b91c1c";
-            remainingBlockDiv.style.background = "#fef2f2";
-            remainingBlockDiv.style.borderRightColor = "#e07a5f";
+            statusSpan.innerText = "غير نشط";
+            statusSpan.className = "status-text status-inactive";
+            toggleInput.checked = false;
+            remainingHintSpan.innerHTML = "⛔ الترخيص غير نشط (الصلاحية معطلة)";
+            remainingHintSpan.style.color = "#b91c1c";
+            remainingBoxDiv.style.background = "#fef2f2";
         }
         
-        // تحسين إضافي: إذا كان المتبقي 0 ونشط، نقترح تعطيل تلقائي لكننا نترك للمستخدم القرار
-        if (licenseActive && computeRemainingDays() === 0) {
-            remainingNoteSpan.innerHTML = "⚠️ لا توجد أيام متبقية، يرجى تجديد الترخيص أو تعطيله";
-            remainingNoteSpan.style.color = "#d97706";
-        }
-        
-        // تحديث لون خلفية البطاقة العامة حسب الحالة
-        if (!licenseActive) {
-            remainingBlockDiv.style.opacity = "0.9";
-        } else {
-            remainingBlockDiv.style.opacity = "1";
+        // إذا كان الترخيص نشطاً ولكن المتبقي صفر نضيف تحذير
+        if (isActive && getRemaining() === 0) {
+            remainingHintSpan.innerHTML = "⚠️ لا توجد أيام متبقية، يرجى تجديد الترخيص";
         }
     }
     
-    // التبديل بين الحالة نشط / غير نشط (يتم استدعاؤها من الـ toggle)
-    window.handleLicenseToggle = function() {
-        licenseActive = toggleCheckbox.checked;
-        refreshUI();
-        
-        // إشعار بسيط عند التبديل
-        if (!licenseActive) {
-            console.log("الترخيص تم تعطيله (غير نشط)");
-        } else {
-            console.log("الترخيص نشط الآن");
-        }
-    };
+    // تبديل حالة الترخيص (نشط / غير نشط)
+    function toggleLicenseStatus() {
+        isActive = toggleInput.checked;
+        updateUI();
+    }
     
-    // تعديل الحد الأقصى (زيادة أو إنقاص)
-    window.modifyMaxDays = function(delta) {
-        let newMax = maxDaysLimit + delta;
-        if (newMax < 1) newMax = 1;         // الحد الأدنى يوم واحد على الأقل
-        if (newMax > 1825) newMax = 1825;     // حد أقصى 5 سنوات (1825 يوم) منطقي
+    // تعديل الحد الأقصى
+    function changeMaxDays(delta) {
+        let newMax = maxLimit + delta;
+        if (newMax < 1) newMax = 1;
+        if (newMax > 1825) newMax = 1825;   // حد أقصى 5 سنوات
         
-        maxDaysLimit = newMax;
+        maxLimit = newMax;
         
         // التأكد من أن الأيام المستهلكة لا تتجاوز الحد الجديد
-        if (daysConsumed > maxDaysLimit) {
-            daysConsumed = maxDaysLimit;
+        if (usedDays > maxLimit) {
+            usedDays = maxLimit;
         }
-        
-        refreshUI();
-    };
+        updateUI();
+    }
     
-    // استهلاك يوم واحد (محاكاة استخدام يوم من صلاحية الترخيص)
-    window.consumeOneDay = function() {
-        if (!licenseActive) {
+    // استهلاك يوم واحد (محاكاة)
+    function consumeOneDay() {
+        if (!isActive) {
             alert("⚠️ لا يمكن استهلاك الأيام لأن الترخيص غير نشط. قم بتنشيط الترخيص أولاً.");
             return;
         }
         
-        const remainingBefore = computeRemainingDays();
-        if (remainingBefore <= 0) {
+        const remainingNow = getRemaining();
+        if (remainingNow <= 0) {
             alert("❌ لا توجد أيام متبقية في الترخيص. قم بزيادة الحد الأقصى أو إعادة التعيين.");
             return;
         }
         
-        // استهلاك يوم واحد
-        daysConsumed++;
-        if (daysConsumed > maxDaysLimit) daysConsumed = maxDaysLimit;
+        usedDays++;
+        if (usedDays > maxLimit) usedDays = maxLimit;
         
-        refreshUI();
+        updateUI();
         
-        const remainingAfter = computeRemainingDays();
-        if (remainingAfter === 0) {
-            alert("🔔 انتهت صلاحية الترخيص! المتبقي 0 يوم. يرجى تجديد الترخيص.");
-        } else if (remainingAfter <= 3) {
-            alert(`⚠️ تنبيه هام: تبقى ${remainingAfter} يوم فقط قبل انتهاء الترخيص.`);
-        } else {
-            // استهلاك عادي بدون تنبيه قوي
+        const newRemaining = getRemaining();
+        if (newRemaining === 0) {
+            alert("🔔 انتهت صلاحية الترخيص! المتبقي 0 يوم.");
+        } else if (newRemaining <= 3) {
+            alert(`⚠️ تنبيه: تبقى ${newRemaining} يوم فقط قبل انتهاء الترخيص.`);
         }
-    };
+    }
     
     // إعادة تعيين الأيام المستهلكة -> يصبح المتبقي = الحد الأقصى
-    window.resetLicenseUsage = function() {
-        if (!licenseActive) {
-            const userConfirm = confirm("الترخيص حالياً غير نشط. هل تريد إعادة تعيين الأيام المستهلكة وتنشيط الترخيص تلقائياً؟");
-            if (userConfirm) {
-                licenseActive = true;
-                toggleCheckbox.checked = true;
-                daysConsumed = 0;
-                refreshUI();
+    function resetRemaining() {
+        if (!isActive) {
+            const confirmReset = confirm("الترخيص حالياً غير نشط. هل تريد إعادة تعيين الأيام المستهلكة وتنشيط الترخيص تلقائياً؟");
+            if (confirmReset) {
+                isActive = true;
+                toggleInput.checked = true;
+                usedDays = 0;
+                updateUI();
                 alert("✅ تم إعادة تعيين المتبقي بالكامل وتنشيط الترخيص.");
             }
             return;
         }
         
         // إذا كان نشطاً
-        daysConsumed = 0;
-        refreshUI();
-        alert(`✅ تمت إعادة التعيين. المتبقي الآن = ${maxDaysLimit} يوم (الحد الأقصى).`);
-    };
-    
-    // تهيئة أولية للقيم (يمكن تعديلها حسب السيناريو)
-    function initializeLicense() {
-        licenseActive = true;
-        maxDaysLimit = 30;
-        daysConsumed = 0;
-        refreshUI();
+        usedDays = 0;
+        updateUI();
+        alert(`✅ تمت إعادة التعيين. المتبقي الآن = ${maxLimit} يوم (الحد الأقصى).`);
     }
     
-    initializeLicense();
+    // ربط الأزرار والأحداث
+    function bindEvents() {
+        toggleInput.addEventListener('change', toggleLicenseStatus);
+        document.getElementById('decreaseMaxBtn').addEventListener('click', () => changeMaxDays(-1));
+        document.getElementById('increaseMaxBtn').addEventListener('click', () => changeMaxDays(1));
+        document.getElementById('consumeBtn').addEventListener('click', consumeOneDay);
+        document.getElementById('resetBtn').addEventListener('click', resetRemaining);
+    }
+    
+    // تهيئة أولية
+    function init() {
+        isActive = true;
+        maxLimit = 30;
+        usedDays = 0;
+        bindEvents();
+        updateUI();
+    }
+    
+    init();
 </script>
 </body>
 </html>
