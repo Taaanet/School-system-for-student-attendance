@@ -1,207 +1,568 @@
-{% extends "base.html" %}
-{% block title %}{{ t('home') }}{% endblock %}
-{% block page_title %}<i class="fas fa-home"></i> {{ t('home') }}{% endblock %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>نظام إدارة الترخيص - لوحة التحكم</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Tahoma', system-ui, sans-serif;
+        }
 
-{% block content %}
-<!-- أزرار الإجراءات السريعة -->
-<div class="action-buttons">
-    <button class="action-btn action-btn-pdf" onclick="window.print()"><i class="fas fa-file-pdf"></i> {{ t('print_pdf') }}</button>
-    <button class="action-btn action-btn-excel" id="exportExcelBtn"><i class="fas fa-file-excel"></i> {{ t('export_excel') }} {{ t('attendance_summary') }}</button>
-</div>
+        body {
+            background: linear-gradient(135deg, #eef2f9 0%, #e0e8f2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
 
-<!-- إحصائيات سريعة -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <h3><i class="fas fa-user-check"></i> {{ t('present_on_time') }}</h3>
-        <div class="stat-value" id="presentCount" style="color:#48bb78;">0</div>
-    </div>
-    <div class="stat-card">
-        <h3><i class="fas fa-clock"></i> {{ t('late') }}</h3>
-        <div class="stat-value" id="lateCount" style="color:#ed8936;">0</div>
-    </div>
-    <div class="stat-card">
-        <h3><i class="fas fa-user-times"></i> {{ t('absent') }}</h3>
-        <div class="stat-value" id="absentCount" style="color:#fc8181;">0</div>
-    </div>
-    <div class="stat-card">
-        <h3><i class="fas fa-users"></i> {{ t('total_students') }}</h3>
-        <div class="stat-value" id="totalCount" style="color:#4299e1;">0</div>
-    </div>
-</div>
+        /* بطاقة الترخيص الرئيسية */
+        .license-container {
+            max-width: 780px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: all 0.2s;
+        }
 
-<!-- إحصائيات إضافية -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <h3><i class="fas fa-chart-line"></i> {{ t('attendance_percentage') }}</h3>
-        <div class="stat-value" id="percentageToday" style="color:#667eea;">0%</div>
-    </div>
-    <div class="stat-card">
-        <h3><i class="fas fa-database"></i> {{ t('total_records') }}</h3>
-        <div class="stat-value" id="totalRecords" style="color:#667eea;">0</div>
-    </div>
-    <div class="stat-card">
-        <h3><i class="fas fa-trophy"></i> {{ t('best_day') }}</h3>
-        <div class="stat-value" id="bestDay" style="font-size:20px; color:#ed8936;">-</div>
-    </div>
-    <div class="stat-card">
-        <h3><i class="fas fa-chart-simple"></i> {{ t('total_attendance') }}</h3>
-        <div class="stat-value" id="totalAttendance" style="color:#48bb78;">0</div>
-    </div>
-</div>
+        /* الرأس */
+        .header {
+            background: linear-gradient(105deg, #0a2b3e 0%, #123b52 100%);
+            padding: 1.5rem 2rem;
+            color: white;
+            border-bottom: 4px solid #f7b05e;
+        }
 
-<!-- بطاقات الانتقال السريع -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px;">
-    <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/general_reports'">
-        <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
-        <h3>{{ t('general_reports') }}</h3>
-        <p style="color: #718096; font-size: 14px;">{{ t('quick_reports') }}</p>
-    </div>
-    <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/monthly_reports'">
-        <div style="font-size: 48px; margin-bottom: 15px;">📅</div>
-        <h3>{{ t('monthly_reports') }}</h3>
-        <p style="color: #718096; font-size: 14px;">{{ t('advanced_statistics') }}</p>
-    </div>
-    <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/charts'">
-        <div style="font-size: 48px; margin-bottom: 15px;">📈</div>
-        <h3>{{ t('charts') }}</h3>
-        <p style="color: #718096; font-size: 14px;">{{ t('advanced_statistics') }}</p>
-    </div>
-    <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/class_reports'">
-        <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
-        <h3>{{ t('class_reports') }}</h3>
-        <p style="color: #718096; font-size: 14px;">{{ t('advanced_statistics') }}</p>
-    </div>
-    <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/manage_students'">
-        <div style="font-size: 48px; margin-bottom: 15px;">📚</div>
-        <h3>{{ t('manage_students') }}</h3>
-        <p style="color: #718096; font-size: 14px;">{{ t('student_management') }}</p>
-    </div>
-    <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='/scan'">
-        <div style="font-size: 48px; margin-bottom: 15px;">📱</div>
-        <h3>{{ t('scan') }}</h3>
-        <p style="color: #718096; font-size: 14px;">{{ t('attendance_recording') }}</p>
-    </div>
-</div>
+        .header h1 {
+            font-size: 1.7rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
-<!-- أفضل 5 طلاب -->
-<div class="card">
-    <h3 class="card-title"><i class="fas fa-trophy"></i> 🏆 {{ t('top_students') }}</h3>
-    <div id="topStudentsList" style="text-align: center;">{{ t('loading') }}</div>
-</div>
+        .header h1::before {
+            content: "⚖️";
+            font-size: 1.8rem;
+        }
 
-<!-- آخر تسجيلات الحضور -->
-<div class="card">
-    <h3 class="card-title"><i class="fas fa-history"></i> 🕒 {{ t('recent_attendance') }}</h3>
-    <div id="activityList" style="max-height: 400px; overflow-y: auto;">{{ t('loading') }}</div>
+        /* معلومات المستخدم */
+        .user-section {
+            background: #f9fbfe;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 12px;
+            border-bottom: 1px solid #e9edf2;
+        }
+
+        .user-label {
+            background: #eef2f7;
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #1f4970;
+        }
+
+        .user-name {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #0f3b5c;
+            letter-spacing: -0.3px;
+            word-break: break-word;
+        }
+
+        /* المحتوى */
+        .content {
+            padding: 2rem;
+        }
+
+        /* بطاقة الحالة (نشط/غير نشط) */
+        .status-card {
+            background: #f4f8fe;
+            border-radius: 1.2rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+            border: 1px solid #e2ecf9;
+        }
+
+        .status-title {
+            font-weight: 800;
+            color: #1d4e7a;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-control {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 64px;
+            height: 32px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: 0.25s;
+            border-radius: 40px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2b7e3a;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(32px);
+        }
+
+        .status-badge-text {
+            font-weight: 700;
+            font-size: 1.05rem;
+            background: white;
+            padding: 6px 18px;
+            border-radius: 40px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .status-active {
+            color: #2b6e3a;
+            border-right: 3px solid #2b6e3a;
+        }
+
+        .status-inactive {
+            color: #b91c1c;
+            border-right: 3px solid #b91c1c;
+        }
+
+        /* شبكة المعلومات (الحد الأقصى + المتبقي) */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.6rem;
+            margin: 1.8rem 0 1.5rem 0;
+        }
+
+        .stat-block {
+            background: #ffffff;
+            border-radius: 1.5rem;
+            padding: 1.2rem 1.3rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.03);
+            border: 1px solid #eef3fc;
+            transition: 0.2s;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5f7f9f;
+            margin-bottom: 0.7rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #103a56;
+            line-height: 1.1;
+        }
+
+        .stat-unit {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6f8eae;
+            margin-right: 5px;
+        }
+
+        .remaining-highlight {
+            background: #fffbf0;
+            border-right: 5px solid #f6b83e;
+        }
+
+        .helper-note {
+            font-size: 0.7rem;
+            margin-top: 8px;
+            color: #8ca3bc;
+        }
+
+        /* لوحة التحكم التجريبية */
+        .demo-panel {
+            background: #f7fafd;
+            border-radius: 1.2rem;
+            padding: 1rem 1.2rem;
+            margin-top: 1.2rem;
+            border: 1px solid #e2edfc;
+        }
+
+        .demo-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #345f8a;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            background: #ffffff;
+            border: 1px solid #cfdfef;
+            padding: 7px 15px;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.15s;
+            color: #1e4a76;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .btn-primary {
+            background: #eef3fc;
+            border-color: #bfd6ef;
+        }
+
+        .btn-warning {
+            background: #fff1e0;
+            border-color: #ffe0b5;
+            color: #c46f0a;
+        }
+
+        .btn-reset {
+            background: #e2f3e6;
+            border-color: #bfe0cb;
+            color: #237a44;
+        }
+
+        .btn:hover {
+            background: #e6edf6;
+            transform: translateY(-1px);
+        }
+
+        .footer-meta {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #8fa2bb;
+            border-top: 1px solid #eef2f8;
+            padding-top: 1.3rem;
+        }
+
+        @media (max-width: 550px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .content {
+                padding: 1.3rem;
+            }
+            .header h1 {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="license-container" id="licenseDashboard">
+    <div class="header">
+        <h1>بوابة الترخيص الاحترافية</h1>
+    </div>
+    <div class="user-section">
+        <span class="user-label">👤 المالك / المرخص له</span>
+        <span class="user-name" id="displayUserName">Taha_Mohamed</span>
+    </div>
+    <div class="content">
+        <!-- قسم حالة الترخيص (نشط / غير نشط) -->
+        <div class="status-card">
+            <div class="status-title">
+                <span>🔄</span> حالة الترخيص
+            </div>
+            <div class="status-control">
+                <label class="toggle">
+                    <input type="checkbox" id="licenseToggle" onchange="handleLicenseToggle()">
+                    <span class="slider"></span>
+                </label>
+                <span id="statusLabel" class="status-badge-text status-active">نشط</span>
+            </div>
+        </div>
+
+        <!-- بطاقات الحد الأقصى والمتبقي -->
+        <div class="stats-grid">
+            <!-- الحد الأقصى للأيام المتاحة -->
+            <div class="stat-block">
+                <div class="stat-label">
+                    <span>📆</span> الحد الأقصى
+                </div>
+                <div class="stat-number">
+                    <span id="maxDaysValue">30</span>
+                    <span class="stat-unit">يوم</span>
+                </div>
+                <div class="helper-note">إجمالي الأيام المتاحة للترخيص</div>
+            </div>
+
+            <!-- المتبقي (الأيام المتبقية لانتهاء الترخيص) -->
+            <div class="stat-block remaining-highlight" id="remainingBlock">
+                <div class="stat-label">
+                    <span>⏳</span> المتبقي
+                </div>
+                <div class="stat-number">
+                    <span id="remainingDaysValue">30</span>
+                    <span class="stat-unit">يوم</span>
+                </div>
+                <div class="helper-note" id="remainingNote">الأيام المتبقية لانتهاء الترخيص</div>
+            </div>
+        </div>
+
+        <!-- أزرار التحكم التجريبية (لإدارة الأيام والحد الأقصى) -->
+        <div class="demo-panel">
+            <div class="demo-title">
+                ⚙️ أدوات التحكم في الترخيص
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="modifyMaxDays(-1)">➖ إنقاص الحد (يوم)</button>
+                <button class="btn btn-primary" onclick="modifyMaxDays(1)">➕ زيادة الحد (يوم)</button>
+                <button class="btn btn-warning" onclick="consumeOneDay()">📅 استهلاك يوم واحد</button>
+                <button class="btn btn-reset" onclick="resetLicenseUsage()">⟳ إعادة تعيين المتبقي</button>
+            </div>
+            <div class="helper-note" style="margin-top: 12px;">
+                * تغيير الحد الأقصى يحافظ على الأيام المستهلكة. الترخيص "غير نشط" يمنع الاستهلاك.
+            </div>
+        </div>
+    </div>
+    <div class="footer-meta">
+        ✅ تم تحديث النظام بالكامل — تم إزالة "عدد مرات الدخول" — التركيز على حالة الترخيص والحد الأقصى والمتبقي
+    </div>
 </div>
 
 <script>
-    // جلب إحصائيات اليوم
-    async function loadStats() {
-        try {
-            const res = await fetch('/api/dashboard_stats');
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById('presentCount').innerHTML = data.present || 0;
-                document.getElementById('lateCount').innerHTML = data.late || 0;
-                document.getElementById('absentCount').innerHTML = data.absent || 0;
-                document.getElementById('totalCount').innerHTML = data.total_students || 0;
-                document.getElementById('percentageToday').innerHTML = data.percentage + '%';
-                document.getElementById('totalRecords').innerHTML = data.total_records || 0;
-                document.getElementById('totalAttendance').innerHTML = (data.present + data.late) || 0;
-            }
-        } catch(e) { console.error('خطأ في جلب الإحصائيات:', e); }
+    // ------------------- بيانات الترخيص -------------------
+    let licenseActive = true;        // نشط / غير نشط
+    let maxDaysLimit = 30;           // الحد الأقصى للأيام (المدة الكلية)
+    let daysConsumed = 0;            // عدد الأيام المستهلكة منذ بدء الترخيص
+    
+    // اسم المستخدم ثابت كما هو مطلوب: Taha_Mohamed
+    const USER_NAME = "Taha_Mohamed";
+    
+    // عناصر HTML
+    const userNameSpan = document.getElementById('displayUserName');
+    const toggleCheckbox = document.getElementById('licenseToggle');
+    const statusSpan = document.getElementById('statusLabel');
+    const maxDaysSpan = document.getElementById('maxDaysValue');
+    const remainingSpan = document.getElementById('remainingDaysValue');
+    const remainingNoteSpan = document.getElementById('remainingNote');
+    const remainingBlockDiv = document.getElementById('remainingBlock');
+    
+    // دالة لحساب الأيام المتبقية (الحد الأقصى - المستهلك)
+    function computeRemainingDays() {
+        let remaining = maxDaysLimit - daysConsumed;
+        return remaining < 0 ? 0 : remaining;
     }
     
-    // جلب أفضل الطلاب
-    async function loadTopStudents() {
-        try {
-            const res = await fetch('/api/top_students');
-            const data = await res.json();
-            const lang = '{{ lang }}';
-            if (data.success && data.data && data.data.length > 0) {
-                const container = document.getElementById('topStudentsList');
-                container.innerHTML = data.data.slice(0, 5).map((student, index) => `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${index + 1}</div>
-                            <div><strong>${student.name}</strong></div>
-                        </div>
-                        <div style="color: #48bb78; font-weight: bold;"><i class="fas fa-calendar-check"></i> ${student.count} ${lang === 'ar' ? 'يوم' : 'days'}</div>
-                    </div>
-                `).join('');
-            } else {
-                document.getElementById('topStudentsList').innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ ' + (lang === 'ar' ? 'لا توجد بيانات كافية' : 'No data available') + '</div>';
-            }
-        } catch(e) { console.error('خطأ في جلب أفضل الطلاب:', e); }
-    }
-    
-    // جلب أفضل يوم في الشهر
-    async function loadBestDay() {
-        try {
-            const now = new Date();
-            const res = await fetch(`/api/monthly_report?year=${now.getFullYear()}&month=${now.getMonth() + 1}`);
-            const data = await res.json();
-            const lang = '{{ lang }}';
-            if (data.success && data.summary && data.summary.best_day) {
-                document.getElementById('bestDay').innerHTML = `${lang === 'ar' ? 'يوم' : 'Day'} ${data.summary.best_day.day}<br><small style="font-size:12px;">${lang === 'ar' ? 'نسبة الحضور' : 'Rate'}: ${data.summary.best_day.percentage}%</small>`;
-            } else {
-                document.getElementById('bestDay').innerHTML = lang === 'ar' ? 'لا توجد بيانات' : 'No data';
-            }
-        } catch(e) { console.error('خطأ في جلب أفضل يوم:', e); }
-    }
-    
-    // جلب آخر النشاطات
-    async function loadRecentActivity() {
-        try {
-            const today = new Date().toISOString().split('T')[0];
-            const res = await fetch(`/api/attendance_details/${today}`);
-            const data = await res.json();
-            const container = document.getElementById('activityList');
-            const lang = '{{ lang }}';
+    // تحديث كامل للواجهة بناءً على القيم الحالية
+    function refreshUI() {
+        // عرض اسم المستخدم
+        userNameSpan.textContent = USER_NAME;
+        
+        // عرض الحد الأقصى
+        maxDaysSpan.textContent = maxDaysLimit;
+        
+        // حساب المتبقي
+        const remaining = computeRemainingDays();
+        remainingSpan.textContent = remaining;
+        
+        // إدارة حالة الترخيص في الواجهة
+        if (licenseActive) {
+            statusSpan.textContent = "نشط";
+            statusSpan.className = "status-badge-text status-active";
+            toggleCheckbox.checked = true;
             
-            if (data.success && data.data) {
-                const presentStudents = data.data.filter(s => s.status !== 'غائب').slice(0, 10);
-                if (presentStudents.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ ' + (lang === 'ar' ? 'لا توجد تسجيلات حضور اليوم' : 'No attendance records today') + '</div>';
-                    return;
-                }
-                container.innerHTML = presentStudents.map(student => `
-                    <div style="display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;"><i class="fas fa-user-graduate"></i></div>
-                        <div style="flex: 1;">
-                            <div><strong>${student.student_name}</strong></div>
-                            <div style="font-size: 12px; color: #718096;"><i class="fas fa-graduation-cap"></i> ${lang === 'ar' ? 'شعبة' : 'Class'} ${student.class} - ${student.grade}</div>
-                        </div>
-                        <div style="background: ${student.status === 'حاضر في الوقت' ? '#c6f6d5' : '#feebc8'}; padding: 8px 15px; border-radius: 25px; font-size: 13px; font-weight: bold;">
-                            ${student.status === 'حاضر في الوقت' ? '<i class="fas fa-check-circle"></i> ' + (lang === 'ar' ? 'حاضر' : 'Present') : '<i class="fas fa-clock"></i> ' + (lang === 'ar' ? 'متأخر' : 'Late')} ${student.time}
-                        </div>
-                    </div>
-                `).join('');
+            // نصائح المتبقي حسب قيمته
+            if (remaining === 0) {
+                remainingNoteSpan.innerHTML = "❌ انتهت صلاحية الترخيص (0 يوم متبقي)";
+                remainingNoteSpan.style.color = "#c0392b";
+                remainingBlockDiv.style.background = "#fff0f0";
+                remainingBlockDiv.style.borderRightColor = "#e07a5f";
+            } else if (remaining <= 5) {
+                remainingNoteSpan.innerHTML = `⚠️ تنبيه: يتبقى ${remaining} أيام فقط لانتهاء الترخيص`;
+                remainingNoteSpan.style.color = "#e67e22";
+                remainingBlockDiv.style.background = "#fff7e8";
+                remainingBlockDiv.style.borderRightColor = "#f4a261";
             } else {
-                container.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-info-circle"></i> ⚠️ ' + (lang === 'ar' ? 'لا توجد بيانات' : 'No data') + '</div>';
+                remainingNoteSpan.innerHTML = "✅ الأيام المتبقية لانتهاء الترخيص";
+                remainingNoteSpan.style.color = "#5f7f9f";
+                remainingBlockDiv.style.background = "#fffbf0";
+                remainingBlockDiv.style.borderRightColor = "#f6b83e";
             }
-        } catch(e) { console.error('خطأ في جلب النشاطات:', e); }
+        } else {
+            // الترخيص غير نشط
+            statusSpan.textContent = "غير نشط";
+            statusSpan.className = "status-badge-text status-inactive";
+            toggleCheckbox.checked = false;
+            remainingNoteSpan.innerHTML = "⛔ الترخيص غير نشط (الصلاحية معطلة)";
+            remainingNoteSpan.style.color = "#b91c1c";
+            remainingBlockDiv.style.background = "#fef2f2";
+            remainingBlockDiv.style.borderRightColor = "#e07a5f";
+        }
+        
+        // تحسين إضافي: إذا كان المتبقي 0 ونشط، نقترح تعطيل تلقائي لكننا نترك للمستخدم القرار
+        if (licenseActive && computeRemainingDays() === 0) {
+            remainingNoteSpan.innerHTML = "⚠️ لا توجد أيام متبقية، يرجى تجديد الترخيص أو تعطيله";
+            remainingNoteSpan.style.color = "#d97706";
+        }
+        
+        // تحديث لون خلفية البطاقة العامة حسب الحالة
+        if (!licenseActive) {
+            remainingBlockDiv.style.opacity = "0.9";
+        } else {
+            remainingBlockDiv.style.opacity = "1";
+        }
     }
     
-    // تصدير Excel
-    function exportToExcel() {
-        window.open('/api/export_today_excel', '_blank');
+    // التبديل بين الحالة نشط / غير نشط (يتم استدعاؤها من الـ toggle)
+    window.handleLicenseToggle = function() {
+        licenseActive = toggleCheckbox.checked;
+        refreshUI();
+        
+        // إشعار بسيط عند التبديل
+        if (!licenseActive) {
+            console.log("الترخيص تم تعطيله (غير نشط)");
+        } else {
+            console.log("الترخيص نشط الآن");
+        }
+    };
+    
+    // تعديل الحد الأقصى (زيادة أو إنقاص)
+    window.modifyMaxDays = function(delta) {
+        let newMax = maxDaysLimit + delta;
+        if (newMax < 1) newMax = 1;         // الحد الأدنى يوم واحد على الأقل
+        if (newMax > 1825) newMax = 1825;     // حد أقصى 5 سنوات (1825 يوم) منطقي
+        
+        maxDaysLimit = newMax;
+        
+        // التأكد من أن الأيام المستهلكة لا تتجاوز الحد الجديد
+        if (daysConsumed > maxDaysLimit) {
+            daysConsumed = maxDaysLimit;
+        }
+        
+        refreshUI();
+    };
+    
+    // استهلاك يوم واحد (محاكاة استخدام يوم من صلاحية الترخيص)
+    window.consumeOneDay = function() {
+        if (!licenseActive) {
+            alert("⚠️ لا يمكن استهلاك الأيام لأن الترخيص غير نشط. قم بتنشيط الترخيص أولاً.");
+            return;
+        }
+        
+        const remainingBefore = computeRemainingDays();
+        if (remainingBefore <= 0) {
+            alert("❌ لا توجد أيام متبقية في الترخيص. قم بزيادة الحد الأقصى أو إعادة التعيين.");
+            return;
+        }
+        
+        // استهلاك يوم واحد
+        daysConsumed++;
+        if (daysConsumed > maxDaysLimit) daysConsumed = maxDaysLimit;
+        
+        refreshUI();
+        
+        const remainingAfter = computeRemainingDays();
+        if (remainingAfter === 0) {
+            alert("🔔 انتهت صلاحية الترخيص! المتبقي 0 يوم. يرجى تجديد الترخيص.");
+        } else if (remainingAfter <= 3) {
+            alert(`⚠️ تنبيه هام: تبقى ${remainingAfter} يوم فقط قبل انتهاء الترخيص.`);
+        } else {
+            // استهلاك عادي بدون تنبيه قوي
+        }
+    };
+    
+    // إعادة تعيين الأيام المستهلكة -> يصبح المتبقي = الحد الأقصى
+    window.resetLicenseUsage = function() {
+        if (!licenseActive) {
+            const userConfirm = confirm("الترخيص حالياً غير نشط. هل تريد إعادة تعيين الأيام المستهلكة وتنشيط الترخيص تلقائياً؟");
+            if (userConfirm) {
+                licenseActive = true;
+                toggleCheckbox.checked = true;
+                daysConsumed = 0;
+                refreshUI();
+                alert("✅ تم إعادة تعيين المتبقي بالكامل وتنشيط الترخيص.");
+            }
+            return;
+        }
+        
+        // إذا كان نشطاً
+        daysConsumed = 0;
+        refreshUI();
+        alert(`✅ تمت إعادة التعيين. المتبقي الآن = ${maxDaysLimit} يوم (الحد الأقصى).`);
+    };
+    
+    // تهيئة أولية للقيم (يمكن تعديلها حسب السيناريو)
+    function initializeLicense() {
+        licenseActive = true;
+        maxDaysLimit = 30;
+        daysConsumed = 0;
+        refreshUI();
     }
     
-    // ربط زر التصدير
-    document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
-    
-    // تحميل البيانات الأولية
-    loadStats();
-    loadTopStudents();
-    loadBestDay();
-    loadRecentActivity();
-    
-    // تحديث تلقائي كل 30 ثانية
-    setInterval(() => {
-        loadStats();
-        loadRecentActivity();
-    }, 30000);
+    initializeLicense();
 </script>
-{% endblock %}
+</body>
+</html>
