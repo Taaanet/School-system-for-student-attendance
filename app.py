@@ -799,6 +799,42 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# ============== ديكوراتور الترخيص ==============
+def license_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        allowed_paths = [
+            '/login', '/logout', '/request_activation', '/activate_device',
+            '/admin', '/api/admin', '/static/', '/test_supabase', '/health',
+            '/api/device_status', '/admin/upload_students',
+            '/api/admin/export_current_students', '/api/set_language',
+            '/api/user_license_days', '/api/remaining_trials', '/api/check_license_status'
+        ]
+        
+        for path in allowed_paths:
+            if request.path.startswith(path):
+                return f(*args, **kwargs)
+
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+
+        username = session.get('username')
+        if session.get('role') == 'admin':
+            return f(*args, **kwargs)
+        
+        is_licensed, license_message = check_user_license_by_days(username)
+        
+        if not is_licensed:
+            session.clear()
+            return render_template('login.html', error=license_message)
+        
+        return f(*args, **kwargs)
+    
+    return decorated_function
+
+# ============== إعداد سياسات RLS تلقائياً ==============
+def setup_rls_policies():
+    ...
 # ============== إعداد سياسات RLS تلقائياً ==============
 def setup_rls_policies():
     try:
