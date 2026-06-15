@@ -75,6 +75,8 @@
     .license-expired { background: #fed7d7; color: #742a2a; }
     .license-warning { background: #feebc8; color: #744210; }
     .license-none { background: #e2e8f0; color: #4a5568; }
+    .license-active { background: #c6f6d5; color: #22543d; }
+    .license-inactive { background: #fed7d7; color: #742a2a; }
     
     .card {
         background: white;
@@ -199,15 +201,14 @@
                     <th>{{ t('username') }}</th>
                     <th>{{ t('role') }}</th>
                     <th>{{ t('permissions') }}</th>
-                    <th>{{ t('login_count') }}</th>
-                    <th>{{ t('max_logins') }}</th>
-                    <th>{{ t('remaining') }}</th>
                     <th>{{ t('license_status') }}</th>
+                    <th>{{ t('license_days') }} ({{ t('max') }})</th>
+                    <th>{{ t('remaining') }}</th>
                     <th>{{ t('actions') }}</th>
                 </tr>
             </thead>
             <tbody id="usersTableBody">
-                <tr><td colspan="8" style="text-align:center;">{{ t('loading') }}<\/td><\/tr>
+                <tr><td colspan="7" style="text-align:center;">{{ t('loading') }}<\/td><\/tr>
             </tbody>
         </table>
     </div>
@@ -225,8 +226,12 @@
             'license_none': lang === 'ar' ? 'لا يوجد ترخيص' : 'No license',
             'days_left': lang === 'ar' ? 'متبقي' : 'left',
             'days': lang === 'ar' ? 'يوم' : 'days',
-            'license_days': lang === 'ar' ? 'مدة الترخيص (بالأيام)' : 'License period (days)',
+            'max': lang === 'ar' ? 'الحد الأقصى' : 'Max',
+            'remaining': lang === 'ar' ? 'المتبقي' : 'Remaining',
+            'license_days': lang === 'ar' ? 'مدة الترخيص' : 'License Duration',
             'license_status': lang === 'ar' ? 'حالة الترخيص' : 'License Status',
+            'license_active': lang === 'ar' ? 'نشط' : 'Active',
+            'license_inactive': lang === 'ar' ? 'غير نشط' : 'Inactive',
             'license_info': lang === 'ar' ? 'مدة الترخيص (أيام)' : 'License duration (days)',
             'leave_empty_for_no_change': lang === 'ar' ? 'اترك فارغاً لتثبيت الترخيص الحالي' : 'Leave empty to keep current license',
             'no_permission': lang === 'ar' ? 'ليس لديك صلاحية لهذا الإجراء' : 'You do not have permission',
@@ -252,24 +257,62 @@
                 renderTable(currentUsers);
             }
         } catch(e) {
-            document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" style="text-align:center;">❌ ${t('connection_error')}<\/td><\/tr>`;
+            document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center;">❌ ${t('connection_error')}<\/td><\/tr>`;
         }
     }
 
-    function getLicenseBadge(licenseData) {
+    // حساب الحد الأقصى للأيام من تاريخ انتهاء الترخيص
+    function getMaxDays(licenseData) {
+        if (!licenseData || !licenseData.has_license || !licenseData.expiry_date) return '-';
+        const expiryDate = new Date(licenseData.expiry_date);
+        const createdDate = new Date();
+        // تقدير تاريخ البدء (نفترض أن الترخيص بدأ قبل المدة المتبقية + الأيام المتبقية)
+        // أفضل طريقة: إذا كان لدينا تاريخ الإنشاء نخزنه، ولكن حالياً نستخدم تاريخ اليوم - المتبقي
+        const remaining = licenseData.days_remaining;
+        if (remaining === 0) return '-';
+        // لا يمكن حساب الحد الأقصى بدقة بدون تاريخ البدء، نعرض "غير محدد" أو نستخدم قيمة افتراضية من API
+        return '-';
+    }
+
+    // حساب المتبقي من أيام الترخيص
+    function getRemainingDays(licenseData) {
+        if (!licenseData || !licenseData.has_license) return 0;
+        return licenseData.days_remaining;
+    }
+
+    // حالة الترخيص (نشط / غير نشط)
+    function getLicenseActiveStatus(licenseData) {
+        if (!licenseData || !licenseData.has_license) return false;
+        return licenseData.days_remaining > 0;
+    }
+
+    function getLicenseStatusBadge(licenseData) {
         if (!licenseData || !licenseData.has_license) {
-            return '<span class="license-badge license-none">' + t('license_none') + '</span>';
+            return '<span class="license-badge license-inactive">' + t('license_inactive') + '</span>';
         }
         
         const days = licenseData.days_remaining;
         
         if (days <= 0) {
-            return '<span class="license-badge license-expired">' + t('license_expired') + '</span>';
-        } else if (days <= 7) {
-            return '<span class="license-badge license-warning">⚠️ ' + days + ' ' + t('days_left') + '</span>';
+            return '<span class="license-badge license-inactive">' + t('license_inactive') + '</span>';
         } else {
-            return '<span class="license-badge license-valid">✓ ' + days + ' ' + t('days_left') + '</span>';
+            return '<span class="license-badge license-active">' + t('license_active') + '</span>';
         }
+    }
+
+    function getLicenseMaxDaysDisplay(licenseData) {
+        if (!licenseData || !licenseData.has_license) return '-';
+        // إذا كان لدينا expiry_date، نحاول حساب عدد الأيام الكلي
+        if (licenseData.expiry_date && licenseData.created_at) {
+            try {
+                const expiry = new Date(licenseData.expiry_date);
+                const created = new Date(licenseData.created_at);
+                const totalDays = Math.ceil((expiry - created) / (1000 * 60 * 60 * 24));
+                if (totalDays > 0) return totalDays;
+            } catch(e) {}
+        }
+        // بديل: نعرض "غير محدد" أو المتبقي + المستهلك (صعب بدون تخزين)
+        return '-';
     }
 
     function getRoleName(role) {
@@ -307,27 +350,23 @@
     function renderTable(users) {
         const tbody = document.getElementById('usersTableBody');
         if (!users || users.length === 0) {
-            tbody.innerHTML = `<td><td colspan="8" style="text-align:center;">⚠️ ${lang === 'ar' ? 'لا توجد بيانات' : 'No data'}<\/td><\/tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">⚠️ ${lang === 'ar' ? 'لا توجد بيانات' : 'No data'}<\/td><\/tr>`;
             return;
         }
         
         tbody.innerHTML = users.map(user => {
-            let remainingClass = '';
-            if (user.role !== 'admin' && user.remaining !== (lang === 'ar' ? 'غير محدود' : 'Unlimited') && user.remaining < 3) {
-                remainingClass = 'warning';
-            }
-            
-            const licenseBadge = getLicenseBadge(user.license_status);
+            const licenseStatusBadge = getLicenseStatusBadge(user.license_status);
+            const remainingDays = getRemainingDays(user.license_status);
+            const maxDaysDisplay = getLicenseMaxDaysDisplay(user.license_status);
             
             return `
                 <tr>
                     <td><strong>${user.username}</strong><\/td>
                     <td>${getRoleName(user.role)}<\/td>
                     <td>${getPermissions(user.role)}<\/td>
-                    <td>${user.login_count}<\/td>
-                    <td>${user.max_logins}<\/td>
-                    <td class="${remainingClass}">${user.remaining}<\/td>
-                    <td>${licenseBadge}<\/td>
+                    <td>${licenseStatusBadge}<\/td>
+                    <td>${maxDaysDisplay}<\/td>
+                    <td>${remainingDays} ${t('days')}<\/td>
                     <td>
                         ${user.username !== 'Taha_Mohamed' ? `
                             <button class="btn btn-edit" onclick="openEditModal('${user.username}', '${user.role}', ${JSON.stringify(user.license_status)})"><i class="fas fa-edit"></i> ${lang === 'ar' ? 'تعديل' : 'Edit'}</button>
@@ -335,9 +374,6 @@
                         ` : `
                             <span style="color:#999;">${lang === 'ar' ? 'المدير الأساسي' : 'Primary Admin'}</span>
                         `}
-                        ${user.role !== 'admin' ? `
-                            <button class="btn btn-reset" onclick="resetLogins('${user.username}')"><i class="fas fa-sync-alt"></i> ${lang === 'ar' ? 'إعادة تعيين' : 'Reset'}</button>
-                        ` : ''}
                     <\/td>
                 <\/tr>
             `;
@@ -418,24 +454,6 @@
         
         try {
             const response = await fetch(`/api/delete_user/${username}`, { method: 'DELETE' });
-            const data = await response.json();
-            
-            if (data.success) {
-                showAlert(data.message, 'success');
-                loadUsers();
-            } else {
-                showAlert(data.message, 'error');
-            }
-        } catch(e) {
-            showAlert(t('connection_error'), 'error');
-        }
-    }
-
-    async function resetLogins(username) {
-        if (!confirm(lang === 'ar' ? `هل أنت متأكد من إعادة تعيين عدد محاولات "${username}"؟` : `Are you sure you want to reset login count for "${username}"?`)) return;
-        
-        try {
-            const response = await fetch(`/reset_logins/${username}`);
             const data = await response.json();
             
             if (data.success) {
