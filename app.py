@@ -46,6 +46,17 @@ def inject_license_info():
         }
     return {'license_days_remaining': 0, 'license_is_unlimited': False}
 
+# ============== تمرير معلومات المدرسة ومدير النظام ==============
+@app.context_processor
+def inject_school_info():
+    return {
+        'school_name': SCHOOL_NAME,
+        'school_logo': SCHOOL_LOGO,
+        'admin_name': ADMIN_NAME,
+        'admin_email': ADMIN_EMAIL,
+        'admin_phone': ADMIN_PHONE
+    }
+
 # قاموس الترجمة الكامل
 TRANSLATIONS = {
     # القائمة الرئيسية
@@ -306,6 +317,11 @@ TRANSLATIONS = {
     'copy_code_send_user': {'ar': 'انسخ هذا الرمز وأرسله إلى المستخدم لتفعيل جهازه.', 'en': 'Copy this code and send it to the user to activate their device.'},
     'copy_code': {'ar': 'نسخ الرمز', 'en': 'Copy Code'},
     'back_to_control_panel': {'ar': 'العودة إلى لوحة التحكم', 'en': 'Back to Control Panel'},
+    # ============== الصفحة الترحيبية ==============
+    'school_logo': {'ar': 'شعار المدرسة', 'en': 'School Logo'},
+    'school_name_default': {'ar': 'المدرسة النموذجية', 'en': 'Model School'},
+    'view_all': {'ar': 'عرض الكل', 'en': 'View All'},
+    'manage': {'ar': 'إدارة', 'en': 'Manage'},
 }
 
 def t(key):
@@ -331,6 +347,13 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 CORS(app)
+
+# ============== إعدادات المدرسة ومدير النظام ==============
+SCHOOL_NAME = os.environ.get('SCHOOL_NAME', 'المدرسة النموذجية')
+SCHOOL_LOGO = os.environ.get('SCHOOL_LOGO', '')  # رابط صورة الشعار
+ADMIN_NAME = os.environ.get('ADMIN_NAME', 'Taha Mohamed')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'taaanet@gmail.com')
+ADMIN_PHONE = os.environ.get('ADMIN_PHONE', '0554289816')
 
 # ============== إعدادات واتساب (Twilio) ==============
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
@@ -616,7 +639,7 @@ def check_device_license():
 # ============== نظام أيام الترخيص للمستخدمين (بدلاً من المحاولات المجانية) ==============
 
 def check_user_license_by_days(username):
-    """التحقق من صلاحية ترخيص المستخدم بناءً على الأيام"""
+    """التحقق من صلاحية ترخيص المستخدم بناءً على الأيام (بدون وقت)"""
     users = load_users()
     if username not in users:
         return False, "المستخدم غير موجود"
@@ -632,17 +655,33 @@ def check_user_license_by_days(username):
         return False, "لا يوجد ترخيص لهذا المستخدم. يرجى التواصل مع المدير."
     
     try:
-        expiry = datetime.fromisoformat(expiry_date)
-        if expiry > datetime.now():
-            days_left = (expiry - datetime.now()).days
-            return True, f"الترخيص صالح لمدة {days_left} يوم متبقي"
+        if isinstance(expiry_date, str):
+            expiry = datetime.fromisoformat(expiry_date)
         else:
-            return False, f"انتهى الترخيص في {expiry_date}. يرجى التواصل مع المدير لتجديد الترخيص."
-    except:
+            expiry = expiry_date
+        
+        # ✅ التعديل: الحصول على التاريخ الحالي (بدون وقت)
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        expiry_date_only = expiry.replace(hour=0, minute=0, second=0, microsecond=0)
+        days_left = (expiry_date_only - today).days
+        
+        print(f"📅 التحقق من ترخيص {username}:")
+        print(f"   تاريخ الانتهاء: {expiry_date_only}")
+        print(f"   اليوم: {today}")
+        print(f"   الأيام المتبقية: {days_left}")
+        
+        if days_left > 0:
+            return True, f"الترخيص صالح لمدة {days_left} يوم متبقي"
+        elif days_left == 0:
+            return True, "الترخيص ينتهي اليوم"
+        else:
+            return False, f"انتهى الترخيص منذ {abs(days_left)} يوم. يرجى التواصل مع المدير لتجديد الترخيص."
+    except Exception as e:
+        print(f"❌ خطأ في التحقق من الترخيص: {e}")
         return False, "تاريخ الترخيص غير صالح"
 
 def get_user_license_days_remaining(username):
-    """الحصول على عدد الأيام المتبقية من ترخيص المستخدم"""
+    """الحصول على عدد الأيام المتبقية من ترخيص المستخدم (بدون وقت)"""
     users = load_users()
     if username not in users:
         return 0
@@ -650,18 +689,30 @@ def get_user_license_days_remaining(username):
     user = users[username]
     
     if user.get('role') == 'admin':
-        return -1  # غير محدود
+        return -1
     
     expiry_date = user.get('license_expiry')
     if not expiry_date:
         return 0
     
     try:
-        expiry = datetime.fromisoformat(expiry_date)
-        days_remaining = (expiry - datetime.now()).days
+        if isinstance(expiry_date, str):
+            expiry = datetime.fromisoformat(expiry_date)
+        else:
+            expiry = expiry_date
+        
+        # ✅ التعديل: حساب الأيام المتبقية (بدون وقت)
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        expiry_date_only = expiry.replace(hour=0, minute=0, second=0, microsecond=0)
+        days_remaining = (expiry_date_only - today).days
+        
+        print(f"📅 حساب الأيام المتبقية لـ {username}: {days_remaining} يوم")
+        
         return days_remaining if days_remaining > 0 else 0
-    except:
+    except Exception as e:
+        print(f"❌ خطأ في حساب الأيام المتبقية: {e}")
         return 0
+
 
 # ============== إدارة المستخدمين المتقدمة (مع أيام الترخيص) ==============
 USERS_FILE = 'users.json'
@@ -720,10 +771,13 @@ def create_user(username, password, role='user', license_days=None):
     if role not in ['user', 'editor', 'admin']:
         role = 'user'
     
-    # حساب تاريخ انتهاء الترخيص
     license_expiry = None
     if license_days and license_days > 0 and role != 'admin':
-        license_expiry = (datetime.now() + timedelta(days=int(license_days))).isoformat()
+        # ✅ التعديل: حساب تاريخ الانتهاء من منتصف الليل (بدون وقت)
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        expiry_date = today + timedelta(days=int(license_days))
+        license_expiry = expiry_date.isoformat()
+        print(f"📅 تم إنشاء ترخيص لـ {username}: {license_days} يوم، ينتهي في {license_expiry}")
     
     users[username] = {
         'password': hash_password(password),
@@ -743,7 +797,6 @@ def create_user(username, password, role='user', license_days=None):
         message += f" مع ترخيص {license_days} يوماً حتى {expiry_date}"
     
     return True, message
-
 def update_user(username, role=None, password=None, license_days=None):
     """تحديث بيانات المستخدم"""
     users = load_users()
@@ -760,14 +813,17 @@ def update_user(username, role=None, password=None, license_days=None):
             users[username]['license_expiry'] = None
             users[username]['license_days'] = None
     
-    # تحديث مدة الترخيص
+    # ✅ التعديل: تحديث مدة الترخيص
     if license_days is not None:
         if users[username]['role'] == 'admin':
             users[username]['license_expiry'] = None
             users[username]['license_days'] = None
         elif license_days > 0:
-            users[username]['license_expiry'] = (datetime.now() + timedelta(days=license_days)).isoformat()
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            expiry_date = today + timedelta(days=license_days)
+            users[username]['license_expiry'] = expiry_date.isoformat()
             users[username]['license_days'] = license_days
+            print(f"📅 تم تحديث ترخيص {username}: {license_days} يوم، ينتهي في {expiry_date.isoformat()}")
         else:
             users[username]['license_expiry'] = None
             users[username]['license_days'] = None
@@ -834,9 +890,6 @@ def license_required(f):
 
 # ============== إعداد سياسات RLS تلقائياً ==============
 def setup_rls_policies():
-    ...
-# ============== إعداد سياسات RLS تلقائياً ==============
-def setup_rls_policies():
     try:
         print("🔧 جاري إعداد جدول التراخيص وسياسات الأمان...")
         try:
@@ -868,7 +921,6 @@ def login():
         if username in users:
             stored_password = users[username]['password']
             if stored_password == password or verify_password(password, stored_password):
-                # التحقق من صلاحية الترخيص بالأيام
                 is_licensed, license_message = check_user_license_by_days(username)
                 
                 if not is_licensed:
@@ -877,10 +929,12 @@ def login():
                 session['logged_in'] = True
                 session['username'] = username
                 session['role'] = users[username]['role']
-                
-                # إضافة معلومات أيام الترخيص للجلسة
                 days_remaining = get_user_license_days_remaining(username)
                 session['license_days_remaining'] = days_remaining
+                
+                # ✅ إضافة هذا الكود (تنبيه عند قرب انتهاء الترخيص)
+                if days_remaining > 0 and days_remaining <= 7:
+                    flash(f"⚠️ تنبيه: ترخيصك ينتهي بعد {days_remaining} يوم", 'warning')
                 
                 return redirect(url_for('home'))
         
@@ -1648,7 +1702,7 @@ def api_delete_student(student_id):
         return jsonify({"success": False, "message": str(e)})
 
 # ============== الصفحات الرئيسية (محمية بالترخيص) ==============
-@app.route("/")
+@app.route("/dashboard")
 @license_required
 def home():
     return render_template("index.html")
@@ -2411,13 +2465,24 @@ def health():
 def offline_page():
     return render_template('offline.html')
 
-# ============== نظام المحاولات المجانية - صفحات إضافية (محولة لأيام الترخيص) ==============
+# ============== معلومات الترخيص ==============
 @app.route('/trial_info')
 def trial_info():
-    hardware_id = get_hardware_id()
-    # عرض أيام الترخيص المتبقية للجهاز
+    """عرض معلومات الترخيص"""
+    if 'logged_in' in session and 'username' in session:
+        username = session.get('username')
+        days_remaining = get_user_license_days_remaining(username)
+        return render_template('trial_info.html', remaining=days_remaining if days_remaining > 0 else 0)
     return render_template('trial_info.html', remaining=0)
 
+# ============== الصفحة الترحيبية ==============
+@app.route('/')
+def landing():
+    """الصفحة الترحيبية الرئيسية للتطبيق"""
+    # إذا كان المستخدم مسجل الدخول، انتقل مباشرة إلى لوحة التحكم
+    if 'logged_in' in session:
+        return redirect(url_for('home'))
+    return render_template('landing.html')
 
 # ============== تشغيل النسخ الاحتياطي التلقائي في الخلفية ==============
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
