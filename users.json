@@ -2,13 +2,22 @@
   "Taha_Mohamed": {
     "password": "hetaonet0hros",
     "role": "admin",
-    "login_count": 0,
-    "max_logins": null
+    "license_expiry": null,
+    "license_days": null,
+    "created_at": "2026-06-19T00:00:00"
   },
   "admin": {
     "password": "admin123",
+    "role": "admin",
+    "license_expiry": null,
+    "license_days": null,
+    "created_at": "2026-06-19T00:00:00"
+  },
+  "test_user": {
+    "password": "test123",
     "role": "user",
-    "login_count": 0,
-    "max_logins": 5
+    "license_expiry": "2026-07-19T00:00:00",
+    "license_days": 30,
+    "created_at": "2026-06-19T00:00:00"
   }
 }
