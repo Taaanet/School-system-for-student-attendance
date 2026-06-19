@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}إعدادات المدرسة{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+    .settings-card h3 {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #667eea;
+    }
+    .settings-row {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    .settings-row label {
+        min-width: 150px;
+        font-weight: 600;
+        color: #4a5568;
+    }
+    .settings-row input, .settings-row select {
+        flex: 1;
+        padding: 10px 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        min-width: 200px;
+    }
+    .settings-row input[type="color"] {
+        width: 60px;
+        padding: 5px;
+        min-width: auto;
+    }
+    .btn-save {
+        background: linear-gradient(135deg, #48bb78, #38a169);
+        color: white;
+        border: none;
+        padding: 12px 35px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    .btn-save:hover { transform: translateY(-2px); }
+    .preview-box {
+        border: 2px dashed #e2e8f0;
+        border-radius: 15px;
+        padding: 30px;
+        text-align: center;
+        margin-top: 20px;
+    }
+    .preview-box .logo-preview {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: #f7fafc;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="margin-bottom: 25px;">⚙️ إعدادات المدرسة</h1>
+    
+    <div class="settings-card">
+        <h3>🏫 معلومات المدرسة</h3>
+        <div class="settings-row">
+            <label>اسم المدرسة:</label>
+            <input type="text" id="schoolName" value="{{ school_name or 'المدرسة النموذجية' }}">
+        </div>
+        <div class="settings-row">
+            <label>النطاق الفرعي:</label>
+            <input type="text" id="schoolSubdomain" value="{{ school_subdomain or 'school1' }}" disabled>
+            <small style="color: #718096;">لا يمكن تغيير النطاق الفرعي</small>
+        </div>
+    </div>
+    
+    <div class="settings-card">
+        <h3>🎨 تخصيص الواجهة</h3>
+        <div class="settings-row">
+            <label>شعار المدرسة:</label>
+            <input type="text" id="schoolLogo" placeholder="رابط الصورة" value="{{ school_logo or '' }}">
+        </div>
+        <div class="settings-row">
+            <label>اللون الأساسي:</label>
+            <input type="color" id="primaryColor" value="{{ primary_color or '#667eea' }}">
+            <input type="text" id="primaryColorText" value="{{ primary_color or '#667eea' }}" style="flex: 0.3; min-width: 80px;">
+        </div>
+        <div class="settings-row">
+            <label>اللون الثانوي:</label>
+            <input type="color" id="secondaryColor" value="{{ secondary_color or '#764ba2' }}">
+            <input type="text" id="secondaryColorText" value="{{ secondary_color or '#764ba2' }}" style="flex: 0.3; min-width: 80px;">
+        </div>
+    </div>
+    
+    <div class="settings-card">
+        <h3>👤 معلومات مدير المدرسة</h3>
+        <div class="settings-row">
+            <label>اسم المدير:</label>
+            <input type="text" id="adminName" value="{{ admin_name or '' }}">
+        </div>
+        <div class="settings-row">
+            <label>البريد الإلكتروني:</label>
+            <input type="email" id="adminEmail" value="{{ admin_email or '' }}">
+        </div>
+        <div class="settings-row">
+            <label>رقم الجوال:</label>
+            <input type="text" id="adminPhone" value="{{ admin_phone or '' }}">
+        </div>
+    </div>
+    
+    <!-- معاينة -->
+    <div class="settings-card">
+        <h3>👁️ معاينة التغييرات</h3>
+        <div class="preview-box" id="previewBox">
+            <div class="logo-preview" id="logoPreview">🏫</div>
+            <h2 id="previewSchoolName">{{ school_name or 'المدرسة النموذجية' }}</h2>
+            <p style="color: #718096;">نظام حضور الطلاب الذكي</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 15px;">
+                <span style="background: #667eea; color: white; padding: 8px 20px; border-radius: 25px;" id="previewBtn1">تسجيل الحضور</span>
+                <span style="background: #764ba2; color: white; padding: 8px 20px; border-radius: 25px;" id="previewBtn2">التقارير</span>
+            </div>
+        </div>
+    </div>
+    
+    <button class="btn-save" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+</div>
+
+<script>
+    // تحديث المعاينة عند تغيير الألوان
+    document.getElementById('primaryColor').addEventListener('input', function() {
+        document.getElementById('primaryColorText').value = this.value;
+        document.getElementById('previewBtn1').style.background = this.value;
+        document.getElementById('previewBox').style.borderColor = this.value;
+    });
+    
+    document.getElementById('secondaryColor').addEventListener('input', function() {
+        document.getElementById('secondaryColorText').value = this.value;
+        document.getElementById('previewBtn2').style.background = this.value;
+    });
+    
+    document.getElementById('primaryColorText').addEventListener('input', function() {
+        document.getElementById('primaryColor').value = this.value;
+        document.getElementById('previewBtn1').style.background = this.value;
+    });
+    
+    document.getElementById('secondaryColorText').addEventListener('input', function() {
+        document.getElementById('secondaryColor').value = this.value;
+        document.getElementById('previewBtn2').style.background = this.value;
+    });
+    
+    // تحديث اسم المدرسة في المعاينة
+    document.getElementById('schoolName').addEventListener('input', function() {
+        document.getElementById('previewSchoolName').textContent = this.value || 'المدرسة النموذجية';
+    });
+    
+    // تحديث الشعار في المعاينة
+    document.getElementById('schoolLogo').addEventListener('input', function() {
+        const logoPreview = document.getElementById('logoPreview');
+        if (this.value) {
+            logoPreview.innerHTML = `<img src="${this.value}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">`;
+        } else {
+            logoPreview.innerHTML = '🏫';
+        }
+    });
+    
+    async function saveSettings() {
+        const settings = {
+            school_name: document.getElementById('schoolName').value,
+            school_logo: document.getElementById('schoolLogo').value,
+            primary_color: document.getElementById('primaryColor').value,
+            secondary_color: document.getElementById('secondaryColor').value,
+            admin_name: document.getElementById('adminName').value,
+            admin_email: document.getElementById('adminEmail').value,
+            admin_phone: document.getElementById('adminPhone').value
+        };
+        
+        try {
+            const response = await fetch('/api/school/save_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('✅ تم حفظ الإعدادات بنجاح');
+                window.location.reload();
+            } else {
+                alert('❌ ' + data.message);
+            }
+        } catch(error) {
+            alert('❌ حدث خطأ في الاتصال');
+        }
+    }
+</script>
+{% endblock %}

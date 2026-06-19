@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}إدارة المدارس{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+    .form-group {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+    .form-group input, .form-group select {
+        padding: 12px 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        flex: 1;
+        min-width: 150px;
+    }
+    .form-group button {
+        background: linear-gradient(135deg, #48bb78, #38a169);
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    .schools-list {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        overflow-x: auto;
+    }
+    .badge-plan {
+        padding: 3px 10px;
+        border-radius: 15px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .plan-basic { background: #bee3f8; color: #2c5282; }
+    .plan-premium { background: #c6f6d5; color: #22543d; }
+    .plan-enterprise { background: #fefcbf; color: #744210; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="margin-bottom: 25px;">🏫 إدارة المدارس</h1>
+    
+    <!-- نموذج إضافة مدرسة جديدة -->
+    <div class="form-card">
+        <h3 style="margin-bottom: 15px;">➕ إضافة مدرسة جديدة</h3>
+        <div class="form-group">
+            <input type="text" id="schoolName" placeholder="اسم المدرسة *" required>
+            <input type="text" id="schoolSubdomain" placeholder="النطاق الفرعي * (مثل: school1)" required>
+            <select id="schoolPlan">
+                <option value="basic">🟦 Basic (30 يوم)</option>
+                <option value="premium">🟩 Premium (365 يوم)</option>
+                <option value="enterprise">🟨 Enterprise (730 يوم)</option>
+            </select>
+            <input type="email" id="adminEmail" placeholder="البريد الإلكتروني للمدير">
+            <button onclick="createSchool()">➕ إضافة مدرسة</button>
+        </div>
+        <div id="formMessage" style="margin-top: 10px; display: none;"></div>
+    </div>
+    
+    <!-- قائمة المدارس -->
+    <div class="schools-list">
+        <h3 style="margin-bottom: 15px;">📋 قائمة المدارس المسجلة</h3>
+        {% if schools %}
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f7fafc;">
+                    <th style="padding: 12px;">#</th>
+                    <th style="padding: 12px;">اسم المدرسة</th>
+                    <th style="padding: 12px;">النطاق الفرعي</th>
+                    <th style="padding: 12px;">الخطة</th>
+                    <th style="padding: 12px;">الترخيص</th>
+                    <th style="padding: 12px;">الحالة</th>
+                    <th style="padding: 12px;">الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for school in schools %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px; text-align: center;">{{ loop.index }}</td>
+                    <td style="padding: 12px;"><strong>{{ school.name }}</strong></td>
+                    <td style="padding: 12px;"><code>{{ school.subdomain }}</code></td>
+                    <td style="padding: 12px; text-align: center;">
+                        <span class="badge-plan plan-{{ school.plan or 'basic' }}">
+                            {{ school.plan or 'basic' }}
+                        </span>
+                    </td>
+                    <td style="padding: 12px; text-align: center; font-size: 13px;">
+                        {% if school.license_expiry %}
+                            {{ school.license_expiry[:10] }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        {% if school.is_active %}
+                            <span style="color: #48bb78;">✅ نشط</span>
+                        {% else %}
+                            <span style="color: #e53e3e;">❌ غير نشط</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <button class="btn-sm btn-edit" onclick="toggleSchool('{{ school.id }}', '{{ school.is_active }}')">
+                            {{ '⏸️ تعطيل' if school.is_active else '▶️ تفعيل' }}
+                        </button>
+                        <button class="btn-sm btn-delete" onclick="deleteSchool('{{ school.id }}')">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; padding: 30px; color: #718096;">⚠️ لا توجد مدارس مسجلة حتى الآن</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    async function createSchool() {
+        const name = document.getElementById('schoolName').value.trim();
+        const subdomain = document.getElementById('schoolSubdomain').value.trim();
+        const plan = document.getElementById('schoolPlan').value;
+        const admin_email = document.getElementById('adminEmail').value.trim();
+        
+        if (!name || !subdomain) {
+            showMessage('الرجاء إدخال اسم المدرسة والنطاق الفرعي', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/create_school', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, subdomain, plan, admin_email })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                showMessage('✅ تم إنشاء المدرسة بنجاح!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showMessage('❌ ' + data.message, 'error');
+            }
+        } catch(error) {
+            showMessage('❌ حدث خطأ في الاتصال', 'error');
+        }
+    }
+    
+    async function toggleSchool(schoolId, currentStatus) {
+        const newStatus = !currentStatus;
+        try {
+            const response = await fetch(`/api/admin/update_school/${schoolId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: newStatus })
+            });
+            const data = await response.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('❌ ' + data.message);
+            }
+        } catch(error) {
+            alert('❌ حدث خطأ');
+        }
+    }
+    
+    async function deleteSchool(schoolId) {
+        if (!confirm('⚠️ هل أنت متأكد من حذف هذه المدرسة؟')) return;
+        try {
+            const response = await fetch(`/api/admin/delete_school/${schoolId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert('✅ تم حذف المدرسة بنجاح');
+                window.location.reload();
+            } else {
+                alert('❌ ' + data.message);
+            }
+        } catch(error) {
+            alert('❌ حدث خطأ');
+        }
+    }
+    
+    function showMessage(message, type) {
+        const msgDiv = document.getElementById('formMessage');
+        msgDiv.style.display = 'block';
+        msgDiv.style.color = type === 'success' ? '#22543d' : '#742a2a';
+        msgDiv.style.background = type === 'success' ? '#c6f6d5' : '#fed7d7';
+        msgDiv.style.padding = '10px';
+        msgDiv.style.borderRadius = '10px';
+        msgDiv.innerHTML = message;
+    }
+</script>
+{% endblock %}
