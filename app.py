@@ -21,7 +21,10 @@ import re
 import io
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
-
+# ============== استيرادات إضافية للمدارس المتعددة ==============
+import stripe
+import zipfile
+import uuid
 load_dotenv()
 
 app = Flask(__name__)
@@ -347,7 +350,11 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 CORS(app)
-
+# ============== إعدادات النظام التجاري ==============
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+SUPER_ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@your-app.com')
+DEFAULT_PLAN = os.environ.get('DEFAULT_PLAN', 'basic')
 # ============== إعدادات المدرسة ومدير النظام ==============
 SCHOOL_NAME = os.environ.get('SCHOOL_NAME', 'المدرسة النموذجية')
 SCHOOL_LOGO = os.environ.get('SCHOOL_LOGO', '')  # رابط صورة الشعار
@@ -847,6 +854,117 @@ def delete_user(username):
     save_users(users)
     return True, "تم حذف المستخدم بنجاح"
 
+# ============== دوال المدارس المتعددة (جديدة) ==============
+
+def get_school_from_domain(domain):
+    """استخراج المدرسة من النطاق الفرعي"""
+    try:
+        subdomain = domain.split('.')[0]
+        result = supabase.table("schools").select("*").eq("subdomain", subdomain).execute()
+        return result.data[0] if result.data else None
+    except Exception as e:
+        print(f"❌ خطأ في استخراج المدرسة: {e}")
+        return None
+
+def get_school_connection(school_id):
+    """الحصول على اتصال بقاعدة بيانات المدرسة"""
+    try:
+        result = supabase.table("schools").select("*").eq("id", school_id).execute()
+        if result.data:
+            school = result.data[0]
+            return create_client(school['supabase_url'], school['supabase_key'])
+        return None
+    except Exception as e:
+        print(f"❌ خطأ في الاتصال بقاعدة بيانات المدرسة: {e}")
+        return None
+
+def get_school_by_id(school_id):
+    """جلب بيانات مدرسة بواسطة المعرف"""
+    try:
+        result = supabase.table("schools").select("*").eq("id", school_id).execute()
+        return result.data[0] if result.data else None
+    except Exception as e:
+        print(f"❌ خطأ في جلب بيانات المدرسة: {e}")
+        return None
+
+def get_all_schools():
+    """جلب جميع المدارس"""
+    try:
+        result = supabase.table("schools").select("*").order("created_at", desc=True).execute()
+        return result.data if result.data else []
+    except Exception as e:
+        print(f"❌ خطأ في جلب المدارس: {e}")
+        return []
+
+def create_school(name, subdomain, plan='basic', admin_email=None):
+    """إنشاء مدرسة جديدة مع قاعدة بيانات منفصلة"""
+    try:
+        # التحقق من عدم وجود نطاق فرعي مكرر
+        existing = supabase.table("schools").select("*").eq("subdomain", subdomain).execute()
+        if existing.data:
+            return False, "النطاق الفرعي مستخدم بالفعل"
+        
+        # حساب تاريخ انتهاء الترخيص حسب الخطة
+        plan_days = {'basic': 30, 'premium': 365, 'enterprise': 730}
+        days = plan_days.get(plan, 30)
+        expiry_date = datetime.now() + timedelta(days=days)
+        
+        # إنشاء المدرسة في قاعدة البيانات الرئيسية
+        school_data = {
+            'name': name,
+            'subdomain': subdomain,
+            'supabase_url': f"https://{subdomain}.supabase.co",  # سيتم تحديثه لاحقاً
+            'supabase_key': f"temp_key_{uuid.uuid4()}",  # سيتم تحديثه لاحقاً
+            'license_expiry': expiry_date.isoformat(),
+            'max_users': 50 if plan == 'basic' else (200 if plan == 'premium' else 9999),
+            'plan': plan,
+            'is_active': True,
+            'created_by': session.get('username', 'system')
+        }
+        
+        result = supabase.table("schools").insert(school_data).execute()
+        school_id = result.data[0]['id']
+        
+        # إنشاء المستخدم المدير للمدرسة
+        if admin_email:
+            # إرسال دعوة لمدير المدرسة
+            pass
+        
+        return True, {"id": school_id, "message": f"تم إنشاء المدرسة {name} بنجاح"}
+    except Exception as e:
+        print(f"❌ خطأ في إنشاء المدرسة: {e}")
+        return False, str(e)
+
+def update_school_license(school_id, days):
+    """تحديث ترخيص المدرسة"""
+    try:
+        expiry_date = datetime.now() + timedelta(days=days)
+        result = supabase.table("schools").update({
+            "license_expiry": expiry_date.isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", school_id).execute()
+        return True, "تم تحديث الترخيص بنجاح"
+    except Exception as e:
+        return False, str(e)
+
+def get_school_stats(school_id):
+    """الحصول على إحصائيات المدرسة"""
+    try:
+        school_db = get_school_connection(school_id)
+        if not school_db:
+            return None
+        
+        students = school_db.table("students").select("*").execute()
+        attendance = school_db.table("attendance").select("*").execute()
+        
+        return {
+            'total_students': len(students.data) if students.data else 0,
+            'total_attendance': len(attendance.data) if attendance.data else 0
+        }
+    except Exception as e:
+        print(f"❌ خطأ في جلب إحصائيات المدرسة: {e}")
+        return None
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -888,6 +1006,17 @@ def license_required(f):
     
     return decorated_function
 
+# ============== ديكوراتور المدير العام (جديد) ==============
+def super_admin_required(f):
+    """ديكوراتور للتحقق من صلاحيات المدير العام"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+        if session.get('role') != 'super_admin':
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated_function
 # ============== إعداد سياسات RLS تلقائياً ==============
 def setup_rls_policies():
     try:
@@ -916,6 +1045,13 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        
+        # ========== تحديد المدرسة من النطاق ==========
+        school = get_school_from_domain(request.host)
+        if school:
+            session['school_id'] = school['id']
+            session['school_name'] = school['name']
+        
         users = load_users()
         
         if username in users:
@@ -932,7 +1068,6 @@ def login():
                 days_remaining = get_user_license_days_remaining(username)
                 session['license_days_remaining'] = days_remaining
                 
-                # ✅ إضافة هذا الكود (تنبيه عند قرب انتهاء الترخيص)
                 if days_remaining > 0 and days_remaining <= 7:
                     flash(f"⚠️ تنبيه: ترخيصك ينتهي بعد {days_remaining} يوم", 'warning')
                 
@@ -2484,6 +2619,124 @@ def landing():
         return redirect(url_for('home'))
     return render_template('landing.html')
 
+# ============== مسارات المدير العام (جديدة) ==============
+
+@app.route('/admin/dashboard')
+@login_required
+@super_admin_required
+def admin_dashboard():
+    """لوحة تحكم المدير العام"""
+    schools = get_all_schools()
+    total_schools = len(schools)
+    active_schools = len([s for s in schools if s.get('is_active')]) if schools else 0
+    
+    # جلب إحصائيات كل مدرسة
+    school_stats = []
+    for school in schools[:10]:  # عرض أول 10 مدارس
+        stats = get_school_stats(school['id'])
+        if stats:
+            school_stats.append({
+                'id': school['id'],
+                'name': school['name'],
+                'subdomain': school['subdomain'],
+                'license_expiry': school.get('license_expiry'),
+                'is_active': school.get('is_active', True),
+                'students': stats.get('total_students', 0),
+                'attendance': stats.get('total_attendance', 0)
+            })
+    
+    return render_template('admin_dashboard.html', 
+                         total_schools=total_schools,
+                         active_schools=active_schools,
+                         schools=school_stats)
+
+@app.route('/admin/schools')
+@login_required
+@super_admin_required
+def admin_schools():
+    """صفحة إدارة المدارس"""
+    schools = get_all_schools()
+    return render_template('admin_schools.html', schools=schools)
+
+@app.route('/api/admin/create_school', methods=['POST'])
+@login_required
+@super_admin_required
+def create_school_api():
+    """إنشاء مدرسة جديدة (API)"""
+    data = request.get_json()
+    name = data.get('name')
+    subdomain = data.get('subdomain')
+    plan = data.get('plan', 'basic')
+    admin_email = data.get('admin_email')
+    
+    if not name or not subdomain:
+        return jsonify({"success": False, "message": "الرجاء إدخال اسم المدرسة والنطاق الفرعي"}), 400
+    
+    success, result = create_school(name, subdomain, plan, admin_email)
+    if success:
+        return jsonify({"success": True, "data": result})
+    else:
+        return jsonify({"success": False, "message": result}), 400
+
+@app.route('/api/admin/update_school/<school_id>', methods=['PUT'])
+@login_required
+@super_admin_required
+def update_school_api(school_id):
+    """تحديث بيانات المدرسة"""
+    data = request.get_json()
+    update_data = {}
+    
+    if 'name' in data:
+        update_data['name'] = data['name']
+    if 'is_active' in data:
+        update_data['is_active'] = data['is_active']
+    if 'plan' in data:
+        update_data['plan'] = data['plan']
+        # تحديث مدة الترخيص حسب الخطة
+        plan_days = {'basic': 30, 'premium': 365, 'enterprise': 730}
+        if data['plan'] in plan_days:
+            update_data['license_expiry'] = (datetime.now() + timedelta(days=plan_days[data['plan']])).isoformat()
+    
+    try:
+        result = supabase.table("schools").update(update_data).eq("id", school_id).execute()
+        return jsonify({"success": True, "message": "تم تحديث المدرسة بنجاح"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/admin/delete_school/<school_id>', methods=['DELETE'])
+@login_required
+@super_admin_required
+def delete_school_api(school_id):
+    """حذف مدرسة"""
+    try:
+        # حذف المدرسة من قاعدة البيانات الرئيسية
+        supabase.table("schools").delete().eq("id", school_id).execute()
+        return jsonify({"success": True, "message": "تم حذف المدرسة بنجاح"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/admin/school_stats/<school_id>')
+@login_required
+@super_admin_required
+def school_stats_api(school_id):
+    """جلب إحصائيات مدرسة محددة"""
+    stats = get_school_stats(school_id)
+    if stats:
+        return jsonify({"success": True, "data": stats})
+    return jsonify({"success": False, "message": "لا توجد بيانات"}), 404
+
+@app.route('/api/admin/extend_license/<school_id>', methods=['POST'])
+@login_required
+@super_admin_required
+def extend_license_api(school_id):
+    """تمديد ترخيص المدرسة"""
+    data = request.get_json()
+    days = data.get('days', 30)
+    
+    success, message = update_school_license(school_id, days)
+    if success:
+        return jsonify({"success": True, "message": message})
+    return jsonify({"success": False, "message": message}), 400
 # ============== تشغيل النسخ الاحتياطي التلقائي في الخلفية ==============
 backup_thread = threading.Thread(target=scheduled_backup, daemon=True)
 backup_thread.start()
